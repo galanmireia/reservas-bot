@@ -97,6 +97,13 @@ app.post('/responder', async (req, res) => {
   res.send(twiml);
 });
 
+app.set('view engine', 'ejs');
+
+app.get('/panel', async (req, res) => {
+  const resultado = await db.query('SELECT * FROM reservas ORDER BY creada_en DESC');
+  res.render('reservas', { reservas: resultado.rows });
+});
+
 app.listen(3000, () => {
   console.log('Servidor escuchando en puerto 3000');
 });

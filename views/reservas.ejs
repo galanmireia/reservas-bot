@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Reservas</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+    h1 { color: #333; margin-bottom: 20px; }
+    .fecha { color: #666; margin-bottom: 30px; }
+    table { width: 100%; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-collapse: collapse; }
+    th { background: #4F46E5; color: white; padding: 14px 16px; text-align: left; }
+    th:first-child { border-radius: 8px 0 0 0; }
+    th:last-child { border-radius: 0 8px 0 0; }
+    td { padding: 12px 16px; border-bottom: 1px solid #eee; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9f9f9; }
+    .badge { background: #EEF2FF; color: #4F46E5; padding: 4px 10px; border-radius: 20px; font-size: 13px; }
+    .empty { text-align: center; padding: 40px; color: #999; }
+  </style>
+</head>
+<body>
+  <h1>Panel de Reservas</h1>
+  <p class="fecha">Hoy: <%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Nombre</th>
+        <th>Fecha</th>
+        <th>Hora</th>
+        <th>Personas</th>
+        <th>Recibida</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (reservas.length === 0) { %>
+        <tr><td colspan="6" class="empty">No hay reservas todavía</td></tr>
+      <% } else { %>
+        <% reservas.forEach((r, i) => { %>
+          <tr>
+            <td><%= i + 1 %></td>
+            <td><strong><%= r.nombre %></strong></td>
+            <td><%= r.fecha %></td>
+            <td><span class="badge"><%= r.hora %></span></td>
+            <td><%= r.personas %> personas</td>
+            <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
+          </tr>
+        <% }) %>
+      <% } %>
+    </tbody>
+  </table>
+</body>
+</html>
