@@ -32,6 +32,13 @@
     .btn-cancelar:hover { background: #FECACA; }
     .empty { text-align: center; padding: 40px; color: #999; font-size: 15px; }
     .actualizando { font-size: 12px; color: #999; margin-left: auto; }
+    .error { background: #FEE2E2; color: #DC2626; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+    .form-manual { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .form-manual .campo { display: flex; flex-direction: column; gap: 6px; }
+    .form-manual label { font-size: 13px; color: #666; }
+    .form-manual input { padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+    .form-manual button { padding: 10px 24px; background: #4F46E5; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; height: 42px; }
+    .form-manual button:hover { background: #4338CA; }
   </style>
 </head>
 <body>
@@ -54,7 +61,7 @@
   </div>
 
   <div class="filtros">
-    <input type="date" id="filtroFecha" value="<%= fechaFiltro %>">
+    <input type="date" id="filtroFecha" value="<%= fechaFiltro || '' %>">
     <button onclick="filtrar()">Filtrar</button>
     <button onclick="limpiar()" style="background:#6B7280">Ver todas</button>
     <span class="actualizando" id="ultimaActualizacion">Actualizando...</span>
@@ -154,6 +161,35 @@
 
   <% } %>
 
+  <div class="seccion">
+    <h2>Añadir reserva manual</h2>
+    <% if (error === 'fecha') { %>
+  <div class="error">No puedes añadir una reserva en una fecha y hora pasada.</div>
+<% } %>
+<% if (error === 'cupo') { %>
+  <div class="error">No hay mesas disponibles para esa fecha, hora y número de personas.</div>
+<% } %>
+    <form method="POST" action="/nueva-reserva" class="form-manual">
+      <div class="campo">
+        <label>Nombre</label>
+        <input name="nombre" required placeholder="Nombre del cliente" style="width:180px;">
+      </div>
+      <div class="campo">
+        <label>Fecha</label>
+        <input name="fecha" type="date" required>
+      </div>
+      <div class="campo">
+        <label>Hora</label>
+        <input name="hora" type="time" required>
+      </div>
+      <div class="campo">
+        <label>Personas</label>
+        <input name="personas" type="number" min="1" max="20" required placeholder="Nº" style="width:80px;">
+      </div>
+      <button type="submit">Añadir reserva</button>
+    </form>
+  </div>
+
   <script>
     function filtrar() {
       const fecha = document.getElementById('filtroFecha').value;
@@ -162,7 +198,6 @@
     function limpiar() {
       window.location.href = '/panel';
     }
-    // Actualizar cada 30 segundos
     setInterval(() => {
       fetch('/api/reservas')
         .then(r => r.json())
