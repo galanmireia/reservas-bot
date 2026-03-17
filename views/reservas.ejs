@@ -6,51 +6,171 @@
   <title>Panel de Reservas</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
-    h1 { color: #333; margin-bottom: 20px; }
-    .fecha { color: #666; margin-bottom: 30px; }
-    table { width: 100%; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-collapse: collapse; }
-    th { background: #4F46E5; color: white; padding: 14px 16px; text-align: left; }
-    th:first-child { border-radius: 8px 0 0 0; }
-    th:last-child { border-radius: 0 8px 0 0; }
-    td { padding: 12px 16px; border-bottom: 1px solid #eee; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 30px; color: #333; }
+    h1 { font-size: 28px; margin-bottom: 4px; }
+    .subtitulo { color: #666; margin-bottom: 24px; font-size: 15px; }
+    .stats { display: flex; gap: 16px; margin-bottom: 30px; }
+    .stat { background: white; border-radius: 12px; padding: 20px 24px; flex: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .stat .numero { font-size: 32px; font-weight: bold; color: #4F46E5; }
+    .stat .label { font-size: 13px; color: #888; margin-top: 4px; }
+    .filtros { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; }
+    .filtros input { padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+    .filtros button { padding: 10px 18px; background: #4F46E5; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+    .filtros button:hover { background: #4338CA; }
+    .seccion { margin-bottom: 36px; }
+    .seccion h2 { font-size: 17px; margin-bottom: 12px; color: #444; display: flex; align-items: center; gap: 8px; }
+    .badge-hoy { background: #EEF2FF; color: #4F46E5; padding: 3px 10px; border-radius: 20px; font-size: 12px; }
+    table { width: 100%; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-collapse: collapse; }
+    th { background: #4F46E5; color: white; padding: 14px 16px; text-align: left; font-weight: 500; }
+    th:first-child { border-radius: 12px 0 0 0; }
+    th:last-child { border-radius: 0 12px 0 0; }
+    td { padding: 13px 16px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #f9f9f9; }
-    .badge { background: #EEF2FF; color: #4F46E5; padding: 4px 10px; border-radius: 20px; font-size: 13px; }
-    .empty { text-align: center; padding: 40px; color: #999; }
+    tr:hover td { background: #fafafa; }
+    .hora-badge { background: #EEF2FF; color: #4F46E5; padding: 4px 10px; border-radius: 20px; font-size: 13px; }
+    .btn-cancelar { background: #FEE2E2; color: #DC2626; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .btn-cancelar:hover { background: #FECACA; }
+    .empty { text-align: center; padding: 40px; color: #999; font-size: 15px; }
+    .actualizando { font-size: 12px; color: #999; margin-left: auto; }
   </style>
 </head>
 <body>
   <h1>Panel de Reservas</h1>
-  <p class="fecha">Hoy: <%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
+  <p class="subtitulo">Hoy: <%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
 
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Nombre</th>
-        <th>Fecha</th>
-        <th>Hora</th>
-        <th>Personas</th>
-        <th>Recibida</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% if (reservas.length === 0) { %>
-        <tr><td colspan="6" class="empty">No hay reservas todavía</td></tr>
-      <% } else { %>
-        <% reservas.forEach((r, i) => { %>
-          <tr>
-            <td><%= i + 1 %></td>
-            <td><strong><%= r.nombre %></strong></td>
-            <td><%= r.fecha %></td>
-            <td><span class="badge"><%= r.hora %></span></td>
-            <td><%= r.personas %> personas</td>
-            <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
-          </tr>
-        <% }) %>
-      <% } %>
-    </tbody>
-  </table>
+  <div class="stats">
+    <div class="stat">
+      <div class="numero"><%= reservasHoy.length %></div>
+      <div class="label">Reservas hoy</div>
+    </div>
+    <div class="stat">
+      <div class="numero"><%= reservasHoy.reduce((a, r) => a + (r.personas || 0), 0) %></div>
+      <div class="label">Personas hoy</div>
+    </div>
+    <div class="stat">
+      <div class="numero"><%= reservas.length %></div>
+      <div class="label">Total reservas</div>
+    </div>
+  </div>
+
+  <div class="filtros">
+    <input type="date" id="filtroFecha" value="<%= fechaFiltro %>">
+    <button onclick="filtrar()">Filtrar</button>
+    <button onclick="limpiar()" style="background:#6B7280">Ver todas</button>
+    <span class="actualizando" id="ultimaActualizacion">Actualizando...</span>
+  </div>
+
+  <% if (fechaFiltro) { %>
+    <div class="seccion">
+      <h2>Resultados para <%= fechaFiltro %></h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Recibida</th><th>Acción</th></tr>
+        </thead>
+        <tbody>
+          <% if (reservasFiltradas.length === 0) { %>
+            <tr><td colspan="7" class="empty">No hay reservas para esta fecha</td></tr>
+          <% } else { %>
+            <% reservasFiltradas.forEach((r, i) => { %>
+              <tr>
+                <td><%= i + 1 %></td>
+                <td><strong><%= r.nombre %></strong></td>
+                <td><%= r.fecha %></td>
+                <td><span class="hora-badge"><%= r.hora %></span></td>
+                <td><%= r.personas %> personas</td>
+                <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
+                <td>
+                  <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('¿Cancelar reserva de <%= r.nombre %>?')">
+                    <button class="btn-cancelar" type="submit">Cancelar</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } else { %>
+
+    <div class="seccion">
+      <h2>Reservas de hoy <span class="badge-hoy"><%= reservasHoy.length %></span></h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Recibida</th><th>Acción</th></tr>
+        </thead>
+        <tbody>
+          <% if (reservasHoy.length === 0) { %>
+            <tr><td colspan="7" class="empty">No hay reservas para hoy</td></tr>
+          <% } else { %>
+            <% reservasHoy.forEach((r, i) => { %>
+              <tr>
+                <td><%= i + 1 %></td>
+                <td><strong><%= r.nombre %></strong></td>
+                <td><%= r.fecha %></td>
+                <td><span class="hora-badge"><%= r.hora %></span></td>
+                <td><%= r.personas %> personas</td>
+                <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
+                <td>
+                  <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('¿Cancelar reserva de <%= r.nombre %>?')">
+                    <button class="btn-cancelar" type="submit">Cancelar</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="seccion">
+      <h2>Todas las reservas</h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Recibida</th><th>Acción</th></tr>
+        </thead>
+        <tbody>
+          <% if (reservas.length === 0) { %>
+            <tr><td colspan="7" class="empty">No hay reservas todavía</td></tr>
+          <% } else { %>
+            <% reservas.forEach((r, i) => { %>
+              <tr>
+                <td><%= i + 1 %></td>
+                <td><strong><%= r.nombre %></strong></td>
+                <td><%= r.fecha %></td>
+                <td><span class="hora-badge"><%= r.hora %></span></td>
+                <td><%= r.personas %> personas</td>
+                <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
+                <td>
+                  <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('¿Cancelar reserva de <%= r.nombre %>?')">
+                    <button class="btn-cancelar" type="submit">Cancelar</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+  <% } %>
+
+  <script>
+    function filtrar() {
+      const fecha = document.getElementById('filtroFecha').value;
+      if (fecha) window.location.href = '/panel?fecha=' + fecha;
+    }
+    function limpiar() {
+      window.location.href = '/panel';
+    }
+    // Actualizar cada 30 segundos
+    setInterval(() => {
+      fetch('/api/reservas')
+        .then(r => r.json())
+        .then(() => {
+          document.getElementById('ultimaActualizacion').textContent = 'Última actualización: ' + new Date().toLocaleTimeString('es-ES');
+        });
+    }, 30000);
+    document.getElementById('ultimaActualizacion').textContent = 'Última actualización: ' + new Date().toLocaleTimeString('es-ES');
+  </script>
 </body>
 </html>

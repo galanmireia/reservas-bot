@@ -35,6 +35,8 @@ async function extraerDatosReserva(mensajes) {
   }
 }
 
+app.set('view engine', 'ejs');
+
 app.post('/llamada', (req, res) => {
   const callSid = req.body.CallSid;
   conversaciones[callSid] = [
@@ -97,11 +99,35 @@ app.post('/responder', async (req, res) => {
   res.send(twiml);
 });
 
-app.set('view engine', 'ejs');
-
 app.get('/panel', async (req, res) => {
+  const fechaFiltro = req.query.fecha || null;
+  const hoy = new Date().toISOString().split('T')[0];
+
+  const todas = await db.query('SELECT * FROM reservas ORDER BY creada_en DESC');
+  const hoyQuery = await db.query('SELECT * FROM reservas WHERE fecha = $1 ORDER BY hora ASC', [hoy]);
+
+  let filtradas = [];
+  if (fechaFiltro) {
+    const filtroQuery = await db.query('SELECT * FROM reservas WHERE fecha = $1 ORDER BY hora ASC', [fechaFiltro]);
+    filtradas = filtroQuery.rows;
+  }
+
+  res.render('reservas', {
+    reservas: todas.rows,
+    reservasHoy: hoyQuery.rows,
+    reservasFiltradas: filtradas,
+    fechaFiltro
+  });
+});
+
+app.get('/api/reservas', async (req, res) => {
   const resultado = await db.query('SELECT * FROM reservas ORDER BY creada_en DESC');
-  res.render('reservas', { reservas: resultado.rows });
+  res.json(resultado.rows);
+});
+
+app.post('/cancelar/:id', async (req, res) => {
+  await db.query('DELETE FROM reservas WHERE id = $1', [req.params.id]);
+  res.redirect('/panel');
 });
 
 app.listen(3000, () => {
