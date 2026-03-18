@@ -38,17 +38,16 @@ app.use(session({
 }));
 
 async function enviarWhatsApp(telefono, mensaje) {
-  console.log('WhatsApp pendiente (limite alcanzado):', telefono, '→', mensaje);
+  console.log('WhatsApp pendiente:', telefono, '→', mensaje);
   return;
 }
+
 async function enviarEmailRestaurante(usuarioId, datos) {
   try {
     const usuario = await db.query('SELECT * FROM usuarios WHERE id = $1', [usuarioId]);
     if (!usuario.rows.length) return;
-
     const email = usuario.rows[0].email;
     const restaurante = usuario.rows[0].restaurante;
-
     await transporter.sendMail({
       from: `ReservasBot <${process.env.EMAIL_USER}>`,
       to: email,
@@ -63,7 +62,7 @@ async function enviarEmailRestaurante(usuarioId, datos) {
             <p style="margin: 8px 0;"><strong>Personas:</strong> ${datos.personas}</p>
             <p style="margin: 8px 0;"><strong>Canal:</strong> ${datos.canal || 'Bot'}</p>
           </div>
-          <p style="color: #888; font-size: 12px; margin-top: 16px;">ReservasBot — Panel: http://localhost:3000/panel</p>
+          <p style="color: #888; font-size: 12px; margin-top: 16px;">ReservasBot — Panel: https://reservas-bot-production.up.railway.app/panel</p>
         </div>
       `
     });
@@ -79,20 +78,14 @@ async function obtenerOCrearCliente(telefono, nombre = null) {
     await db.query('UPDATE clientes SET ultima_visita = NOW() WHERE telefono = $1', [telefono]);
     return cliente.rows[0];
   } else {
-    const nuevo = await db.query(
-      'INSERT INTO clientes (telefono, nombre) VALUES ($1, $2) RETURNING *',
-      [telefono, nombre]
-    );
+    const nuevo = await db.query('INSERT INTO clientes (telefono, nombre) VALUES ($1, $2) RETURNING *', [telefono, nombre]);
     return nuevo.rows[0];
   }
 }
 
 async function obtenerContextoCliente(telefono) {
   const cliente = await db.query('SELECT * FROM clientes WHERE telefono = $1', [telefono]);
-  const reservas = await db.query(
-    'SELECT * FROM reservas WHERE telefono_cliente = $1 ORDER BY creada_en DESC LIMIT 5',
-    [telefono]
-  );
+  const reservas = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 ORDER BY creada_en DESC LIMIT 5', [telefono]);
   return {
     cliente: cliente.rows.length > 0 ? cliente.rows[0] : null,
     reservas: reservas.rows
@@ -113,27 +106,18 @@ async function obtenerUsuarioPorNumero(numero) {
 
 async function hayDisponibilidad(fecha, hora, personas) {
   if (personas > 4) return { disponible: false, motivo: 'No tenemos mesas para mas de 4 personas.' };
-
   const capacidadNecesaria = personas <= 2 ? 2 : 4;
   const mesasAdecuadas = await db.query('SELECT id FROM mesas WHERE capacidad = $1', [capacidadNecesaria]);
-
   const [horaH, horaM] = hora.split(':').map(Number);
   const horaInicio = `${String(horaH - 1).padStart(2, '0')}:${String(horaM).padStart(2, '0')}`;
   const horaFin = `${String(horaH + 1).padStart(2, '0')}:${String(horaM).padStart(2, '0')}`;
-
   const reservasOcupadas = await db.query(
-    `SELECT COUNT(*) FROM reservas 
-     WHERE fecha = $1 AND hora >= $2 AND hora <= $3 AND personas > $4`,
+    `SELECT COUNT(*) FROM reservas WHERE fecha = $1 AND hora >= $2 AND hora <= $3 AND personas > $4`,
     [fecha, horaInicio, horaFin, capacidadNecesaria === 2 ? 0 : 2]
   );
-
   const totalMesas = mesasAdecuadas.rows.length;
   const ocupadas = parseInt(reservasOcupadas.rows[0].count);
-
-  if (ocupadas >= totalMesas) {
-    return { disponible: false, motivo: `No quedan mesas disponibles para ${personas} personas en ese horario.` };
-  }
-
+  if (ocupadas >= totalMesas) return { disponible: false, motivo: `No quedan mesas disponibles para ${personas} personas en ese horario.` };
   return { disponible: true };
 }
 
@@ -162,7 +146,6 @@ async function obtenerConfigRestaurante(usuarioId) {
 
 async function procesarAccion(datos, canal, contexto, telefonoCliente = null, usuarioId = null) {
   if (!datos) return 'Disculpa, no he podido entender los datos. Puedes repetirmelos?';
-
   const telefonoParaWhatsapp = telefonoCliente || canal;
 
   if (datos.accion === 'CONSULTAR') {
@@ -184,7 +167,6 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
     }
     if (!reserva || reserva.rows.length === 0) return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre?';
     await db.query('DELETE FROM reservas WHERE id = $1', [reserva.rows[0].id]);
-    await enviarWhatsApp(telefonoParaWhatsapp, `Tu reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a las ${reserva.rows[0].hora} ha sido cancelada.`);
     return `Reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a las ${reserva.rows[0].hora} cancelada correctamente.`;
   }
 
@@ -196,43 +178,31 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
       reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1', [telefonoParaWhatsapp, datos.nombre]);
     }
     if (!reserva || reserva.rows.length === 0) return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre?';
-
     const nuevaFecha = datos.nueva_fecha || reserva.rows[0].fecha;
     const nuevaHora = datos.nueva_hora || reserva.rows[0].hora;
     const nuevasPersonas = datos.nuevas_personas || reserva.rows[0].personas;
-
     const fechaReserva = new Date(`${nuevaFecha}T${nuevaHora}`);
     if (fechaReserva <= new Date()) return 'La nueva fecha y hora ya han pasado. Puedes indicarme otra?';
-
     const disponibilidad = await hayDisponibilidad(nuevaFecha, nuevaHora, nuevasPersonas);
     if (!disponibilidad.disponible) return `Lo siento, ${disponibilidad.motivo} Te gustaria elegir otra hora o fecha?`;
-
     await db.query('UPDATE reservas SET fecha = $1, hora = $2, personas = $3 WHERE id = $4', [nuevaFecha, nuevaHora, nuevasPersonas, reserva.rows[0].id]);
-    await enviarWhatsApp(telefonoParaWhatsapp, `Tu reserva ha sido modificada:\n- Fecha: ${nuevaFecha}\n- Hora: ${nuevaHora}\n- Personas: ${nuevasPersonas}`);
     return `Reserva modificada correctamente. Nueva fecha: ${nuevaFecha} a las ${nuevaHora} para ${nuevasPersonas} personas.`;
   }
 
   if (datos.accion === 'NUEVA') {
-    if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas.';
-
+    if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas para hacer la reserva.';
     const fechaReserva = new Date(`${datos.fecha}T${datos.hora}`);
     if (fechaReserva <= new Date()) return 'Lo siento, esa fecha y hora ya han pasado. Para que otra fecha te gustaria reservar?';
-
     const disponibilidad = await hayDisponibilidad(datos.fecha, datos.hora, datos.personas);
     if (!disponibilidad.disponible) return `Lo siento, ${disponibilidad.motivo} Te gustaria reservar para otra hora o fecha?`;
-
     const uid = usuarioId || await obtenerUsuarioPorDefecto();
     const canalTipo = telefonoCliente && telefonoCliente.includes('whatsapp') ? 'whatsapp' : 'llamada';
-
     await db.query(
       'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
       [canal, datos.nombre, datos.fecha, datos.hora, datos.personas, telefonoParaWhatsapp, uid, canalTipo]
     );
-
     await obtenerOCrearCliente(telefonoParaWhatsapp, datos.nombre);
-    await enviarWhatsApp(telefonoParaWhatsapp, `Hola ${datos.nombre}, tu reserva esta confirmada:\n- Fecha: ${datos.fecha}\n- Hora: ${datos.hora}\n- Personas: ${datos.personas}\nTe esperamos!`);
     await enviarEmailRestaurante(uid, { nombre: datos.nombre, fecha: datos.fecha, hora: datos.hora, personas: datos.personas, canal: canalTipo });
-
     return `Perfecto ${datos.nombre}, tu reserva esta confirmada para el ${datos.fecha} a las ${datos.hora} para ${datos.personas} personas. Te esperamos!`;
   }
 
@@ -248,7 +218,7 @@ const SYSTEM_PROMPT = (hoy, contexto, config = null) => {
   const especialidad = config?.especialidad || 'Cocido madrileno los jueves';
   const aparcamiento = config?.aparcamiento || 'Parking publico a 200 metros';
 
-  let prompt = `Eres un asistente virtual del restaurante llamado Mario. La fecha de hoy es ${hoy}. Solo puedes hablar sobre temas relacionados con el restaurante. Si el cliente pregunta sobre cualquier otro tema responde: "Lo siento, solo puedo ayudarte con informacion sobre el restaurante." Cuando te pregunten por la especialidad, el menu, los platos o la comida, SIEMPRE responde con la informacion del restaurante que tienes.
+  let prompt = `Eres un asistente virtual del restaurante llamado Mario. La fecha de hoy es ${hoy}. Solo puedes hablar sobre temas relacionados con el restaurante. Si el cliente pregunta sobre cualquier otro tema responde: "Lo siento, solo puedo ayudarte con informacion sobre el restaurante." Cuando te pregunten por la especialidad, el menu, los platos o la comida, SIEMPRE responde con la informacion del restaurante que tienes. Antes de decir "un momento por favor" asegurate de tener TODOS los datos: nombre, fecha, hora Y numero de personas. Si falta alguno preguntalo antes de continuar.
 
 Informacion del restaurante:
 - Nombre: ${nombre}
@@ -261,15 +231,14 @@ Informacion del restaurante:
 
 Puedes ayudar al cliente a: 1) HACER una reserva nueva. 2) CANCELAR una reserva existente. 3) MODIFICAR una reserva existente. 4) CONSULTAR sus reservas. 5) RESPONDER preguntas sobre el restaurante, menu, horarios y ubicacion.
 
-Se amable y breve. Cuando el cliente quiera gestionar una reserva y tengas todos los datos necesarios di EXACTAMENTE: "un momento por favor" e indica la accion con ACCION:NUEVA, ACCION:CANCELAR, ACCION:MODIFICAR o ACCION:CONSULTAR.`;
+Se amable y breve. Cuando el cliente quiera gestionar una reserva y tengas TODOS los datos necesarios di EXACTAMENTE: "un momento por favor" e indica la accion con ACCION:NUEVA, ACCION:CANCELAR, ACCION:MODIFICAR o ACCION:CONSULTAR.`;
 
   if (contexto?.cliente?.nombre) {
     prompt += ` El cliente que contacta se llama ${contexto.cliente.nombre}, saludale por su nombre desde el principio.`;
   }
-
   if (contexto?.reservas?.length > 0) {
     const reservasTexto = contexto.reservas.map(r => `${r.nombre} - ${r.fecha} a las ${r.hora} para ${r.personas} personas`).join(', ');
-    prompt += ` Sus reservas recientes son: ${reservasTexto}. Usalas como contexto si el cliente quiere cancelar o modificar sin dar mas detalles.`;
+    prompt += ` Sus reservas recientes son: ${reservasTexto}.`;
   }
 
   return prompt;
@@ -308,78 +277,92 @@ app.post('/registro', async (req, res) => {
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
 
 app.post('/llamada', async (req, res) => {
-  const callSid = req.body.CallSid;
-  const telefono = req.body.From || callSid;
-  const numeroTwilio = req.body.To || null;
-  const hoy = new Date().toISOString().split('T')[0];
+  try {
+    const callSid = req.body.CallSid;
+    const telefono = req.body.From || callSid;
+    const numeroTwilio = req.body.To || null;
+    const hoy = new Date().toISOString().split('T')[0];
+    console.log('Llamada recibida de:', telefono);
 
-  const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
-  const contexto = await obtenerContextoCliente(telefono);
-  const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
+    const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
+    const contexto = await obtenerContextoCliente(telefono);
+    const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
 
-  conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
+    conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
 
-  const saludo = contexto?.cliente?.nombre
-    ? `Hola ${contexto.cliente.nombre}, soy Mario. En que puedo ayudarte?`
-    : 'Hola, soy Mario, el asistente del restaurante. En que puedo ayudarte?';
+    const saludo = contexto?.cliente?.nombre
+      ? `Hola ${contexto.cliente.nombre}, soy Mario. En que puedo ayudarte?`
+      : 'Hola, soy Mario, el asistente del restaurante. En que puedo ayudarte?';
 
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
+  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="8">
     <Say language="es-ES">${saludo}</Say>
   </Gather>
 </Response>`;
-  res.type('text/xml');
-  res.send(twiml);
+    res.type('text/xml');
+    res.send(twiml);
+  } catch (err) {
+    console.error('Error en /llamada:', err);
+    res.type('text/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say language="es-ES">Lo sentimos, ha ocurrido un error. Por favor intentelo de nuevo.</Say></Response>`);
+  }
 });
 
 app.post('/responder', async (req, res) => {
-  const callSid = req.body.CallSid;
-  const telefono = req.body.From || callSid;
-  const numeroTwilio = req.body.To || null;
-  const textoCliente = req.body.SpeechResult || '';
-  console.log('Cliente dijo:', textoCliente);
+  try {
+    const callSid = req.body.CallSid;
+    const telefono = req.body.From || callSid;
+    const numeroTwilio = req.body.To || null;
+    const textoCliente = req.body.SpeechResult || '';
+    console.log('Cliente dijo:', textoCliente);
 
-  const hoy = new Date().toISOString().split('T')[0];
-  const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
-  const contexto = await obtenerContextoCliente(telefono);
-  const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
+    const hoy = new Date().toISOString().split('T')[0];
+    const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
+    const contexto = await obtenerContextoCliente(telefono);
+    const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
 
-  if (!conversaciones[callSid]) {
-    conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
-  }
-
-  conversaciones[callSid].push({ role: 'user', content: textoCliente });
-
-  const respuestaIA = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: conversaciones[callSid]
-  });
-
-  let mensaje = respuestaIA.choices[0].message.content;
-  conversaciones[callSid].push({ role: 'assistant', content: mensaje });
-  console.log('Mensaje completo:', mensaje);
-
-  if (mensaje.toLowerCase().includes('un momento por favor')) {
-    const datos = await extraerDatosReserva(conversaciones[callSid]);
-    mensaje = await procesarAccion(datos, callSid, contexto, telefono, usuarioId);
-    if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada')) {
-      const nuevoContexto = await obtenerContextoCliente(telefono);
-      conversaciones[callSid] = [
-        { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
-        { role: 'assistant', content: mensaje }
-      ];
+    if (!conversaciones[callSid]) {
+      conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
     }
-  }
 
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+    conversaciones[callSid].push({ role: 'user', content: textoCliente });
+
+    const respuestaIA = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: conversaciones[callSid]
+    });
+
+    let mensaje = respuestaIA.choices[0].message.content;
+    conversaciones[callSid].push({ role: 'assistant', content: mensaje });
+    console.log('Mensaje completo:', mensaje);
+
+    if (mensaje.toLowerCase().includes('un momento por favor')) {
+      const datos = await extraerDatosReserva(conversaciones[callSid]);
+      mensaje = await procesarAccion(datos, callSid, contexto, telefono, usuarioId);
+      console.log('Respuesta final:', mensaje);
+      if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada')) {
+        const nuevoContexto = await obtenerContextoCliente(telefono);
+        conversaciones[callSid] = [
+          { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
+          { role: 'assistant', content: mensaje }
+        ];
+      }
+    }
+
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
+  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="8">
     <Say language="es-ES">${mensaje}</Say>
   </Gather>
 </Response>`;
-  res.type('text/xml');
-  res.send(twiml);
+    res.type('text/xml');
+    res.send(twiml);
+  } catch (err) {
+    console.error('Error en /responder:', err);
+    res.type('text/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say language="es-ES">Lo sentimos, ha ocurrido un error. Por favor intentelo de nuevo.</Say></Response>`);
+  }
 });
 
 app.post('/whatsapp', async (req, res) => {
@@ -427,7 +410,6 @@ app.post('/whatsapp', async (req, res) => {
 </Response>`;
     res.type('text/xml');
     res.send(twiml);
-
   } catch (err) {
     console.error('ERROR en whatsapp:', err);
     res.type('text/xml');
@@ -472,22 +454,16 @@ app.post('/cancelar/:id', requireLogin, async (req, res) => {
 
 app.post('/nueva-reserva', requireLogin, async (req, res) => {
   const { nombre, fecha, hora, personas, telefono } = req.body;
-
   const ahora = new Date();
   const fechaHoraReserva = new Date(`${fecha}T${hora}`);
-
   if (fechaHoraReserva <= ahora) return res.redirect('/panel?error=fecha');
-
   const disponibilidad = await hayDisponibilidad(fecha, hora, parseInt(personas));
   if (!disponibilidad.disponible) return res.redirect('/panel?error=cupo');
-
   if (!telefono) return res.redirect('/panel?error=telefono');
-
   await db.query(
     'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
     ['manual', nombre, fecha, hora, parseInt(personas), telefono, req.session.usuario.id, 'manual']
   );
-
   await obtenerOCrearCliente(telefono, nombre);
   await enviarEmailRestaurante(req.session.usuario.id, { nombre, fecha, hora, personas, canal: 'manual' });
   res.redirect('/panel');
@@ -522,7 +498,6 @@ app.get('/configuracion', requireLogin, async (req, res) => {
 app.post('/configuracion', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
   const { restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad } = req.body;
-
   const existe = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
   if (existe.rows.length > 0) {
     await db.query(
@@ -535,7 +510,6 @@ app.post('/configuracion', requireLogin, async (req, res) => {
       [usuarioId, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad]
     );
   }
-
   await db.query('UPDATE usuarios SET restaurante = $1 WHERE id = $2', [restaurante, usuarioId]);
   req.session.usuario.restaurante = restaurante;
   res.redirect('/configuracion?exito=1');
@@ -545,43 +519,24 @@ app.get('/test-recordatorios', async (req, res) => {
   const manana = new Date();
   manana.setDate(manana.getDate() + 1);
   const fechaManana = manana.toISOString().split('T')[0];
-
   const reservas = await db.query(
     'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
     [fechaManana]
   );
-
-  for (const reserva of reservas.rows) {
-    if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
-      await enviarWhatsApp(
-        reserva.telefono_cliente,
-        `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas.`
-      );
-    }
-  }
-
-  res.send(`Recordatorios enviados para ${reservas.rows.length} reservas del ${fechaManana}`);
+  res.send(`Recordatorios pendientes para ${reservas.rows.length} reservas del ${fechaManana}`);
 });
 
 cron.schedule('0 10 * * *', async () => {
-  console.log('Ejecutando recordatorios del dia siguiente...');
+  console.log('Ejecutando recordatorios...');
   try {
     const manana = new Date();
     manana.setDate(manana.getDate() + 1);
     const fechaManana = manana.toISOString().split('T')[0];
-
     const reservas = await db.query(
       'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
       [fechaManana]
     );
-
     for (const reserva of reservas.rows) {
-      if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
-        await enviarWhatsApp(
-          reserva.telefono_cliente,
-          `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas. Si necesitas cancelar o modificar respondenos a este mensaje.`
-        );
-      }
       await enviarEmailRestaurante(reserva.usuario_id, {
         nombre: reserva.nombre,
         fecha: reserva.fecha,
@@ -596,6 +551,7 @@ cron.schedule('0 10 * * *', async () => {
   }
 });
 
-app.listen(3000, () => {
-  console.log('Servidor escuchando en puerto 3000');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log('Servidor escuchando en puerto', PORT);
 });
