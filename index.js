@@ -5,6 +5,8 @@ app.use(express.urlencoded({ extended: false }));
 
 const bcrypt = require('bcrypt');
 const session = require('express-session');
+const nodemailer = require('nodemailer');
+const cron = require('node-cron');
 
 const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -19,7 +21,6 @@ const db = new Pool({
 });
 
 const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -28,66 +29,32 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS
   }
 });
-const cron = require('node-cron');
 
-cron.schedule('0 10 * * *', async () => {
-  console.log('Ejecutando recordatorios del dia siguiente...');
+const conversaciones = {};
+const conversacionesWhatsapp = {};
+
+app.use(session({
+  secret: 'reservasbot_secret_key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 24 * 60 * 60 * 1000 }
+}));
+
+async function enviarWhatsApp(telefono, mensaje) {
   try {
-    const manana = new Date();
-    manana.setDate(manana.getDate() + 1);
-    const fechaManana = manana.toISOString().split('T')[0];
-
-    const reservas = await db.query(
-      'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
-      [fechaManana]
-    );
-
-    console.log(`Reservas para manana (${fechaManana}): ${reservas.rows.length}`);
-
-    for (const reserva of reservas.rows) {
-      if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
-        await enviarWhatsApp(
-          reserva.telefono_cliente,
-          `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas. Si necesitas cancelar o modificar respondenos a este mensaje.`
-        );
-        console.log(`Recordatorio enviado a ${reserva.nombre} - ${reserva.telefono_cliente}`);
-      }
-
-      await enviarEmailRestaurante(reserva.usuario_id, {
-        nombre: reserva.nombre,
-        fecha: reserva.fecha,
-        hora: reserva.hora,
-        personas: reserva.personas,
-        canal: `Recordatorio automatico`
-      });
-    }
-
-    console.log('Recordatorios completados.');
+    const to = telefono.startsWith('whatsapp:') ? telefono : `whatsapp:${telefono}`;
+    const promesa = twilioClient.messages.create({
+      from: process.env.TWILIO_WHATSAPP_FROM,
+      to: to,
+      body: mensaje
+    });
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
+    await Promise.race([promesa, timeout]);
+    console.log('WhatsApp enviado a:', to);
   } catch (err) {
-    console.error('Error en recordatorios:', err.message);
+    console.error('Error enviando WhatsApp (ignorado):', err.message);
   }
-});
-app.get('/test-recordatorios', async (req, res) => {
-  const manana = new Date();
-  manana.setDate(manana.getDate() + 1);
-  const fechaManana = manana.toISOString().split('T')[0];
-
-  const reservas = await db.query(
-    'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
-    [fechaManana]
-  );
-
-  for (const reserva of reservas.rows) {
-    if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
-      await enviarWhatsApp(
-        reserva.telefono_cliente,
-        `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas.`
-      );
-    }
-  }
-
-  res.send(`Recordatorios enviados para ${reservas.rows.length} reservas del ${fechaManana}`);
-});
+}
 
 async function enviarEmailRestaurante(usuarioId, datos) {
   try {
@@ -120,31 +87,6 @@ async function enviarEmailRestaurante(usuarioId, datos) {
     console.error('Error enviando email:', err.message);
   }
 }
-const conversaciones = {};
-const conversacionesWhatsapp = {};
-
-app.use(session({
-  secret: 'reservasbot_secret_key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 }
-}));
-
-async function enviarWhatsApp(telefono, mensaje) {
-  try {
-    const to = telefono.startsWith('whatsapp:') ? telefono : `whatsapp:${telefono}`;
-    const promesa = twilioClient.messages.create({
-      from: process.env.TWILIO_WHATSAPP_FROM,
-      to: to,
-      body: mensaje
-    });
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
-    await Promise.race([promesa, timeout]);
-    console.log('WhatsApp enviado a:', to);
-  } catch (err) {
-    console.error('Error enviando WhatsApp (ignorado):', err.message);
-  }
-}
 
 async function obtenerOCrearCliente(telefono, nombre = null) {
   const cliente = await db.query('SELECT * FROM clientes WHERE telefono = $1', [telefono]);
@@ -170,6 +112,18 @@ async function obtenerContextoCliente(telefono) {
     cliente: cliente.rows.length > 0 ? cliente.rows[0] : null,
     reservas: reservas.rows
   };
+}
+
+async function obtenerUsuarioPorDefecto() {
+  const usuario = await db.query('SELECT id FROM usuarios LIMIT 1');
+  return usuario.rows.length > 0 ? usuario.rows[0].id : null;
+}
+
+async function obtenerUsuarioPorNumero(numero) {
+  if (!numero) return await obtenerUsuarioPorDefecto();
+  const usuario = await db.query('SELECT id FROM usuarios WHERE numero_twilio = $1', [numero]);
+  if (usuario.rows.length > 0) return usuario.rows[0].id;
+  return await obtenerUsuarioPorDefecto();
 }
 
 async function hayDisponibilidad(fecha, hora, personas) {
@@ -216,9 +170,9 @@ async function extraerDatosReserva(mensajes) {
   }
 }
 
-async function obtenerUsuarioPorDefecto() {
-  const usuario = await db.query('SELECT id FROM usuarios LIMIT 1');
-  return usuario.rows.length > 0 ? usuario.rows[0].id : null;
+async function obtenerConfigRestaurante(usuarioId) {
+  const config = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
+  return config.rows.length > 0 ? config.rows[0] : null;
 }
 
 async function procesarAccion(datos, canal, contexto, telefonoCliente = null, usuarioId = null) {
@@ -231,9 +185,7 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
       'SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha >= $2 ORDER BY fecha ASC, hora ASC',
       [telefonoParaWhatsapp, new Date().toISOString().split('T')[0]]
     );
-    if (reservas.rows.length === 0) {
-      return 'No tienes reservas proximas.';
-    }
+    if (reservas.rows.length === 0) return 'No tienes reservas proximas.';
     const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} - ${r.fecha} a las ${r.hora} para ${r.personas} personas`).join('\n');
     return `Tus reservas proximas son:\n${lista}`;
   }
@@ -241,79 +193,48 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
   if (datos.accion === 'CANCELAR') {
     let reserva;
     if (datos.fecha) {
-      reserva = await db.query(
-        'SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha = $2 LIMIT 1',
-        [telefonoParaWhatsapp, datos.fecha]
-      );
+      reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha = $2 LIMIT 1', [telefonoParaWhatsapp, datos.fecha]);
     } else if (datos.nombre) {
-      reserva = await db.query(
-        'SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1',
-        [telefonoParaWhatsapp, datos.nombre]
-      );
+      reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1', [telefonoParaWhatsapp, datos.nombre]);
     }
-
-    if (!reserva || reserva.rows.length === 0) {
-      return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre con el que esta hecha?';
-    }
+    if (!reserva || reserva.rows.length === 0) return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre?';
     await db.query('DELETE FROM reservas WHERE id = $1', [reserva.rows[0].id]);
-    await enviarWhatsApp(telefonoParaWhatsapp, `Tu reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a las ${reserva.rows[0].hora} ha sido cancelada correctamente.`);
+    await enviarWhatsApp(telefonoParaWhatsapp, `Tu reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a las ${reserva.rows[0].hora} ha sido cancelada.`);
     return `Reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a las ${reserva.rows[0].hora} cancelada correctamente.`;
   }
 
   if (datos.accion === 'MODIFICAR') {
     let reserva;
     if (datos.fecha) {
-      reserva = await db.query(
-        'SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha = $2 LIMIT 1',
-        [telefonoParaWhatsapp, datos.fecha]
-      );
+      reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha = $2 LIMIT 1', [telefonoParaWhatsapp, datos.fecha]);
     } else if (datos.nombre) {
-      reserva = await db.query(
-        'SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1',
-        [telefonoParaWhatsapp, datos.nombre]
-      );
+      reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1', [telefonoParaWhatsapp, datos.nombre]);
     }
-
-    if (!reserva || reserva.rows.length === 0) {
-      return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre con el que esta hecha?';
-    }
+    if (!reserva || reserva.rows.length === 0) return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre?';
 
     const nuevaFecha = datos.nueva_fecha || reserva.rows[0].fecha;
     const nuevaHora = datos.nueva_hora || reserva.rows[0].hora;
     const nuevasPersonas = datos.nuevas_personas || reserva.rows[0].personas;
 
     const fechaReserva = new Date(`${nuevaFecha}T${nuevaHora}`);
-    if (fechaReserva <= new Date()) {
-      return 'La nueva fecha y hora ya han pasado. Puedes indicarme otra fecha u hora?';
-    }
+    if (fechaReserva <= new Date()) return 'La nueva fecha y hora ya han pasado. Puedes indicarme otra?';
 
     const disponibilidad = await hayDisponibilidad(nuevaFecha, nuevaHora, nuevasPersonas);
-    if (!disponibilidad.disponible) {
-      return `Lo siento, ${disponibilidad.motivo} Te gustaria elegir otra hora o fecha?`;
-    }
+    if (!disponibilidad.disponible) return `Lo siento, ${disponibilidad.motivo} Te gustaria elegir otra hora o fecha?`;
 
-    await db.query(
-      'UPDATE reservas SET fecha = $1, hora = $2, personas = $3 WHERE id = $4',
-      [nuevaFecha, nuevaHora, nuevasPersonas, reserva.rows[0].id]
-    );
+    await db.query('UPDATE reservas SET fecha = $1, hora = $2, personas = $3 WHERE id = $4', [nuevaFecha, nuevaHora, nuevasPersonas, reserva.rows[0].id]);
     await enviarWhatsApp(telefonoParaWhatsapp, `Tu reserva ha sido modificada:\n- Fecha: ${nuevaFecha}\n- Hora: ${nuevaHora}\n- Personas: ${nuevasPersonas}`);
     return `Reserva modificada correctamente. Nueva fecha: ${nuevaFecha} a las ${nuevaHora} para ${nuevasPersonas} personas.`;
   }
 
   if (datos.accion === 'NUEVA') {
-    if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) {
-      return 'Necesito tu nombre, fecha, hora y numero de personas para hacer la reserva.';
-    }
+    if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas.';
 
     const fechaReserva = new Date(`${datos.fecha}T${datos.hora}`);
-    if (fechaReserva <= new Date()) {
-      return 'Lo siento, esa fecha y hora ya han pasado. Para que otra fecha o hora te gustaria reservar?';
-    }
+    if (fechaReserva <= new Date()) return 'Lo siento, esa fecha y hora ya han pasado. Para que otra fecha te gustaria reservar?';
 
     const disponibilidad = await hayDisponibilidad(datos.fecha, datos.hora, datos.personas);
-    if (!disponibilidad.disponible) {
-      return `Lo siento, ${disponibilidad.motivo} Te gustaria reservar para otra hora o fecha?`;
-    }
+    if (!disponibilidad.disponible) return `Lo siento, ${disponibilidad.motivo} Te gustaria reservar para otra hora o fecha?`;
 
     const uid = usuarioId || await obtenerUsuarioPorDefecto();
     const canalTipo = telefonoCliente && telefonoCliente.includes('whatsapp') ? 'whatsapp' : 'llamada';
@@ -322,25 +243,15 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
       'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
       [canal, datos.nombre, datos.fecha, datos.hora, datos.personas, telefonoParaWhatsapp, uid, canalTipo]
     );
-    await enviarEmailRestaurante(uid, {
-     nombre: datos.nombre,
-     fecha: datos.fecha,
-     hora: datos.hora,
-    personas: datos.personas,
-    canal: canalTipo
-    });
+
     await obtenerOCrearCliente(telefonoParaWhatsapp, datos.nombre);
     await enviarWhatsApp(telefonoParaWhatsapp, `Hola ${datos.nombre}, tu reserva esta confirmada:\n- Fecha: ${datos.fecha}\n- Hora: ${datos.hora}\n- Personas: ${datos.personas}\nTe esperamos!`);
+    await enviarEmailRestaurante(uid, { nombre: datos.nombre, fecha: datos.fecha, hora: datos.hora, personas: datos.personas, canal: canalTipo });
 
     return `Perfecto ${datos.nombre}, tu reserva esta confirmada para el ${datos.fecha} a las ${datos.hora} para ${datos.personas} personas. Te esperamos!`;
   }
 
   return 'No he entendido lo que necesitas. Quieres hacer, consultar, cancelar o modificar una reserva?';
-}
-
-async function obtenerConfigRestaurante(usuarioId) {
-  const config = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
-  return config.rows.length > 0 ? config.rows[0] : null;
 }
 
 const SYSTEM_PROMPT = (hoy, contexto, config = null) => {
@@ -352,9 +263,8 @@ const SYSTEM_PROMPT = (hoy, contexto, config = null) => {
   const especialidad = config?.especialidad || 'Cocido madrileno los jueves';
   const aparcamiento = config?.aparcamiento || 'Parking publico a 200 metros';
 
-  let prompt = `Eres un asistente virtual del restaurante llamado Mario. La fecha de hoy es ${hoy}. Solo puedes hablar sobre temas relacionados con el restaurante. Si el cliente pregunta sobre cualquier otro tema responde: "Lo siento, solo puedo ayudarte con informacion sobre el restaurante."
+  let prompt = `Eres un asistente virtual del restaurante llamado Mario. La fecha de hoy es ${hoy}. Solo puedes hablar sobre temas relacionados con el restaurante. Si el cliente pregunta sobre cualquier otro tema responde: "Lo siento, solo puedo ayudarte con informacion sobre el restaurante." Cuando te pregunten por la especialidad, el menu, los platos o la comida, SIEMPRE responde con la informacion del restaurante que tienes.
 
-Cuando te pregunten por la especialidad, el menu, los platos o la comida, SIEMPRE responde con la informacion del restaurante que tienes. Nunca digas que no puedes responder sobre el restaurante.
 Informacion del restaurante:
 - Nombre: ${nombre}
 - Direccion: ${direccion}
@@ -362,18 +272,17 @@ Informacion del restaurante:
 - Telefono: ${telefono}
 - Menu completo: ${menu}
 - Especialidad destacada: ${especialidad}
-- Precio menu del dia: consultar en el restaurante
 - Aparcamiento: ${aparcamiento}
 
 Puedes ayudar al cliente a: 1) HACER una reserva nueva. 2) CANCELAR una reserva existente. 3) MODIFICAR una reserva existente. 4) CONSULTAR sus reservas. 5) RESPONDER preguntas sobre el restaurante, menu, horarios y ubicacion.
 
 Se amable y breve. Cuando el cliente quiera gestionar una reserva y tengas todos los datos necesarios di EXACTAMENTE: "un momento por favor" e indica la accion con ACCION:NUEVA, ACCION:CANCELAR, ACCION:MODIFICAR o ACCION:CONSULTAR.`;
 
-  if (contexto && contexto.cliente && contexto.cliente.nombre) {
+  if (contexto?.cliente?.nombre) {
     prompt += ` El cliente que contacta se llama ${contexto.cliente.nombre}, saludale por su nombre desde el principio.`;
   }
 
-  if (contexto && contexto.reservas && contexto.reservas.length > 0) {
+  if (contexto?.reservas?.length > 0) {
     const reservasTexto = contexto.reservas.map(r => `${r.nombre} - ${r.fecha} a las ${r.hora} para ${r.personas} personas`).join(', ');
     prompt += ` Sus reservas recientes son: ${reservasTexto}. Usalas como contexto si el cliente quiere cancelar o modificar sin dar mas detalles.`;
   }
@@ -416,15 +325,14 @@ app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login')
 app.post('/llamada', async (req, res) => {
   const callSid = req.body.CallSid;
   const telefono = req.body.From || callSid;
+  const numeroTwilio = req.body.To || null;
   const hoy = new Date().toISOString().split('T')[0];
 
+  const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
   const contexto = await obtenerContextoCliente(telefono);
-  const usuarioId = await obtenerUsuarioPorDefecto();
   const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
 
-  conversaciones[callSid] = [
-    { role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }
-  ];
+  conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
 
   const saludo = contexto?.cliente?.nombre
     ? `Hola ${contexto.cliente.nombre}, soy Mario. En que puedo ayudarte?`
@@ -443,12 +351,13 @@ app.post('/llamada', async (req, res) => {
 app.post('/responder', async (req, res) => {
   const callSid = req.body.CallSid;
   const telefono = req.body.From || callSid;
+  const numeroTwilio = req.body.To || null;
   const textoCliente = req.body.SpeechResult || '';
   console.log('Cliente dijo:', textoCliente);
 
   const hoy = new Date().toISOString().split('T')[0];
+  const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
   const contexto = await obtenerContextoCliente(telefono);
-  const usuarioId = await obtenerUsuarioPorDefecto();
   const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
 
   if (!conversaciones[callSid]) {
@@ -492,11 +401,12 @@ app.post('/whatsapp', async (req, res) => {
   try {
     const from = req.body.From;
     const mensaje = req.body.Body;
-    console.log('1. Mensaje recibido:', from, mensaje);
+    const numeroTwilio = req.body.To || null;
+    console.log('WhatsApp de:', from, '→', mensaje);
 
     const hoy = new Date().toISOString().split('T')[0];
+    const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
     const contexto = await obtenerContextoCliente(from);
-    const usuarioId = await obtenerUsuarioPorDefecto();
     const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
 
     if (!conversacionesWhatsapp[from]) {
@@ -511,7 +421,7 @@ app.post('/whatsapp', async (req, res) => {
     });
 
     let respuesta = respuestaIA.choices[0].message.content;
-    console.log('5. Respuesta IA:', respuesta);
+    console.log('Bot responde:', respuesta);
     conversacionesWhatsapp[from].push({ role: 'assistant', content: respuesta });
 
     if (respuesta.toLowerCase().includes('un momento por favor')) {
@@ -532,7 +442,6 @@ app.post('/whatsapp', async (req, res) => {
 </Response>`;
     res.type('text/xml');
     res.send(twiml);
-    console.log('8. Respuesta enviada');
 
   } catch (err) {
     console.error('ERROR en whatsapp:', err);
@@ -595,15 +504,9 @@ app.post('/nueva-reserva', requireLogin, async (req, res) => {
   );
 
   await obtenerOCrearCliente(telefono, nombre);
-  await enviarEmailRestaurante(req.session.usuario.id, {
-  nombre,
-  fecha,
-  hora,
-  personas,
-  canal: 'manual'
-  });
+  await enviarEmailRestaurante(req.session.usuario.id, { nombre, fecha, hora, personas, canal: 'manual' });
   res.redirect('/panel');
-  });
+});
 
 app.get('/clientes', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
@@ -651,6 +554,61 @@ app.post('/configuracion', requireLogin, async (req, res) => {
   await db.query('UPDATE usuarios SET restaurante = $1 WHERE id = $2', [restaurante, usuarioId]);
   req.session.usuario.restaurante = restaurante;
   res.redirect('/configuracion?exito=1');
+});
+
+app.get('/test-recordatorios', async (req, res) => {
+  const manana = new Date();
+  manana.setDate(manana.getDate() + 1);
+  const fechaManana = manana.toISOString().split('T')[0];
+
+  const reservas = await db.query(
+    'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
+    [fechaManana]
+  );
+
+  for (const reserva of reservas.rows) {
+    if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
+      await enviarWhatsApp(
+        reserva.telefono_cliente,
+        `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas.`
+      );
+    }
+  }
+
+  res.send(`Recordatorios enviados para ${reservas.rows.length} reservas del ${fechaManana}`);
+});
+
+cron.schedule('0 10 * * *', async () => {
+  console.log('Ejecutando recordatorios del dia siguiente...');
+  try {
+    const manana = new Date();
+    manana.setDate(manana.getDate() + 1);
+    const fechaManana = manana.toISOString().split('T')[0];
+
+    const reservas = await db.query(
+      'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
+      [fechaManana]
+    );
+
+    for (const reserva of reservas.rows) {
+      if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
+        await enviarWhatsApp(
+          reserva.telefono_cliente,
+          `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas. Si necesitas cancelar o modificar respondenos a este mensaje.`
+        );
+      }
+      await enviarEmailRestaurante(reserva.usuario_id, {
+        nombre: reserva.nombre,
+        fecha: reserva.fecha,
+        hora: reserva.hora,
+        personas: reserva.personas,
+        canal: 'Recordatorio automatico'
+      });
+    }
+    console.log('Recordatorios completados.');
+  } catch (err) {
+    console.error('Error en recordatorios:', err.message);
+  }
 });
 
 app.listen(3000, () => {
