@@ -28,6 +28,66 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS
   }
 });
+const cron = require('node-cron');
+
+cron.schedule('0 10 * * *', async () => {
+  console.log('Ejecutando recordatorios del dia siguiente...');
+  try {
+    const manana = new Date();
+    manana.setDate(manana.getDate() + 1);
+    const fechaManana = manana.toISOString().split('T')[0];
+
+    const reservas = await db.query(
+      'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
+      [fechaManana]
+    );
+
+    console.log(`Reservas para manana (${fechaManana}): ${reservas.rows.length}`);
+
+    for (const reserva of reservas.rows) {
+      if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
+        await enviarWhatsApp(
+          reserva.telefono_cliente,
+          `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas. Si necesitas cancelar o modificar respondenos a este mensaje.`
+        );
+        console.log(`Recordatorio enviado a ${reserva.nombre} - ${reserva.telefono_cliente}`);
+      }
+
+      await enviarEmailRestaurante(reserva.usuario_id, {
+        nombre: reserva.nombre,
+        fecha: reserva.fecha,
+        hora: reserva.hora,
+        personas: reserva.personas,
+        canal: `Recordatorio automatico`
+      });
+    }
+
+    console.log('Recordatorios completados.');
+  } catch (err) {
+    console.error('Error en recordatorios:', err.message);
+  }
+});
+app.get('/test-recordatorios', async (req, res) => {
+  const manana = new Date();
+  manana.setDate(manana.getDate() + 1);
+  const fechaManana = manana.toISOString().split('T')[0];
+
+  const reservas = await db.query(
+    'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
+    [fechaManana]
+  );
+
+  for (const reserva of reservas.rows) {
+    if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
+      await enviarWhatsApp(
+        reserva.telefono_cliente,
+        `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas.`
+      );
+    }
+  }
+
+  res.send(`Recordatorios enviados para ${reservas.rows.length} reservas del ${fechaManana}`);
+});
 
 async function enviarEmailRestaurante(usuarioId, datos) {
   try {
