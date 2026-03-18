@@ -38,21 +38,8 @@ app.use(session({
 }));
 
 async function enviarWhatsApp(telefono, mensaje) {
-  try {
-    const to = telefono.startsWith('whatsapp:') ? telefono : `whatsapp:${telefono}`;
-    const promesa = twilioClient.messages.create({
-      from: process.env.TWILIO_WHATSAPP_FROM,
-      to: to,
-      body: mensaje
-    }).catch(err => {
-      console.error('Error enviando WhatsApp (ignorado):', err.message);
-    });
-    const timeout = new Promise((resolve) => setTimeout(resolve, 2000));
-    await Promise.race([promesa, timeout]);
-    console.log('WhatsApp procesado');
-  } catch (err) {
-    console.error('Error enviando WhatsApp (ignorado):', err.message);
-  }
+  console.log('WhatsApp pendiente (limite alcanzado):', telefono, '→', mensaje);
+  return;
 }
 async function enviarEmailRestaurante(usuarioId, datos) {
   try {
