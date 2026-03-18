@@ -16,6 +16,7 @@ const db = new Pool({
 });
 
 const conversaciones = {};
+const conversacionesWhatsapp = {};
 
 async function hayDisponibilidad(fecha, hora, personas) {
   if (personas > 4) return { disponible: false, motivo: 'No tenemos mesas para más de 4 personas.' };
@@ -76,7 +77,7 @@ app.post('/llamada', (req, res) => {
   const callSid = req.body.CallSid;
   const hoy = new Date().toISOString().split('T')[0];
   conversaciones[callSid] = [
-    { role: 'system', content: `Eres un asistente de reservas de restaurante llamado Mario. La fecha de hoy es ${hoy}. Ayuda al cliente a hacer una reserva preguntando su nombre, fecha, hora y número de personas. Sé amable y breve. No confirmes la reserva hasta que el sistema la valide. Cuando tengas todos los datos di EXACTAMENTE: "un momento por favor" y espera.` }
+    { role: 'system', content: `Eres un asistente de reservas de restaurante llamado Mario. La fecha de hoy es ${hoy}. Ayuda al cliente a hacer una reserva preguntando su nombre, fecha, hora y número de personas. Sé amable y breve. Cuando tengas todos los datos di EXACTAMENTE: "un momento por favor" y espera.` }
   ];
 
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -146,6 +147,66 @@ app.post('/responder', async (req, res) => {
   <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
     <Say language="es-ES">${mensaje}</Say>
   </Gather>
+</Response>`;
+  res.type('text/xml');
+  res.send(twiml);
+});
+
+app.post('/whatsapp', async (req, res) => {
+  const from = req.body.From;
+  const mensaje = req.body.Body;
+  console.log('WhatsApp de:', from, '→', mensaje);
+
+  const hoy = new Date().toISOString().split('T')[0];
+
+  if (!conversacionesWhatsapp[from]) {
+    conversacionesWhatsapp[from] = [
+      { role: 'system', content: `Eres un asistente de reservas de restaurante llamado Mario. La fecha de hoy es ${hoy}. Ayuda al cliente a hacer una reserva preguntando su nombre, fecha, hora y número de personas. Sé amable y breve. Cuando tengas todos los datos di EXACTAMENTE: "un momento por favor" y espera.` }
+    ];
+  }
+
+  conversacionesWhatsapp[from].push({ role: 'user', content: mensaje });
+
+  const respuestaIA = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: conversacionesWhatsapp[from]
+  });
+
+  let respuesta = respuestaIA.choices[0].message.content;
+  conversacionesWhatsapp[from].push({ role: 'assistant', content: respuesta });
+
+  if (respuesta.toLowerCase().includes('un momento por favor')) {
+    const datos = await extraerDatosReserva(conversacionesWhatsapp[from]);
+
+    if (datos && datos.nombre && datos.fecha && datos.hora && datos.personas) {
+      const fechaReserva = new Date(`${datos.fecha}T${datos.hora}`);
+      const ahora = new Date();
+
+      if (fechaReserva <= ahora) {
+        respuesta = 'Lo siento, esa fecha y hora ya han pasado. ¿Para qué otra fecha o hora te gustaría hacer la reserva?';
+      } else {
+        const disponibilidad = await hayDisponibilidad(datos.fecha, datos.hora, datos.personas);
+
+        if (!disponibilidad.disponible) {
+          respuesta = `Lo siento, ${disponibilidad.motivo} ¿Te gustaría reservar para otra hora o fecha?`;
+        } else {
+          await db.query(
+            'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas) VALUES ($1, $2, $3, $4, $5)',
+            [from, datos.nombre, datos.fecha, datos.hora, datos.personas]
+          );
+          console.log('Reserva WhatsApp guardada:', datos);
+          respuesta = `✅ Perfecto ${datos.nombre}, tu reserva está confirmada para el ${datos.fecha} a las ${datos.hora} para ${datos.personas} personas. ¡Te esperamos!`;
+          conversacionesWhatsapp[from] = [];
+        }
+      }
+    } else {
+      respuesta = 'Disculpa, necesito tu nombre, fecha, hora y número de personas para completar la reserva. ¿Puedes repetírmelos?';
+    }
+  }
+
+  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>${respuesta}</Message>
 </Response>`;
   res.type('text/xml');
   res.send(twiml);
