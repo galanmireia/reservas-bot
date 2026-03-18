@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuración — <%= usuario.restaurante %></title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f0f13; color: #e2e2e2; display: flex; min-height: 100vh; }
+    .sidebar { width: 240px; background: #17171f; border-right: 1px solid #2a2a35; display: flex; flex-direction: column; padding: 24px 0; position: fixed; height: 100vh; }
+    .sidebar-logo { padding: 0 20px 24px; border-bottom: 1px solid #2a2a35; }
+    .sidebar-logo h2 { color: #7C6FFF; font-size: 18px; }
+    .sidebar-logo p { color: #666; font-size: 12px; margin-top: 2px; }
+    .sidebar-menu { padding: 20px 12px; flex: 1; }
+    .menu-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #888; font-size: 14px; cursor: pointer; margin-bottom: 4px; text-decoration: none; }
+    .menu-item:hover { background: #1e1e28; color: #e2e2e2; }
+    .menu-item.active { background: #2a2560; color: #7C6FFF; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid #2a2a35; }
+    .avatar { display: flex; align-items: center; gap: 10px; }
+    .avatar-circle { width: 36px; height: 36px; background: #2a2560; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #7C6FFF; font-weight: bold; font-size: 14px; }
+    .avatar-info { flex: 1; }
+    .avatar-name { font-size: 13px; color: #e2e2e2; }
+    .avatar-rest { font-size: 11px; color: #666; }
+    .logout { color: #666; font-size: 12px; text-decoration: none; display: block; margin-top: 12px; }
+    .logout:hover { color: #ff6b6b; }
+    .main { margin-left: 240px; flex: 1; padding: 32px; }
+    .page-header { margin-bottom: 28px; }
+    .page-header h1 { font-size: 24px; color: #e2e2e2; }
+    .page-header p { color: #666; font-size: 14px; margin-top: 4px; }
+    .seccion { background: #17171f; border: 1px solid #2a2a35; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+    .seccion h2 { font-size: 16px; color: #e2e2e2; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #2a2a35; }
+    .campo { margin-bottom: 16px; }
+    .campo label { display: block; font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .campo input, .campo textarea { width: 100%; padding: 10px 14px; background: #0f0f13; border: 1px solid #2a2a35; border-radius: 8px; font-size: 14px; color: #e2e2e2; outline: none; font-family: inherit; }
+    .campo input:focus, .campo textarea:focus { border-color: #7C6FFF; }
+    .campo textarea { resize: vertical; min-height: 100px; }
+    .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .btn-purple { padding: 10px 24px; background: #7C6FFF; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+    .btn-purple:hover { background: #6a5ce8; }
+    .exito { background: #0a2a1a; color: #4ade80; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
+    .mesas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .mesa-card { background: #0f0f13; border: 1px solid #2a2a35; border-radius: 8px; padding: 16px; text-align: center; }
+    .mesa-card .num { font-size: 20px; font-weight: bold; color: #7C6FFF; }
+    .mesa-card .cap { font-size: 12px; color: #666; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h2>ReservasBot</h2>
+      <p><%= usuario.restaurante %></p>
+    </div>
+    <div class="sidebar-menu">
+      <a href="/panel" class="menu-item">
+        <span>📅</span> Reservas
+      </a>
+      <a href="/clientes" class="menu-item">
+        <span>👥</span> Clientes
+      </a>
+      <a href="/configuracion" class="menu-item active">
+        <span>⚙️</span> Configuración
+      </a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="avatar">
+        <div class="avatar-circle"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
+        <div class="avatar-info">
+          <div class="avatar-name"><%= usuario.nombre %></div>
+          <div class="avatar-rest"><%= usuario.email %></div>
+        </div>
+      </div>
+      <a href="/logout" class="logout">Cerrar sesión →</a>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="page-header">
+      <h1>Configuración</h1>
+      <p>Personaliza tu restaurante y el comportamiento del bot</p>
+    </div>
+
+    <% if (exito) { %>
+      <div class="exito">Configuración guardada correctamente.</div>
+    <% } %>
+
+    <form method="POST" action="/configuracion">
+
+      <div class="seccion">
+        <h2>Información del restaurante</h2>
+        <div class="fila">
+          <div class="campo">
+            <label>Nombre del restaurante</label>
+            <input type="text" name="restaurante" value="<%= config.restaurante || usuario.restaurante %>" required>
+          </div>
+          <div class="campo">
+            <label>Teléfono</label>
+            <input type="text" name="telefono" value="<%= config.telefono || '' %>" placeholder="910 000 000">
+          </div>
+        </div>
+        <div class="campo">
+          <label>Dirección</label>
+          <input type="text" name="direccion" value="<%= config.direccion || '' %>" placeholder="Calle Mayor 1, Madrid">
+        </div>
+        <div class="fila">
+          <div class="campo">
+            <label>Horario apertura</label>
+            <input type="text" name="horario" value="<%= config.horario || '' %>" placeholder="Lun-Dom 13:00-16:00 y 20:00-23:30">
+          </div>
+          <div class="campo">
+            <label>Aparcamiento</label>
+            <input type="text" name="aparcamiento" value="<%= config.aparcamiento || '' %>" placeholder="Parking publico a 200m">
+          </div>
+        </div>
+      </div>
+
+      <div class="seccion">
+        <h2>Menu</h2>
+        <div class="campo">
+          <label>Descripcion del menu</label>
+          <textarea name="menu"><%= config.menu || '' %></textarea>
+        </div>
+        <div class="campo">
+          <label>Especialidad</label>
+          <input type="text" name="especialidad" value="<%= config.especialidad || '' %>" placeholder="Cocido madrileno los jueves">
+        </div>
+      </div>
+
+      <div class="seccion">
+        <h2>Mesas</h2>
+        <div class="mesas-grid">
+          <% mesas.forEach(m => { %>
+            <div class="mesa-card">
+              <div class="num">Mesa <%= m.numero %></div>
+              <div class="cap"><%= m.capacidad %> personas</div>
+            </div>
+          <% }) %>
+        </div>
+        <p style="color:#666;font-size:13px;">Para modificar las mesas contacta con soporte.</p>
+      </div>
+
+      <button type="submit" class="btn-purple">Guardar configuración</button>
+    </form>
+  </div>
+</body>
+</html>

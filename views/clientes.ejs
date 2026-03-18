@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clientes — <%= usuario.restaurante %></title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f0f13; color: #e2e2e2; display: flex; min-height: 100vh; }
+    .sidebar { width: 240px; background: #17171f; border-right: 1px solid #2a2a35; display: flex; flex-direction: column; padding: 24px 0; position: fixed; height: 100vh; }
+    .sidebar-logo { padding: 0 20px 24px; border-bottom: 1px solid #2a2a35; }
+    .sidebar-logo h2 { color: #7C6FFF; font-size: 18px; }
+    .sidebar-logo p { color: #666; font-size: 12px; margin-top: 2px; }
+    .sidebar-menu { padding: 20px 12px; flex: 1; }
+    .menu-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #888; font-size: 14px; cursor: pointer; margin-bottom: 4px; text-decoration: none; }
+    .menu-item:hover { background: #1e1e28; color: #e2e2e2; }
+    .menu-item.active { background: #2a2560; color: #7C6FFF; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid #2a2a35; }
+    .avatar { display: flex; align-items: center; gap: 10px; }
+    .avatar-circle { width: 36px; height: 36px; background: #2a2560; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #7C6FFF; font-weight: bold; font-size: 14px; }
+    .avatar-info { flex: 1; }
+    .avatar-name { font-size: 13px; color: #e2e2e2; }
+    .avatar-rest { font-size: 11px; color: #666; }
+    .logout { color: #666; font-size: 12px; text-decoration: none; display: block; margin-top: 12px; }
+    .logout:hover { color: #ff6b6b; }
+    .main { margin-left: 240px; flex: 1; padding: 32px; }
+    .page-header { margin-bottom: 28px; }
+    .page-header h1 { font-size: 24px; color: #e2e2e2; }
+    .page-header p { color: #666; font-size: 14px; margin-top: 4px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+    .stat { background: #17171f; border: 1px solid #2a2a35; border-radius: 12px; padding: 20px; }
+    .stat .numero { font-size: 32px; font-weight: bold; color: #7C6FFF; }
+    .stat .label { font-size: 13px; color: #666; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; background: #17171f; border-radius: 12px; overflow: hidden; border: 1px solid #2a2a35; }
+    th { background: #1e1e28; color: #888; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
+    td { padding: 14px 16px; border-bottom: 1px solid #1e1e28; font-size: 14px; color: #ccc; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #1a1a24; }
+    .badge { background: #2a2560; color: #7C6FFF; padding: 3px 10px; border-radius: 20px; font-size: 12px; }
+    .empty { text-align: center; padding: 40px; color: #555; font-size: 14px; }
+    .canal-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+    .canal-whatsapp { background: #0a2a1a; color: #4ade80; }
+    .canal-llamada { background: #1a1a2a; color: #7C6FFF; }
+    .canal-manual { background: #2a2020; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h2>ReservasBot</h2>
+      <p><%= usuario.restaurante %></p>
+    </div>
+    <div class="sidebar-menu">
+      <a href="/panel" class="menu-item">
+        <span>📅</span> Reservas
+      </a>
+      <a href="/clientes" class="menu-item active">
+        <span>👥</span> Clientes
+      </a>
+      <a href="/configuracion" class="menu-item">
+        <span>⚙️</span> Configuración
+      </a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="avatar">
+        <div class="avatar-circle"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
+        <div class="avatar-info">
+          <div class="avatar-name"><%= usuario.nombre %></div>
+          <div class="avatar-rest"><%= usuario.email %></div>
+        </div>
+      </div>
+      <a href="/logout" class="logout">Cerrar sesión →</a>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="page-header">
+      <h1>Clientes</h1>
+      <p>Historial de clientes que han reservado</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="numero"><%= clientes.length %></div>
+        <div class="label">Clientes totales</div>
+      </div>
+      <div class="stat">
+        <div class="numero"><%= clientes.filter(c => c.total_reservas > 1).length %></div>
+        <div class="label">Clientes recurrentes</div>
+      </div>
+      <div class="stat">
+        <div class="numero"><%= clientes.reduce((a, c) => a + parseInt(c.total_reservas), 0) %></div>
+        <div class="label">Total reservas</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>#</th><th>Nombre</th><th>Telefono</th><th>Reservas</th><th>Ultima visita</th><th>Canal</th></tr>
+      </thead>
+      <tbody>
+        <% if (clientes.length === 0) { %>
+          <tr><td colspan="6" class="empty">No hay clientes todavia</td></tr>
+        <% } else { %>
+          <% clientes.forEach((c, i) => { %>
+            <tr>
+              <td><%= i + 1 %></td>
+              <td><strong style="color:#e2e2e2"><%= c.nombre || 'Sin nombre' %></strong></td>
+              <td><%= c.telefono %></td>
+              <td><span class="badge"><%= c.total_reservas %></span></td>
+              <td><%= new Date(c.ultima_visita).toLocaleDateString('es-ES') %></td>
+              <td>
+                <% if (c.canal_frecuente === 'whatsapp') { %>
+                  <span class="canal-badge canal-whatsapp">WhatsApp</span>
+                <% } else if (c.canal_frecuente === 'manual') { %>
+                  <span class="canal-badge canal-manual">Presencial</span>
+                <% } else { %>
+                  <span class="canal-badge canal-llamada">Llamada</span>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

@@ -3,194 +3,293 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <h1>Panel de Reservas — <%= usuario.restaurante %></h1>
+  <title>Panel — <%= usuario.restaurante %></title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 30px; color: #333; }
-    h1 { font-size: 28px; margin-bottom: 4px; }
-    .subtitulo { color: #666; margin-bottom: 24px; font-size: 15px; }
-    .stats { display: flex; gap: 16px; margin-bottom: 30px; }
-    .stat { background: white; border-radius: 12px; padding: 20px 24px; flex: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    .stat .numero { font-size: 32px; font-weight: bold; color: #4F46E5; }
-    .stat .label { font-size: 13px; color: #888; margin-top: 4px; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f0f13; color: #e2e2e2; display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar { width: 240px; background: #17171f; border-right: 1px solid #2a2a35; display: flex; flex-direction: column; padding: 24px 0; position: fixed; height: 100vh; }
+    .sidebar-logo { padding: 0 20px 24px; border-bottom: 1px solid #2a2a35; }
+    .sidebar-logo h2 { color: #7C6FFF; font-size: 18px; }
+    .sidebar-logo p { color: #666; font-size: 12px; margin-top: 2px; }
+    .sidebar-menu { padding: 20px 12px; flex: 1; }
+    .menu-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #888; font-size: 14px; cursor: pointer; margin-bottom: 4px; text-decoration: none; }
+    .menu-item:hover { background: #1e1e28; color: #e2e2e2; }
+    .menu-item.active { background: #2a2560; color: #7C6FFF; }
+    .menu-icon { font-size: 16px; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid #2a2a35; }
+    .avatar { display: flex; align-items: center; gap: 10px; }
+    .avatar-circle { width: 36px; height: 36px; background: #2a2560; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #7C6FFF; font-weight: bold; font-size: 14px; }
+    .avatar-info { flex: 1; }
+    .avatar-name { font-size: 13px; color: #e2e2e2; }
+    .avatar-rest { font-size: 11px; color: #666; }
+    .logout { color: #666; font-size: 12px; text-decoration: none; }
+    .logout:hover { color: #ff6b6b; }
+
+    /* MAIN */
+    .main { margin-left: 240px; flex: 1; padding: 32px; }
+    .page-header { margin-bottom: 28px; }
+    .page-header h1 { font-size: 24px; color: #e2e2e2; }
+    .page-header p { color: #666; font-size: 14px; margin-top: 4px; }
+
+    /* STATS */
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+    .stat { background: #17171f; border: 1px solid #2a2a35; border-radius: 12px; padding: 20px; }
+    .stat .numero { font-size: 32px; font-weight: bold; color: #7C6FFF; }
+    .stat .label { font-size: 13px; color: #666; margin-top: 4px; }
+
+    /* GRAFICO */
+    .grafico-card { background: #17171f; border: 1px solid #2a2a35; border-radius: 12px; padding: 24px; margin-bottom: 28px; }
+    .grafico-card h3 { font-size: 15px; color: #e2e2e2; margin-bottom: 20px; }
+
+    /* FILTROS */
     .filtros { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; }
-    .filtros input { padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
-    .filtros button { padding: 10px 18px; background: #4F46E5; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
-    .filtros button:hover { background: #4338CA; }
-    .seccion { margin-bottom: 36px; }
-    .seccion h2 { font-size: 17px; margin-bottom: 12px; color: #444; display: flex; align-items: center; gap: 8px; }
-    .badge-hoy { background: #EEF2FF; color: #4F46E5; padding: 3px 10px; border-radius: 20px; font-size: 12px; }
-    table { width: 100%; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-collapse: collapse; }
-    th { background: #4F46E5; color: white; padding: 14px 16px; text-align: left; font-weight: 500; }
-    th:first-child { border-radius: 12px 0 0 0; }
-    th:last-child { border-radius: 0 12px 0 0; }
-    td { padding: 13px 16px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+    .filtros input { padding: 10px 14px; background: #17171f; border: 1px solid #2a2a35; border-radius: 8px; font-size: 14px; color: #e2e2e2; outline: none; }
+    .filtros input:focus { border-color: #7C6FFF; }
+    .btn-purple { padding: 10px 18px; background: #7C6FFF; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+    .btn-purple:hover { background: #6a5ce8; }
+    .btn-gray { padding: 10px 18px; background: #2a2a35; color: #888; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+    .btn-gray:hover { background: #333340; color: #e2e2e2; }
+    .actualizando { font-size: 12px; color: #555; margin-left: auto; }
+
+    /* SECCION */
+    .seccion { margin-bottom: 32px; }
+    .seccion-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .seccion-header h2 { font-size: 16px; color: #e2e2e2; }
+    .badge { background: #2a2560; color: #7C6FFF; padding: 3px 10px; border-radius: 20px; font-size: 12px; }
+
+    /* TABLA */
+    table { width: 100%; border-collapse: collapse; background: #17171f; border-radius: 12px; overflow: hidden; border: 1px solid #2a2a35; }
+    th { background: #1e1e28; color: #888; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
+    td { padding: 14px 16px; border-bottom: 1px solid #1e1e28; font-size: 14px; color: #ccc; }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #fafafa; }
-    .hora-badge { background: #EEF2FF; color: #4F46E5; padding: 4px 10px; border-radius: 20px; font-size: 13px; }
-    .btn-cancelar { background: #FEE2E2; color: #DC2626; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
-    .btn-cancelar:hover { background: #FECACA; }
-    .empty { text-align: center; padding: 40px; color: #999; font-size: 15px; }
-    .actualizando { font-size: 12px; color: #999; margin-left: auto; }
-    .error { background: #FEE2E2; color: #DC2626; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
-    .form-manual { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-    .form-manual .campo { display: flex; flex-direction: column; gap: 6px; }
-    .form-manual label { font-size: 13px; color: #666; }
-    .form-manual input { padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
-    .form-manual button { padding: 10px 24px; background: #4F46E5; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; height: 42px; }
-    .form-manual button:hover { background: #4338CA; }
+    tr:hover td { background: #1a1a24; }
+    .hora-badge { background: #2a2560; color: #7C6FFF; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+    .btn-cancelar { background: #2a1515; color: #ff6b6b; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    .btn-cancelar:hover { background: #3a1a1a; }
+    .empty { text-align: center; padding: 40px; color: #555; font-size: 14px; }
+
+    /* FORMULARIO */
+    .form-card { background: #17171f; border: 1px solid #2a2a35; border-radius: 12px; padding: 24px; }
+    .form-card h2 { font-size: 16px; color: #e2e2e2; margin-bottom: 20px; }
+    .form-manual { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .campo { display: flex; flex-direction: column; gap: 6px; }
+    .campo label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+    .campo input { padding: 10px 14px; background: #0f0f13; border: 1px solid #2a2a35; border-radius: 8px; font-size: 14px; color: #e2e2e2; outline: none; }
+    .campo input:focus { border-color: #7C6FFF; }
+    .error-msg { background: #2a1515; color: #ff6b6b; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
   </style>
 </head>
 <body>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-  <h1>Panel de Reservas</h1>
-  <a href="/logout" style="background:#FEE2E2;color:#DC2626;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:14px;">Cerrar sesión</a>
-</div>
-  <p class="subtitulo">Hoy: <%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
 
-  <div class="stats">
-    <div class="stat">
-      <div class="numero"><%= reservasHoy.length %></div>
-      <div class="label">Reservas hoy</div>
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h2>ReservasBot</h2>
+      <p><%= usuario.restaurante %></p>
     </div>
-    <div class="stat">
-      <div class="numero"><%= reservasHoy.reduce((a, r) => a + (r.personas || 0), 0) %></div>
-      <div class="label">Personas hoy</div>
+    <div class="sidebar-menu">
+      <a href="/panel" class="menu-item active">
+        <span class="menu-icon">📅</span> Reservas
+      </a>
+      <a href="/clientes" class="menu-item">
+        <span class="menu-icon">👥</span> Clientes
+      </a>
+      <a href="/configuracion" class="menu-item">
+        <span class="menu-icon">⚙️</span> Configuración
+      </a>
     </div>
-    <div class="stat">
-      <div class="numero"><%= reservas.length %></div>
-      <div class="label">Total reservas</div>
+    <div class="sidebar-footer">
+      <div class="avatar">
+        <div class="avatar-circle"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
+        <div class="avatar-info">
+          <div class="avatar-name"><%= usuario.nombre %></div>
+          <div class="avatar-rest"><%= usuario.email %></div>
+        </div>
+      </div>
+      <a href="/logout" class="logout" style="display:block;margin-top:12px;">Cerrar sesión →</a>
     </div>
   </div>
 
-  <div class="filtros">
-    <input type="date" id="filtroFecha" value="<%= fechaFiltro || '' %>">
-    <button onclick="filtrar()">Filtrar</button>
-    <button onclick="limpiar()" style="background:#6B7280">Ver todas</button>
-    <span class="actualizando" id="ultimaActualizacion">Actualizando...</span>
-  </div>
-
-  <% if (fechaFiltro) { %>
-    <div class="seccion">
-      <h2>Resultados para <%= fechaFiltro %></h2>
-      <table>
-        <thead>
-          <tr><th>#</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Recibida</th><th>Acción</th></tr>
-        </thead>
-        <tbody>
-          <% if (reservasFiltradas.length === 0) { %>
-            <tr><td colspan="7" class="empty">No hay reservas para esta fecha</td></tr>
-          <% } else { %>
-            <% reservasFiltradas.forEach((r, i) => { %>
-              <tr>
-                <td><%= i + 1 %></td>
-                <td><strong><%= r.nombre %></strong></td>
-                <td><%= r.fecha %></td>
-                <td><span class="hora-badge"><%= r.hora %></span></td>
-                <td><%= r.personas %> personas</td>
-                <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
-                <td>
-                  <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('¿Cancelar reserva de <%= r.nombre %>?')">
-                    <button class="btn-cancelar" type="submit">Cancelar</button>
-                  </form>
-                </td>
-              </tr>
-            <% }) %>
-          <% } %>
-        </tbody>
-      </table>
-    </div>
-  <% } else { %>
-
-    <div class="seccion">
-      <h2>Reservas de hoy <span class="badge-hoy"><%= reservasHoy.length %></span></h2>
-      <table>
-        <thead>
-          <tr><th>#</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Recibida</th><th>Acción</th></tr>
-        </thead>
-        <tbody>
-          <% if (reservasHoy.length === 0) { %>
-            <tr><td colspan="7" class="empty">No hay reservas para hoy</td></tr>
-          <% } else { %>
-            <% reservasHoy.forEach((r, i) => { %>
-              <tr>
-                <td><%= i + 1 %></td>
-                <td><strong><%= r.nombre %></strong></td>
-                <td><%= r.fecha %></td>
-                <td><span class="hora-badge"><%= r.hora %></span></td>
-                <td><%= r.personas %> personas</td>
-                <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
-                <td>
-                  <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('¿Cancelar reserva de <%= r.nombre %>?')">
-                    <button class="btn-cancelar" type="submit">Cancelar</button>
-                  </form>
-                </td>
-              </tr>
-            <% }) %>
-          <% } %>
-        </tbody>
-      </table>
+  <!-- MAIN -->
+  <div class="main">
+    <div class="page-header">
+      <h1>Panel de Reservas</h1>
+      <p>Hoy: <%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
     </div>
 
-    <div class="seccion">
-      <h2>Todas las reservas</h2>
-      <table>
-        <thead>
-          <tr><th>#</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Recibida</th><th>Acción</th></tr>
-        </thead>
-        <tbody>
-          <% if (reservas.length === 0) { %>
-            <tr><td colspan="7" class="empty">No hay reservas todavía</td></tr>
-          <% } else { %>
-            <% reservas.forEach((r, i) => { %>
-              <tr>
-                <td><%= i + 1 %></td>
-                <td><strong><%= r.nombre %></strong></td>
-                <td><%= r.fecha %></td>
-                <td><span class="hora-badge"><%= r.hora %></span></td>
-                <td><%= r.personas %> personas</td>
-                <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
-                <td>
-                  <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('¿Cancelar reserva de <%= r.nombre %>?')">
-                    <button class="btn-cancelar" type="submit">Cancelar</button>
-                  </form>
-                </td>
-              </tr>
-            <% }) %>
-          <% } %>
-        </tbody>
-      </table>
+    <!-- STATS -->
+    <div class="stats">
+      <div class="stat">
+        <div class="numero"><%= reservasHoy.length %></div>
+        <div class="label">Reservas hoy</div>
+      </div>
+      <div class="stat">
+        <div class="numero"><%= reservasHoy.reduce((a, r) => a + (r.personas || 0), 0) %></div>
+        <div class="label">Personas hoy</div>
+      </div>
+      <div class="stat">
+        <div class="numero"><%= reservas.length %></div>
+        <div class="label">Total reservas</div>
+      </div>
     </div>
 
-  <% } %>
+    <!-- GRAFICO -->
+    <div class="grafico-card">
+      <h3>Reservas por día (últimos 7 días)</h3>
+      <canvas id="grafico" height="80"></canvas>
+    </div>
 
-  <div class="seccion">
-    <h2>Añadir reserva manual</h2>
-    <% if (error === 'fecha') { %>
-  <div class="error">No puedes añadir una reserva en una fecha y hora pasada.</div>
-<% } %>
-<% if (error === 'cupo') { %>
-  <div class="error">No hay mesas disponibles para esa fecha, hora y número de personas.</div>
-<% } %>
-    <form method="POST" action="/nueva-reserva" class="form-manual">
-      <div class="campo">
-        <label>Nombre</label>
-        <input name="nombre" required placeholder="Nombre del cliente" style="width:180px;">
+    <!-- FILTROS -->
+    <div class="filtros">
+      <input type="date" id="filtroFecha" value="<%= fechaFiltro || '' %>">
+      <button class="btn-purple" onclick="filtrar()">Filtrar</button>
+      <button class="btn-gray" onclick="limpiar()">Ver todas</button>
+      <span class="actualizando" id="ultimaActualizacion">Cargando...</span>
+    </div>
+
+    <% if (fechaFiltro) { %>
+      <div class="seccion">
+        <div class="seccion-header">
+          <h2>Resultados para <%= fechaFiltro %></h2>
+          <span class="badge"><%= reservasFiltradas.length %></span>
+        </div>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Recibida</th><th>Acción</th></tr>
+          </thead>
+          <tbody>
+            <% if (reservasFiltradas.length === 0) { %>
+              <tr><td colspan="7" class="empty">No hay reservas para esta fecha</td></tr>
+            <% } else { %>
+              <% reservasFiltradas.forEach((r, i) => { %>
+                <tr>
+                  <td><%= i + 1 %></td>
+                  <td><strong style="color:#e2e2e2"><%= r.nombre %></strong></td>
+                  <td><%= r.fecha %></td>
+                  <td><span class="hora-badge"><%= r.hora %></span></td>
+                  <td><%= r.personas %> personas</td>
+                  <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
+                  <td>
+                    <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('Cancelar reserva de <%= r.nombre %>?')">
+                      <button class="btn-cancelar" type="submit">Cancelar</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
       </div>
-      <div class="campo">
-        <label>Fecha</label>
-        <input name="fecha" type="date" required>
+    <% } else { %>
+
+      <div class="seccion">
+        <div class="seccion-header">
+          <h2>Reservas de hoy</h2>
+          <span class="badge"><%= reservasHoy.length %></span>
+        </div>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Recibida</th><th>Acción</th></tr>
+          </thead>
+          <tbody>
+            <% if (reservasHoy.length === 0) { %>
+              <tr><td colspan="7" class="empty">No hay reservas para hoy</td></tr>
+            <% } else { %>
+              <% reservasHoy.forEach((r, i) => { %>
+                <tr>
+                  <td><%= i + 1 %></td>
+                  <td><strong style="color:#e2e2e2"><%= r.nombre %></strong></td>
+                  <td><%= r.fecha %></td>
+                  <td><span class="hora-badge"><%= r.hora %></span></td>
+                  <td><%= r.personas %> personas</td>
+                  <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
+                  <td>
+                    <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('Cancelar reserva de <%= r.nombre %>?')">
+                      <button class="btn-cancelar" type="submit">Cancelar</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
       </div>
-      <div class="campo">
-        <label>Hora</label>
-        <input name="hora" type="time" required>
+
+      <div class="seccion">
+        <div class="seccion-header">
+          <h2>Todas las reservas</h2>
+          <span class="badge"><%= reservas.length %></span>
+        </div>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Recibida</th><th>Acción</th></tr>
+          </thead>
+          <tbody>
+            <% if (reservas.length === 0) { %>
+              <tr><td colspan="7" class="empty">No hay reservas todavia</td></tr>
+            <% } else { %>
+              <% reservas.forEach((r, i) => { %>
+                <tr>
+                  <td><%= i + 1 %></td>
+                  <td><strong style="color:#e2e2e2"><%= r.nombre %></strong></td>
+                  <td><%= r.fecha %></td>
+                  <td><span class="hora-badge"><%= r.hora %></span></td>
+                  <td><%= r.personas %> personas</td>
+                  <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
+                  <td>
+                    <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('Cancelar reserva de <%= r.nombre %>?')">
+                      <button class="btn-cancelar" type="submit">Cancelar</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
       </div>
-      <div class="campo">
-        <label>Personas</label>
-        <input name="personas" type="number" min="1" max="20" required placeholder="Nº" style="width:80px;">
-      </div>
-      <button type="submit">Añadir reserva</button>
-    </form>
+
+    <% } %>
+
+    <!-- FORMULARIO MANUAL -->
+    <div class="form-card">
+      <h2>Añadir reserva manual</h2>
+      <% if (error === 'fecha') { %>
+      <div class="error-msg">No puedes añadir una reserva en una fecha y hora pasada.</div>
+      <% } %>
+      <% if (error === 'cupo') { %>
+     <div class="error-msg">No hay mesas disponibles para esa fecha, hora y numero de personas.</div>
+      <% } %>
+      <% if (error === 'telefono') { %>
+     <div class="error-msg">El telefono es obligatorio.</div>
+      <% } %>
+      <form method="POST" action="/nueva-reserva" class="form-manual">
+        <div class="campo">
+          <label>Nombre</label>
+          <input name="nombre" required placeholder="Nombre del cliente" style="width:180px;">
+        </div>
+        <div class="campo">
+        <label>Telefono</label>
+        <input name="telefono" required placeholder="+34600000000" style="width:150px;">
+        </div>
+        <div class="campo">
+          <label>Fecha</label>
+          <input name="fecha" type="date" required>
+        </div>
+        <div class="campo">
+          <label>Hora</label>
+          <input name="hora" type="time" required>
+        </div>
+        <div class="campo">
+          <label>Personas</label>
+          <input name="personas" type="number" min="1" max="20" required placeholder="Num" style="width:80px;">
+        </div>
+        <button type="submit" class="btn-purple" style="height:42px;">Añadir reserva</button>
+      </form>
+    </div>
+
   </div>
 
   <script>
@@ -201,14 +300,50 @@
     function limpiar() {
       window.location.href = '/panel';
     }
+
+  // Gráfico
+    const reservas = <%- JSON.stringify(reservas.map(r => ({ fecha: r.fecha }))) %>;
+    const labels = [];
+    const datos = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const fecha = d.toISOString().split('T')[0];
+      labels.push(d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }));
+      datos.push(reservas.filter(r => r.fecha === fecha).length);
+    }
+
+    new Chart(document.getElementById('grafico'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Reservas',
+          data: datos,
+          backgroundColor: '#2a2560',
+          borderColor: '#7C6FFF',
+          borderWidth: 1,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#1e1e28' }, ticks: { color: '#666' } },
+          y: { grid: { color: '#1e1e28' }, ticks: { color: '#666', stepSize: 1 } }
+        }
+      }
+    });
+
     setInterval(() => {
       fetch('/api/reservas')
         .then(r => r.json())
         .then(() => {
-          document.getElementById('ultimaActualizacion').textContent = 'Última actualización: ' + new Date().toLocaleTimeString('es-ES');
+          document.getElementById('ultimaActualizacion').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-ES');
         });
     }, 30000);
-    document.getElementById('ultimaActualizacion').textContent = 'Última actualización: ' + new Date().toLocaleTimeString('es-ES');
+    document.getElementById('ultimaActualizacion').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-ES');
   </script>
 </body>
 </html>
