@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel de Reservas</title>
+  <h1>Panel de Reservas — <%= usuario.restaurante %></h1>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 30px; color: #333; }
@@ -42,7 +42,10 @@
   </style>
 </head>
 <body>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
   <h1>Panel de Reservas</h1>
+  <a href="/logout" style="background:#FEE2E2;color:#DC2626;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:14px;">Cerrar sesión</a>
+</div>
   <p class="subtitulo">Hoy: <%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
 
   <div class="stats">

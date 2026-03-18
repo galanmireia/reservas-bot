@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Panel de Reservas</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .card { background: white; border-radius: 16px; padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    .logo { text-align: center; margin-bottom: 32px; }
+    .logo h1 { font-size: 24px; color: #4F46E5; }
+    .logo p { color: #888; font-size: 14px; margin-top: 4px; }
+    .campo { margin-bottom: 20px; }
+    .campo label { display: block; font-size: 13px; color: #555; margin-bottom: 6px; }
+    .campo input { width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border .2s; }
+    .campo input:focus { border-color: #4F46E5; }
+    .btn { width: 100%; padding: 12px; background: #4F46E5; color: white; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; }
+    .btn:hover { background: #4338CA; }
+    .error { background: #FEE2E2; color: #DC2626; padding: 12px; border-radius: 8px; font-size: 14px; margin-bottom: 20px; }
+    .registro { text-align: center; margin-top: 20px; font-size: 13px; color: #888; }
+    .registro a { color: #4F46E5; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <h1>ReservasBot</h1>
+      <p>Panel de gestión</p>
+    </div>
+    <% if (error) { %>
+      <div class="error"><%= error %></div>
+    <% } %>
+    <form method="POST" action="/login">
+      <div class="campo">
+        <label>Email</label>
+        <input type="email" name="email" required placeholder="tu@email.com">
+      </div>
+      <div class="campo">
+        <label>Contraseña</label>
+        <input type="password" name="password" required placeholder="••••••••">
+      </div>
+      <button class="btn" type="submit">Entrar</button>
+    </form>
+    <div class="registro">
+      ¿No tienes cuenta? <a href="/registro">Regístrate aquí</a>
+    </div>
+  </div>
+</body>
+</html>

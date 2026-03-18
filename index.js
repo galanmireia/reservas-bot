@@ -15,8 +15,24 @@ const db = new Pool({
   password: process.env.DB_PASSWORD
 });
 
+const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
 const conversaciones = {};
 const conversacionesWhatsapp = {};
+
+async function enviarWhatsApp(telefono, mensaje) {
+  try {
+    const to = telefono.startsWith('whatsapp:') ? telefono : `whatsapp:${telefono}`;
+    await twilioClient.messages.create({
+      from: process.env.TWILIO_WHATSAPP_FROM,
+      to: to,
+      body: mensaje
+    });
+    console.log('WhatsApp enviado a:', to);
+  } catch (err) {
+    console.error('Error enviando WhatsApp:', err.message);
+  }
+}
 
 async function obtenerOCrearCliente(telefono, nombre = null) {
   const cliente = await db.query('SELECT * FROM clientes WHERE telefono = $1', [telefono]);
@@ -88,13 +104,15 @@ async function extraerDatosReserva(mensajes) {
   }
 }
 
-async function procesarAccion(datos, canal, contexto) {
+async function procesarAccion(datos, canal, contexto, telefonoCliente = null) {
   if (!datos) return 'Disculpa, no he podido entender los datos. Puedes repetirmelos?';
+
+  const telefonoParaWhatsapp = telefonoCliente || canal;
 
   if (datos.accion === 'CONSULTAR') {
     const reservas = await db.query(
       'SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha >= $2 ORDER BY fecha ASC, hora ASC',
-      [canal, new Date().toISOString().split('T')[0]]
+      [telefonoParaWhatsapp, new Date().toISOString().split('T')[0]]
     );
     if (reservas.rows.length === 0) {
       return 'No tienes reservas proximas.';
@@ -108,12 +126,12 @@ async function procesarAccion(datos, canal, contexto) {
     if (datos.fecha) {
       reserva = await db.query(
         'SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha = $2 LIMIT 1',
-        [canal, datos.fecha]
+        [telefonoParaWhatsapp, datos.fecha]
       );
     } else if (datos.nombre) {
       reserva = await db.query(
         'SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1',
-        [canal, datos.nombre]
+        [telefonoParaWhatsapp, datos.nombre]
       );
     }
 
@@ -121,6 +139,9 @@ async function procesarAccion(datos, canal, contexto) {
       return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre con el que esta hecha?';
     }
     await db.query('DELETE FROM reservas WHERE id = $1', [reserva.rows[0].id]);
+
+    await enviarWhatsApp(telefonoParaWhatsapp, `Tu reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a las ${reserva.rows[0].hora} ha sido cancelada correctamente.`);
+
     return `Reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a las ${reserva.rows[0].hora} cancelada correctamente.`;
   }
 
@@ -129,12 +150,12 @@ async function procesarAccion(datos, canal, contexto) {
     if (datos.fecha) {
       reserva = await db.query(
         'SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha = $2 LIMIT 1',
-        [canal, datos.fecha]
+        [telefonoParaWhatsapp, datos.fecha]
       );
     } else if (datos.nombre) {
       reserva = await db.query(
         'SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1',
-        [canal, datos.nombre]
+        [telefonoParaWhatsapp, datos.nombre]
       );
     }
 
@@ -160,6 +181,9 @@ async function procesarAccion(datos, canal, contexto) {
       'UPDATE reservas SET fecha = $1, hora = $2, personas = $3 WHERE id = $4',
       [nuevaFecha, nuevaHora, nuevasPersonas, reserva.rows[0].id]
     );
+
+    await enviarWhatsApp(telefonoParaWhatsapp, `Tu reserva ha sido modificada correctamente:\n- Fecha: ${nuevaFecha}\n- Hora: ${nuevaHora}\n- Personas: ${nuevasPersonas}`);
+
     return `Reserva modificada correctamente. Nueva fecha: ${nuevaFecha} a las ${nuevaHora} para ${nuevasPersonas} personas.`;
   }
 
@@ -180,10 +204,13 @@ async function procesarAccion(datos, canal, contexto) {
 
     await db.query(
       'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente) VALUES ($1, $2, $3, $4, $5, $6)',
-      [canal, datos.nombre, datos.fecha, datos.hora, datos.personas, canal]
+      [canal, datos.nombre, datos.fecha, datos.hora, datos.personas, telefonoParaWhatsapp]
     );
 
-    await obtenerOCrearCliente(canal, datos.nombre);
+    await obtenerOCrearCliente(telefonoParaWhatsapp, datos.nombre);
+
+    await enviarWhatsApp(telefonoParaWhatsapp, `Hola ${datos.nombre}, tu reserva en Restaurante El Ejemplo esta confirmada:\n- Fecha: ${datos.fecha}\n- Hora: ${datos.hora}\n- Personas: ${datos.personas}\nSi necesitas cancelar o modificar contacta con nosotros. Te esperamos!`);
+
     return `Perfecto ${datos.nombre}, tu reserva esta confirmada para el ${datos.fecha} a las ${datos.hora} para ${datos.personas} personas. Te esperamos!`;
   }
 
@@ -218,6 +245,61 @@ Se amable y breve. Cuando el cliente quiera gestionar una reserva y tengas todos
 };
 
 app.set('view engine', 'ejs');
+const bcrypt = require('bcrypt');
+const session = require('express-session');
+
+app.use(session({
+  secret: 'reservasbot_secret_key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 24 * 60 * 60 * 1000 }
+}));
+
+function requireLogin(req, res, next) {
+  if (!req.session.usuario) return res.redirect('/login');
+  next();
+}
+
+app.get('/login', (req, res) => {
+  res.render('login', { error: null });
+});
+
+app.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  const usuario = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+  if (usuario.rows.length === 0) {
+    return res.render('login', { error: 'Email o contraseña incorrectos.' });
+  }
+  const valido = await bcrypt.compare(password, usuario.rows[0].password);
+  if (!valido) {
+    return res.render('login', { error: 'Email o contraseña incorrectos.' });
+  }
+  req.session.usuario = usuario.rows[0];
+  res.redirect('/panel');
+});
+
+app.get('/registro', (req, res) => {
+  res.render('registro', { error: null });
+});
+
+app.post('/registro', async (req, res) => {
+  const { nombre, restaurante, email, password } = req.body;
+  const existe = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+  if (existe.rows.length > 0) {
+    return res.render('registro', { error: 'Ya existe una cuenta con ese email.' });
+  }
+  const hash = await bcrypt.hash(password, 10);
+  await db.query(
+    'INSERT INTO usuarios (nombre, email, password, restaurante) VALUES ($1, $2, $3, $4)',
+    [nombre, email, hash, restaurante]
+  );
+  res.redirect('/login');
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/login');
+});
 
 app.post('/llamada', async (req, res) => {
   const callSid = req.body.CallSid;
@@ -271,7 +353,7 @@ app.post('/responder', async (req, res) => {
 
   if (mensaje.toLowerCase().includes('un momento por favor')) {
     const datos = await extraerDatosReserva(conversaciones[callSid]);
-    mensaje = await procesarAccion(datos, telefono, contexto);
+    mensaje = await procesarAccion(datos, callSid, contexto, telefono);
     if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada')) {
       const nuevoContexto = await obtenerContextoCliente(telefono);
       conversaciones[callSid] = [
@@ -323,7 +405,7 @@ app.post('/whatsapp', async (req, res) => {
 
     if (respuesta.toLowerCase().includes('un momento por favor')) {
       const datos = await extraerDatosReserva(conversacionesWhatsapp[from]);
-      respuesta = await procesarAccion(datos, from, contexto);
+      respuesta = await procesarAccion(datos, from, contexto, from);
       if (respuesta.includes('confirmada') || respuesta.includes('cancelada') || respuesta.includes('modificada')) {
         const nuevoContexto = await obtenerContextoCliente(from);
         conversacionesWhatsapp[from] = [
@@ -352,17 +434,18 @@ app.post('/whatsapp', async (req, res) => {
   }
 });
 
-app.get('/panel', async (req, res) => {
+app.get('/panel', requireLogin, async (req, res) => {
   const fechaFiltro = req.query.fecha || null;
   const error = req.query.error || null;
   const hoy = new Date().toISOString().split('T')[0];
+  const usuarioId = req.session.usuario.id;
 
-  const todas = await db.query('SELECT * FROM reservas ORDER BY creada_en DESC');
-  const hoyQuery = await db.query('SELECT * FROM reservas WHERE fecha = $1 ORDER BY hora ASC', [hoy]);
+  const todas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY creada_en DESC', [usuarioId]);
+  const hoyQuery = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 AND fecha = $2 ORDER BY hora ASC', [usuarioId, hoy]);
 
   let filtradas = [];
   if (fechaFiltro) {
-    const filtroQuery = await db.query('SELECT * FROM reservas WHERE fecha = $1 ORDER BY hora ASC', [fechaFiltro]);
+    const filtroQuery = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 AND fecha = $2 ORDER BY hora ASC', [usuarioId, fechaFiltro]);
     filtradas = filtroQuery.rows;
   }
 
@@ -371,7 +454,8 @@ app.get('/panel', async (req, res) => {
     reservasHoy: hoyQuery.rows,
     reservasFiltradas: filtradas,
     fechaFiltro,
-    error
+    error,
+    usuario: req.session.usuario
   });
 });
 
@@ -380,12 +464,12 @@ app.get('/api/reservas', async (req, res) => {
   res.json(resultado.rows);
 });
 
-app.post('/cancelar/:id', async (req, res) => {
+app.post('/cancelar/:id', requireLogin, async (req, res) => {
   await db.query('DELETE FROM reservas WHERE id = $1', [req.params.id]);
   res.redirect('/panel');
 });
 
-app.post('/nueva-reserva', async (req, res) => {
+app.post('/nueva-reserva', requireLogin, async (req, res) => {
   const { nombre, fecha, hora, personas } = req.body;
 
   const ahora = new Date();
@@ -400,9 +484,9 @@ app.post('/nueva-reserva', async (req, res) => {
     return res.redirect('/panel?error=cupo');
   }
 
-  await db.query(
-    'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente) VALUES ($1, $2, $3, $4, $5, $6)',
-    ['manual', nombre, fecha, hora, parseInt(personas), 'manual']
+ await db.query(
+    'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+    ['manual', nombre, fecha, hora, parseInt(personas), 'manual', req.session.usuario.id]
   );
   res.redirect('/panel');
 });
