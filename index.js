@@ -19,7 +19,47 @@ const db = new Pool({
 });
 
 const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+const nodemailer = require('nodemailer');
 
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+async function enviarEmailRestaurante(usuarioId, datos) {
+  try {
+    const usuario = await db.query('SELECT * FROM usuarios WHERE id = $1', [usuarioId]);
+    if (!usuario.rows.length) return;
+
+    const email = usuario.rows[0].email;
+    const restaurante = usuario.rows[0].restaurante;
+
+    await transporter.sendMail({
+      from: `ReservasBot <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `Nueva reserva — ${datos.nombre}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #f9f9f9; border-radius: 12px;">
+          <h2 style="color: #4F46E5;">Nueva reserva en ${restaurante}</h2>
+          <div style="background: white; border-radius: 8px; padding: 20px; margin-top: 16px;">
+            <p style="margin: 8px 0;"><strong>Nombre:</strong> ${datos.nombre}</p>
+            <p style="margin: 8px 0;"><strong>Fecha:</strong> ${datos.fecha}</p>
+            <p style="margin: 8px 0;"><strong>Hora:</strong> ${datos.hora}</p>
+            <p style="margin: 8px 0;"><strong>Personas:</strong> ${datos.personas}</p>
+            <p style="margin: 8px 0;"><strong>Canal:</strong> ${datos.canal || 'Bot'}</p>
+          </div>
+          <p style="color: #888; font-size: 12px; margin-top: 16px;">ReservasBot — Panel: http://localhost:3000/panel</p>
+        </div>
+      `
+    });
+    console.log('Email enviado a:', email);
+  } catch (err) {
+    console.error('Error enviando email:', err.message);
+  }
+}
 const conversaciones = {};
 const conversacionesWhatsapp = {};
 
@@ -222,7 +262,13 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
       'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
       [canal, datos.nombre, datos.fecha, datos.hora, datos.personas, telefonoParaWhatsapp, uid, canalTipo]
     );
-
+    await enviarEmailRestaurante(uid, {
+     nombre: datos.nombre,
+     fecha: datos.fecha,
+     hora: datos.hora,
+    personas: datos.personas,
+    canal: canalTipo
+    });
     await obtenerOCrearCliente(telefonoParaWhatsapp, datos.nombre);
     await enviarWhatsApp(telefonoParaWhatsapp, `Hola ${datos.nombre}, tu reserva esta confirmada:\n- Fecha: ${datos.fecha}\n- Hora: ${datos.hora}\n- Personas: ${datos.personas}\nTe esperamos!`);
 
@@ -489,8 +535,15 @@ app.post('/nueva-reserva', requireLogin, async (req, res) => {
   );
 
   await obtenerOCrearCliente(telefono, nombre);
+  await enviarEmailRestaurante(req.session.usuario.id, {
+  nombre,
+  fecha,
+  hora,
+  personas,
+  canal: 'manual'
+  });
   res.redirect('/panel');
-});
+  });
 
 app.get('/clientes', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
