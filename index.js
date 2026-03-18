@@ -44,15 +44,16 @@ async function enviarWhatsApp(telefono, mensaje) {
       from: process.env.TWILIO_WHATSAPP_FROM,
       to: to,
       body: mensaje
+    }).catch(err => {
+      console.error('Error enviando WhatsApp (ignorado):', err.message);
     });
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000));
-
-    console.log('WhatsApp enviado a:', to);
+    const timeout = new Promise((resolve) => setTimeout(resolve, 2000));
+    await Promise.race([promesa, timeout]);
+    console.log('WhatsApp procesado');
   } catch (err) {
     console.error('Error enviando WhatsApp (ignorado):', err.message);
   }
 }
-
 async function enviarEmailRestaurante(usuarioId, datos) {
   try {
     const usuario = await db.query('SELECT * FROM usuarios WHERE id = $1', [usuarioId]);
