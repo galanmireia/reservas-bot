@@ -45,8 +45,8 @@ async function enviarWhatsApp(telefono, mensaje) {
       to: to,
       body: mensaje
     });
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
-    await Promise.race([promesa, timeout]);
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000));
+
     console.log('WhatsApp enviado a:', to);
   } catch (err) {
     console.error('Error enviando WhatsApp (ignorado):', err.message);
