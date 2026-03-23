@@ -5,7 +5,6 @@ app.use(express.urlencoded({ extended: false }));
 
 const bcrypt = require('bcrypt');
 const session = require('express-session');
-const nodemailer = require('nodemailer');
 const cron = require('node-cron');
 
 const OpenAI = require('openai');
@@ -18,14 +17,36 @@ const db = new Pool({
 });
 
 const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+async function enviarEmailRestaurante(usuarioId, datos) {
+  try {
+    const usuario = await db.query('SELECT * FROM usuarios WHERE id = $1', [usuarioId]);
+    if (!usuario.rows.length) return;
+    const email = usuario.rows[0].email;
+    const restaurante = usuario.rows[0].restaurante;
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+    await resend.emails.send({
+      from: 'ReservasBot <onboarding@resend.dev>',
+      to: email,
+      subject: `Nueva reserva — ${datos.nombre}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #f9f9f9; border-radius: 12px;">
+          <h2 style="color: #4F46E5;">Nueva reserva en ${restaurante}</h2>
+          <div style="background: white; border-radius: 8px; padding: 20px; margin-top: 16px;">
+            <p style="margin: 8px 0;"><strong>Nombre:</strong> ${datos.nombre}</p>
+            <p style="margin: 8px 0;"><strong>Fecha:</strong> ${datos.fecha}</p>
+            <p style="margin: 8px 0;"><strong>Hora:</strong> ${datos.hora}</p>
+            <p style="margin: 8px 0;"><strong>Personas:</strong> ${datos.personas}</p>
+            <p style="margin: 8px 0;"><strong>Canal:</strong> ${datos.canal || 'Bot'}</p>
+          </div>
+          <p style="color: #888; font-size: 12px; margin-top: 16px;">ReservasBot — Panel: https://reservas-bot-production.up.railway.app/panel</p>
+        </div>
+      `
+    });
+    console.log('Email enviado a:', email);
+  } catch (err) {
+    console.error('Error enviando email:', err.message);
   }
-});
+}
 
 const conversaciones = {};
 const conversacionesWhatsapp = {};
