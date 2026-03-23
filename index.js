@@ -263,9 +263,11 @@ INFO DEL RESTAURANTE:
 Direccion: ${direccion} | Horario: ${horario} | Tel: ${telefono} | Menu: ${menu} | Especialidad: ${especialidad} | Parking: ${aparcamiento}
 
 GESTION DE RESERVAS:
-Cuando tengas nombre+fecha+hora+personas di EXACTAMENTE: "un momento por favor ACCION:NUEVA"
-Para cancelar necesitas fecha o nombre: "un momento por favor ACCION:CANCELAR"
-Para modificar necesitas reserva actual y nuevos datos: "un momento por favor ACCION:MODIFICAR"
+Cuando tengas nombre+fecha+hora+personas, resume los datos al cliente y pregunta "¿Es correcto?". Solo cuando el cliente confirme di EXACTAMENTE: "un momento por favor ACCION:NUEVA"
+Para cancelar necesitas confirmacion del cliente antes de procesar.
+Para modificar necesitas confirmacion del cliente antes de procesar.
+Para cancelar cuando el cliente confirme: "un momento por favor ACCION:CANCELAR"
+Para modificar cuando el cliente confirme: "un momento por favor ACCION:MODIFICAR"
 Para consultar: "un momento por favor ACCION:CONSULTAR"
 NUNCA añadas nada mas despues del "un momento por favor ACCION:XXX"`;
 
