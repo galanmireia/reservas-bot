@@ -570,7 +570,15 @@ app.get('/test-recordatorios', requireLogin, async (_req, res) => {
     'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
     [fechaManana]
   );
-  res.send(`Recordatorios pendientes para ${reservas.rows.length} reservas del ${fechaManana}`);
+  for (const reserva of reservas.rows) {
+    if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
+      await enviarWhatsApp(
+        reserva.telefono_cliente,
+        `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas. Si necesitas cancelar o modificar respondenos a este mensaje.`
+      );
+    }
+  }
+  res.send(`Recordatorios enviados para ${reservas.rows.length} reservas del ${fechaManana}`);
 });
 
 cron.schedule('0 10 * * *', async () => {
