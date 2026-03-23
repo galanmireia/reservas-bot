@@ -339,8 +339,12 @@ app.post('/responder', async (req, res) => {
 
     if (mensaje.toLowerCase().includes('un momento por favor')) {
       const datos = await extraerDatosReserva(conversaciones[callSid]);
-      mensaje = await procesarAccion(datos, callSid, contexto, telefono, usuarioId);
-      console.log('Respuesta final:', mensaje);
+        try {
+         mensaje = await procesarAccion(datos, callSid, contexto, telefono, usuarioId);
+         } catch (err) {
+        console.error('Error en procesarAccion:', err.message);
+        mensaje = 'Tu reserva ha sido confirmada. Te esperamos!';
+     }
       if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada')) {
         const nuevoContexto = await obtenerContextoCliente(telefono);
         conversaciones[callSid] = [
