@@ -20,14 +20,40 @@ const db = new Pool({
 
 const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-const conversaciones = {};
-const conversacionesWhatsapp = {};
+async function initDB() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS conversaciones_activas (
+      session_id VARCHAR(255) PRIMARY KEY,
+      mensajes JSONB NOT NULL,
+      actualizado_en TIMESTAMP DEFAULT NOW()
+    )
+  `);
+}
+initDB().catch(err => console.error('Error inicializando DB:', err.message));
+
+async function getConversacion(sessionId) {
+  const r = await db.query('SELECT mensajes FROM conversaciones_activas WHERE session_id = $1', [sessionId]);
+  return r.rows.length > 0 ? r.rows[0].mensajes : null;
+}
+
+async function setConversacion(sessionId, mensajes) {
+  await db.query(
+    `INSERT INTO conversaciones_activas (session_id, mensajes, actualizado_en)
+     VALUES ($1, $2::jsonb, NOW())
+     ON CONFLICT (session_id) DO UPDATE SET mensajes = $2::jsonb, actualizado_en = NOW()`,
+    [sessionId, JSON.stringify(mensajes)]
+  );
+}
 
 app.use(session({
-  secret: 'reservasbot_secret_key',
+  secret: process.env.SESSION_SECRET || 'reservasbot_secret_key',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 }
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    sameSite: 'lax'
+  }
 }));
 
 async function enviarWhatsApp(telefono, mensaje) {
@@ -282,7 +308,7 @@ app.post('/llamada', async (req, res) => {
     const contexto = await obtenerContextoCliente(telefono);
     const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
 
-    conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
+    await setConversacion(callSid, [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }]);
 
     const saludo = contexto?.cliente?.nombre
       ? `Hola ${contexto.cliente.nombre}, soy Mario. En que puedo ayudarte?`
@@ -316,23 +342,25 @@ app.post('/responder', async (req, res) => {
     const contexto = await obtenerContextoCliente(telefono);
     const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
 
-    if (!conversaciones[callSid]) {
-      conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
+    let msgs = await getConversacion(callSid);
+    if (!msgs) {
+      msgs = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
     }
 
-    conversaciones[callSid].push({ role: 'user', content: textoCliente });
+    msgs.push({ role: 'user', content: textoCliente });
 
     const respuestaIA = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages: conversaciones[callSid]
+      messages: msgs
     });
 
     let mensaje = respuestaIA.choices[0].message.content;
-    conversaciones[callSid].push({ role: 'assistant', content: mensaje });
+    msgs.push({ role: 'assistant', content: mensaje });
+    await setConversacion(callSid, msgs);
     console.log('Mensaje completo:', mensaje);
 
     if (mensaje.toLowerCase().includes('un momento por favor')) {
-      const datos = await extraerDatosReserva(conversaciones[callSid]);
+      const datos = await extraerDatosReserva(msgs);
       try {
         mensaje = await procesarAccion(datos, callSid, contexto, telefono, usuarioId);
       } catch (err) {
@@ -342,10 +370,10 @@ app.post('/responder', async (req, res) => {
       console.log('Respuesta final:', mensaje);
       if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada')) {
         const nuevoContexto = await obtenerContextoCliente(telefono);
-        conversaciones[callSid] = [
+        await setConversacion(callSid, [
           { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
           { role: 'assistant', content: mensaje }
-        ];
+        ]);
       }
     }
 
@@ -376,23 +404,25 @@ app.post('/whatsapp', async (req, res) => {
     const contexto = await obtenerContextoCliente(from);
     const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
 
-    if (!conversacionesWhatsapp[from]) {
-      conversacionesWhatsapp[from] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
+    let msgs = await getConversacion(from);
+    if (!msgs) {
+      msgs = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
     }
 
-    conversacionesWhatsapp[from].push({ role: 'user', content: mensaje });
+    msgs.push({ role: 'user', content: mensaje });
 
     const respuestaIA = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages: conversacionesWhatsapp[from]
+      messages: msgs
     });
 
     let respuesta = respuestaIA.choices[0].message.content;
     console.log('Bot responde:', respuesta);
-    conversacionesWhatsapp[from].push({ role: 'assistant', content: respuesta });
+    msgs.push({ role: 'assistant', content: respuesta });
+    await setConversacion(from, msgs);
 
     if (respuesta.toLowerCase().includes('un momento por favor')) {
-      const datos = await extraerDatosReserva(conversacionesWhatsapp[from]);
+      const datos = await extraerDatosReserva(msgs);
       try {
         respuesta = await procesarAccion(datos, from, contexto, from, usuarioId);
       } catch (err) {
@@ -401,10 +431,10 @@ app.post('/whatsapp', async (req, res) => {
       }
       if (respuesta.includes('confirmada') || respuesta.includes('cancelada') || respuesta.includes('modificada')) {
         const nuevoContexto = await obtenerContextoCliente(from);
-        conversacionesWhatsapp[from] = [
+        await setConversacion(from, [
           { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
           { role: 'assistant', content: respuesta }
-        ];
+        ]);
       }
     }
 
@@ -452,7 +482,7 @@ app.get('/api/reservas', requireLogin, async (req, res) => {
 });
 
 app.post('/cancelar/:id', requireLogin, async (req, res) => {
-  await db.query('DELETE FROM reservas WHERE id = $1', [req.params.id]);
+  await db.query('DELETE FROM reservas WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
   res.redirect('/panel');
 });
 
@@ -519,7 +549,7 @@ app.post('/configuracion', requireLogin, async (req, res) => {
   res.redirect('/configuracion?exito=1');
 });
 
-app.get('/test-recordatorios', async (req, res) => {
+app.get('/test-recordatorios', requireLogin, async (_req, res) => {
   const manana = new Date();
   manana.setDate(manana.getDate() + 1);
   const fechaManana = manana.toISOString().split('T')[0];
@@ -552,6 +582,14 @@ cron.schedule('0 10 * * *', async () => {
     console.log('Recordatorios completados.');
   } catch (err) {
     console.error('Error en recordatorios:', err.message);
+  }
+});
+
+cron.schedule('*/30 * * * *', async () => {
+  try {
+    await db.query("DELETE FROM conversaciones_activas WHERE actualizado_en < NOW() - INTERVAL '2 hours'");
+  } catch (err) {
+    console.error('Error limpiando conversaciones:', err.message);
   }
 });
 

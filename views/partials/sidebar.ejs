@@ -1,0 +1,27 @@
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <h2>ReservasBot</h2>
+    <p><%= usuario.restaurante %></p>
+  </div>
+  <div class="sidebar-menu">
+    <a href="/panel" class="menu-item <%= paginaActiva === 'reservas' ? 'active' : '' %>">
+      <span class="menu-icon">📅</span> Reservas
+    </a>
+    <a href="/clientes" class="menu-item <%= paginaActiva === 'clientes' ? 'active' : '' %>">
+      <span class="menu-icon">👥</span> Clientes
+    </a>
+    <a href="/configuracion" class="menu-item <%= paginaActiva === 'configuracion' ? 'active' : '' %>">
+      <span class="menu-icon">⚙️</span> Configuración
+    </a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="avatar">
+      <div class="avatar-circle"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
+      <div class="avatar-info">
+        <div class="avatar-name"><%= usuario.nombre %></div>
+        <div class="avatar-rest"><%= usuario.email %></div>
+      </div>
+    </div>
+    <a href="/logout" class="logout" style="display:block;margin-top:12px;">Cerrar sesión →</a>
+  </div>
+</div>
