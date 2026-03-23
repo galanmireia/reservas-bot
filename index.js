@@ -231,7 +231,7 @@ Informacion del restaurante:
 
 Puedes ayudar al cliente a: 1) HACER una reserva nueva. 2) CANCELAR una reserva existente. 3) MODIFICAR una reserva existente. 4) CONSULTAR sus reservas. 5) RESPONDER preguntas sobre el restaurante, menu, horarios y ubicacion.
 
-Se amable y breve. Cuando el cliente quiera gestionar una reserva y tengas TODOS los datos necesarios di EXACTAMENTE: "un momento por favor" e indica la accion con ACCION:NUEVA, ACCION:CANCELAR, ACCION:MODIFICAR o ACCION:CONSULTAR.`;
+Se amable y breve. Cuando el cliente quiera gestionar una reserva y tengas TODOS los datos necesarios, responde UNICAMENTE con estas palabras exactas, sin añadir nada mas: "un momento por favor ACCION:NUEVA" o "un momento por favor ACCION:CANCELAR" o "un momento por favor ACCION:MODIFICAR" o "un momento por favor ACCION:CONSULTAR". No añadas ninguna frase adicional.`;
 
   if (contexto?.cliente?.nombre) {
     prompt += ` El cliente que contacta se llama ${contexto.cliente.nombre}, saludale por su nombre desde el principio.`;
