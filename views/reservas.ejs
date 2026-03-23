@@ -1,110 +1,152 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel — <%= usuario.restaurante %></title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
+    :root {
+      --bg: #f5f6fa;
+      --bg2: #ffffff;
+      --bg3: #eef0f6;
+      --border: #e2e5f0;
+      --text: #1a1d2e;
+      --text2: #6b7280;
+      --text3: #9ca3af;
+      --accent: #4F46E5;
+      --accent-light: #EEF2FF;
+      --accent-hover: #4338CA;
+      --sidebar: #1a1d2e;
+      --sidebar-text: #94a3b8;
+      --sidebar-active: #4F46E5;
+      --sidebar-active-bg: rgba(79,70,229,0.15);
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    [data-theme="dark"] {
+      --bg: #0d0d14;
+      --bg2: #111118;
+      --bg3: #16161f;
+      --border: #1e1e2a;
+      --text: #e2e2e2;
+      --text2: #6b7280;
+      --text3: #444;
+      --accent: #7C6FFF;
+      --accent-light: #1e1a3a;
+      --accent-hover: #6a5ce8;
+      --sidebar: #0d0d14;
+      --sidebar-text: #6b7280;
+      --sidebar-active: #7C6FFF;
+      --sidebar-active-bg: rgba(124,111,255,0.12);
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: #0a0a0f; color: #e2e2e2; display: flex; min-height: 100vh; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; transition: background .2s, color .2s; }
 
     /* SIDEBAR */
-    .sidebar { width: 220px; background: #111118; border-right: 1px solid #1e1e2a; display: flex; flex-direction: column; padding: 20px 0; position: fixed; height: 100vh; z-index: 100; }
-    .sidebar-logo { padding: 0 16px 20px; border-bottom: 1px solid #1e1e2a; }
-    .sidebar-logo h2 { color: #7C6FFF; font-size: 16px; font-weight: 700; }
-    .sidebar-logo p { color: #555; font-size: 11px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar { width: 220px; background: var(--sidebar); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; padding: 20px 0; position: fixed; height: 100vh; z-index: 100; }
+    .sidebar-logo { padding: 0 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .sidebar-logo h2 { color: #fff; font-size: 16px; font-weight: 700; }
+    .sidebar-logo p { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sidebar-menu { padding: 16px 8px; flex: 1; }
-    .menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: #666; font-size: 13px; cursor: pointer; margin-bottom: 2px; text-decoration: none; transition: all .15s; }
-    .menu-item:hover { background: #1a1a24; color: #ccc; }
-    .menu-item.active { background: #1e1a3a; color: #7C6FFF; }
+    .menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--sidebar-text); font-size: 13px; cursor: pointer; margin-bottom: 2px; text-decoration: none; transition: all .15s; }
+    .menu-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .menu-item.active { background: var(--sidebar-active-bg); color: var(--sidebar-active); }
     .menu-icon { font-size: 15px; width: 20px; text-align: center; }
-    .sidebar-footer { padding: 14px 16px; border-top: 1px solid #1e1e2a; }
+    .sidebar-footer { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.06); }
     .avatar { display: flex; align-items: center; gap: 10px; }
-    .avatar-circle { width: 32px; height: 32px; background: #1e1a3a; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #7C6FFF; font-weight: bold; font-size: 13px; flex-shrink: 0; }
-    .avatar-name { font-size: 12px; color: #ccc; }
-    .avatar-email { font-size: 11px; color: #555; }
-    .logout { color: #555; font-size: 11px; text-decoration: none; display: block; margin-top: 10px; }
-    .logout:hover { color: #ff6b6b; }
+    .avatar-circle { width: 32px; height: 32px; background: var(--sidebar-active-bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--sidebar-active); font-weight: bold; font-size: 13px; flex-shrink: 0; }
+    .avatar-name { font-size: 12px; color: rgba(255,255,255,0.7); }
+    .avatar-email { font-size: 11px; color: rgba(255,255,255,0.3); }
+    .logout { color: rgba(255,255,255,0.3); font-size: 11px; text-decoration: none; display: block; margin-top: 10px; }
+    .logout:hover { color: #f87171; }
 
     /* MAIN */
-    .main { margin-left: 220px; flex: 1; padding: 28px; max-width: calc(100vw - 220px); }
+    .main { margin-left: 220px; flex: 1; padding: 28px; }
 
     /* HEADER */
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-    .page-header h1 { font-size: 22px; color: #e2e2e2; font-weight: 600; }
-    .page-header p { color: #555; font-size: 13px; margin-top: 3px; }
-    .header-actions { display: flex; gap: 10px; }
-    .btn-export { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: #1e1e2a; border: 1px solid #2a2a38; border-radius: 8px; color: #888; font-size: 13px; cursor: pointer; text-decoration: none; transition: all .15s; }
-    .btn-export:hover { background: #252530; color: #ccc; }
+    .page-header h1 { font-size: 22px; font-weight: 600; }
+    .page-header p { color: var(--text2); font-size: 13px; margin-top: 3px; }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+    .btn-export { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; color: var(--text2); font-size: 13px; cursor: pointer; text-decoration: none; transition: all .15s; box-shadow: var(--shadow); }
+    .btn-export:hover { border-color: var(--accent); color: var(--accent); }
+    .theme-toggle { width: 36px; height: 36px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: var(--shadow); transition: all .15s; }
+    .theme-toggle:hover { border-color: var(--accent); }
 
     /* STATS */
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
-    .stat { background: #111118; border: 1px solid #1e1e2a; border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; }
-    .stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
-    .stat.purple::before { background: #7C6FFF; }
-    .stat.green::before { background: #4ade80; }
-    .stat.blue::before { background: #60a5fa; }
-    .stat.amber::before { background: #fbbf24; }
-    .stat-label { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-    .stat-value { font-size: 28px; font-weight: 700; color: #e2e2e2; }
-    .stat-sub { font-size: 11px; color: #555; margin-top: 4px; }
+    .stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
+    .stat-icon { font-size: 20px; margin-bottom: 10px; }
+    .stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
+    .stat-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
 
     /* GRID */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-    .card { background: #111118; border: 1px solid #1e1e2a; border-radius: 12px; padding: 20px; }
-    .card h3 { font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); }
+    .card h3 { font-size: 13px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; font-weight: 500; }
 
-    /* PROXIMAS RESERVAS */
-    .proximas { display: flex; flex-direction: column; gap: 10px; }
-    .reserva-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #0f0f16; border-radius: 8px; border: 1px solid #1a1a24; }
-    .reserva-hora { font-size: 13px; font-weight: 600; color: #7C6FFF; min-width: 44px; }
-    .reserva-nombre { font-size: 13px; color: #e2e2e2; flex: 1; }
-    .reserva-personas { font-size: 12px; color: #555; }
-    .empty-small { text-align: center; padding: 24px; color: #444; font-size: 13px; }
+    /* PROXIMAS */
+    .proximas { display: flex; flex-direction: column; gap: 8px; }
+    .reserva-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--bg3); border-radius: 8px; }
+    .reserva-hora { font-size: 13px; font-weight: 600; color: var(--accent); min-width: 44px; }
+    .reserva-nombre { font-size: 13px; color: var(--text); flex: 1; font-weight: 500; }
+    .reserva-personas { font-size: 12px; color: var(--text3); }
+    .empty-small { text-align: center; padding: 24px; color: var(--text3); font-size: 13px; }
 
-    /* TABLA COMPLETA */
-    .tabla-card { background: #111118; border: 1px solid #1e1e2a; border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
-    .tabla-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1e1e2a; }
-    .tabla-header h3 { font-size: 14px; color: #e2e2e2; font-weight: 500; }
-    .buscador { display: flex; align-items: center; gap: 8px; background: #0f0f16; border: 1px solid #1e1e2a; border-radius: 8px; padding: 7px 12px; }
-    .buscador input { background: none; border: none; outline: none; color: #ccc; font-size: 13px; width: 200px; }
-    .buscador input::placeholder { color: #444; }
-    .filtro-fecha { display: flex; align-items: center; gap: 8px; }
-    .filtro-fecha input { padding: 7px 10px; background: #0f0f16; border: 1px solid #1e1e2a; border-radius: 8px; font-size: 13px; color: #ccc; outline: none; }
-    .btn-filtro { padding: 7px 14px; background: #7C6FFF; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; }
-    .btn-filtro:hover { background: #6a5ce8; }
-    .btn-clear { padding: 7px 12px; background: #1e1e2a; color: #888; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; }
+    /* TABLA */
+    .tabla-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; box-shadow: var(--shadow); }
+    .tabla-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
+    .tabla-header h3 { font-size: 14px; font-weight: 600; }
+    .tabla-controles { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .buscador { display: flex; align-items: center; gap: 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; }
+    .buscador input { background: none; border: none; outline: none; color: var(--text); font-size: 13px; width: 180px; }
+    .buscador input::placeholder { color: var(--text3); }
+    .filtro-fecha input { padding: 7px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); outline: none; }
+    .btn-filtro { padding: 7px 14px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; }
+    .btn-filtro:hover { background: var(--accent-hover); }
+    .btn-clear { padding: 7px 12px; background: var(--bg3); color: var(--text2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; }
     table { width: 100%; border-collapse: collapse; }
-    th { background: #0d0d14; color: #555; padding: 10px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
-    td { padding: 12px 16px; border-bottom: 1px solid #161620; font-size: 13px; color: #aaa; }
+    th { background: var(--bg3); color: var(--text2); padding: 10px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #13131c; }
-    .nombre-td { color: #e2e2e2; font-weight: 500; }
-    .hora-pill { background: #1e1a3a; color: #7C6FFF; padding: 3px 10px; border-radius: 20px; font-size: 12px; display: inline-block; }
+    tr:hover td { background: var(--bg3); }
+    .nombre-td { color: var(--text); font-weight: 500; }
+    .hora-pill { background: var(--accent-light); color: var(--accent); padding: 3px 10px; border-radius: 20px; font-size: 12px; display: inline-block; font-weight: 500; }
     .estado-pill { padding: 3px 10px; border-radius: 20px; font-size: 11px; display: inline-block; font-weight: 500; }
-    .estado-confirmada { background: #0a2a1a; color: #4ade80; }
-    .estado-pendiente { background: #2a2010; color: #fbbf24; }
-    .estado-cancelada { background: #2a1015; color: #f87171; }
-    .canal-pill { padding: 3px 8px; border-radius: 20px; font-size: 11px; }
-    .canal-llamada { background: #1e1a3a; color: #a78bfa; }
-    .canal-whatsapp { background: #0a2a15; color: #4ade80; }
-    .canal-manual { background: #1e1e2a; color: #888; }
-    .btn-cancelar { background: none; border: none; color: #555; cursor: pointer; font-size: 12px; padding: 4px 8px; border-radius: 6px; transition: all .15s; }
-    .btn-cancelar:hover { background: #2a1015; color: #f87171; }
-    .empty { text-align: center; padding: 48px; color: #444; font-size: 14px; }
+    .estado-confirmada { background: #dcfce7; color: #16a34a; }
+    .estado-pendiente { background: #fef9c3; color: #ca8a04; }
+    .estado-cancelada { background: #fee2e2; color: #dc2626; }
+    [data-theme="dark"] .estado-confirmada { background: #0a2a1a; color: #4ade80; }
+    [data-theme="dark"] .estado-pendiente { background: #2a2010; color: #fbbf24; }
+    [data-theme="dark"] .estado-cancelada { background: #2a1015; color: #f87171; }
+    .canal-pill { padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    .canal-llamada { background: #ede9fe; color: #7c3aed; }
+    .canal-whatsapp { background: #dcfce7; color: #16a34a; }
+    .canal-manual { background: var(--bg3); color: var(--text2); }
+    [data-theme="dark"] .canal-llamada { background: #1e1a3a; color: #a78bfa; }
+    [data-theme="dark"] .canal-whatsapp { background: #0a2a15; color: #4ade80; }
+    .btn-cancelar { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; transition: all .15s; }
+    .btn-cancelar:hover { background: #fee2e2; color: #dc2626; }
+    [data-theme="dark"] .btn-cancelar:hover { background: #2a1015; color: #f87171; }
+    .empty { text-align: center; padding: 48px; color: var(--text3); font-size: 14px; }
 
-    /* FORMULARIO */
-    .form-card { background: #111118; border: 1px solid #1e1e2a; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
-    .form-card h3 { font-size: 14px; color: #e2e2e2; font-weight: 500; margin-bottom: 16px; }
+    /* FORM */
+    .form-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); }
+    .form-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
     .form-grid { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
     .campo { display: flex; flex-direction: column; gap: 5px; }
-    .campo label { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
-    .campo input, .campo select { padding: 9px 12px; background: #0a0a0f; border: 1px solid #1e1e2a; border-radius: 8px; font-size: 13px; color: #ccc; outline: none; transition: border .15s; }
-    .campo input:focus, .campo select:focus { border-color: #7C6FFF; }
-    .btn-add { padding: 9px 20px; background: #7C6FFF; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; height: 38px; }
-    .btn-add:hover { background: #6a5ce8; }
-    .error-msg { background: #1a0a0a; border: 1px solid #3a1515; color: #f87171; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; }
+    .campo label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
+    .campo input, .campo select { padding: 9px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); outline: none; transition: border .15s; }
+    .campo input:focus, .campo select:focus { border-color: var(--accent); }
+    .btn-add { padding: 9px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; height: 38px; }
+    .btn-add:hover { background: var(--accent-hover); }
+    .error-msg { background: #fee2e2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; }
+    [data-theme="dark"] .error-msg { background: #1a0a0a; border-color: #3a1515; color: #f87171; }
   </style>
 </head>
 <body>
@@ -114,20 +156,14 @@
       <p><%= usuario.restaurante %></p>
     </div>
     <div class="sidebar-menu">
-      <a href="/panel" class="menu-item active">
-        <span class="menu-icon">📅</span> Reservas
-      </a>
-      <a href="/clientes" class="menu-item">
-        <span class="menu-icon">👥</span> Clientes
-      </a>
-      <a href="/configuracion" class="menu-item">
-        <span class="menu-icon">⚙️</span> Configuración
-      </a>
+      <a href="/panel" class="menu-item active"><span class="menu-icon">📅</span> Reservas</a>
+      <a href="/clientes" class="menu-item"><span class="menu-icon">👥</span> Clientes</a>
+      <a href="/configuracion" class="menu-item"><span class="menu-icon">⚙️</span> Configuración</a>
     </div>
     <div class="sidebar-footer">
       <div class="avatar">
         <div class="avatar-circle"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
-        <div class="avatar-info" style="flex:1;min-width:0;">
+        <div style="flex:1;min-width:0;">
           <div class="avatar-name"><%= usuario.nombre %></div>
           <div class="avatar-email"><%= usuario.email %></div>
         </div>
@@ -143,35 +179,38 @@
         <p>Hoy: <%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
       </div>
       <div class="header-actions">
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙</button>
         <a href="/exportar-reservas" class="btn-export">⬇ Exportar CSV</a>
       </div>
     </div>
 
-    <!-- STATS -->
     <div class="stats">
-      <div class="stat purple">
+      <div class="stat">
+        <div class="stat-icon">📅</div>
         <div class="stat-label">Reservas hoy</div>
         <div class="stat-value"><%= reservasHoy.length %></div>
         <div class="stat-sub">confirmadas</div>
       </div>
-      <div class="stat green">
+      <div class="stat">
+        <div class="stat-icon">👥</div>
         <div class="stat-label">Personas hoy</div>
         <div class="stat-value"><%= reservasHoy.reduce((a, r) => a + (r.personas || 0), 0) %></div>
         <div class="stat-sub">comensales</div>
       </div>
-      <div class="stat blue">
+      <div class="stat">
+        <div class="stat-icon">📆</div>
         <div class="stat-label">Esta semana</div>
         <div class="stat-value"><%= reservas.filter(r => { const d = new Date(r.fecha); const hoy = new Date(); const diff = (d - hoy) / (1000*60*60*24); return diff >= 0 && diff <= 7; }).length %></div>
-        <div class="stat-sub">proximas reservas</div>
+        <div class="stat-sub">próximas reservas</div>
       </div>
-      <div class="stat amber">
+      <div class="stat">
+        <div class="stat-icon">📊</div>
         <div class="stat-label">Total historial</div>
         <div class="stat-value"><%= reservas.length %></div>
         <div class="stat-sub">todas las reservas</div>
       </div>
     </div>
 
-    <!-- GRID GRAFICO + PROXIMAS -->
     <div class="grid-2">
       <div class="card">
         <h3>Reservas últimos 7 días</h3>
@@ -180,7 +219,7 @@
       <div class="card">
         <h3>Próximas reservas hoy</h3>
         <div class="proximas">
-          <% const proximas = reservasHoy.sort((a,b) => a.hora > b.hora ? 1 : -1); %>
+          <% const proximas = reservasHoy.slice().sort((a,b) => a.hora > b.hora ? 1 : -1); %>
           <% if (proximas.length === 0) { %>
             <div class="empty-small">No hay reservas para hoy</div>
           <% } else { %>
@@ -192,84 +231,76 @@
               </div>
             <% }) %>
             <% if (proximas.length > 5) { %>
-              <div style="text-align:center;font-size:12px;color:#555;">+<%= proximas.length - 5 %> más</div>
+              <div style="text-align:center;font-size:12px;color:var(--text3);margin-top:8px;">+<%= proximas.length - 5 %> más</div>
             <% } %>
           <% } %>
         </div>
       </div>
     </div>
 
-    <!-- TABLA -->
     <div class="tabla-card">
       <div class="tabla-header">
         <h3>Todas las reservas</h3>
-        <div style="display:flex;gap:10px;align-items:center;">
+        <div class="tabla-controles">
           <div class="buscador">
-            <span style="color:#444;">🔍</span>
+            <span style="color:var(--text3);">🔍</span>
             <input type="text" id="buscador" placeholder="Buscar por nombre..." oninput="filtrarTabla()">
           </div>
-          <div class="filtro-fecha">
+          <div class="filtro-fecha" style="display:flex;gap:8px;">
             <input type="date" id="filtroFecha" value="<%= fechaFiltro || '' %>">
             <button class="btn-filtro" onclick="filtrar()">Filtrar</button>
-            <button class="btn-clear" onclick="limpiar()">✕</button>
+            <button class="btn-clear" onclick="limpiar()">✕ Limpiar</button>
           </div>
         </div>
       </div>
 
-      <% if (fechaFiltro && reservasFiltradas.length === 0) { %>
-        <div class="empty">No hay reservas para esta fecha</div>
-      <% } else { %>
-        <table id="tablaReservas">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Fecha</th>
-              <th>Hora</th>
-              <th>Personas</th>
-              <th>Canal</th>
-              <th>Estado</th>
-              <th>Recibida</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <% const listaReservas = fechaFiltro ? reservasFiltradas : reservas; %>
-            <% if (listaReservas.length === 0) { %>
-              <tr><td colspan="8" class="empty">No hay reservas todavia</td></tr>
-            <% } else { %>
-              <% listaReservas.forEach(r => { %>
-                <tr>
-                  <td class="nombre-td"><%= r.nombre %></td>
-                  <td><%= r.fecha %></td>
-                  <td><span class="hora-pill"><%= r.hora %></span></td>
-                  <td><%= r.personas %> pers.</td>
-                  <td>
-                    <% if (r.canal === 'whatsapp') { %>
-                      <span class="canal-pill canal-whatsapp">WhatsApp</span>
-                    <% } else if (r.canal === 'manual') { %>
-                      <span class="canal-pill canal-manual">Presencial</span>
-                    <% } else { %>
-                      <span class="canal-pill canal-llamada">Llamada</span>
-                    <% } %>
-                  </td>
-                  <td>
-                    <span class="estado-pill estado-<%= r.estado || 'confirmada' %>"><%= r.estado || 'confirmada' %></span>
-                  </td>
-                  <td><%= new Date(r.creada_en).toLocaleDateString('es-ES') %></td>
-                  <td>
-                    <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('Cancelar reserva de <%= r.nombre %>?')" style="display:inline;">
-                      <button class="btn-cancelar" type="submit">✕</button>
-                    </form>
-                  </td>
-                </tr>
-              <% }) %>
-            <% } %>
-          </tbody>
-        </table>
-      <% } %>
+      <table id="tablaReservas">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Fecha</th>
+            <th>Hora</th>
+            <th>Personas</th>
+            <th>Canal</th>
+            <th>Estado</th>
+            <th>Recibida</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% const listaReservas = fechaFiltro ? reservasFiltradas : reservas; %>
+          <% if (listaReservas.length === 0) { %>
+            <tr><td colspan="8" class="empty">No hay reservas todavía</td></tr>
+          <% } else { %>
+            <% listaReservas.forEach(r => { %>
+              <tr>
+                <td class="nombre-td"><%= r.nombre %></td>
+                <td><%= r.fecha %></td>
+                <td><span class="hora-pill"><%= r.hora %></span></td>
+                <td><%= r.personas %> pers.</td>
+                <td>
+                  <% if (r.canal === 'whatsapp') { %>
+                    <span class="canal-pill canal-whatsapp">WhatsApp</span>
+                  <% } else if (r.canal === 'manual') { %>
+                    <span class="canal-pill canal-manual">Presencial</span>
+                  <% } else { %>
+                    <span class="canal-pill canal-llamada">Llamada</span>
+                  <% } %>
+                </td>
+                <td><span class="estado-pill estado-<%= r.estado || 'confirmada' %>"><%= r.estado || 'confirmada' %></span></td>
+                <td><%= new Date(r.creada_en).toLocaleDateString('es-ES') %></td>
+                <td>
+                  <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('¿Cancelar reserva de <%= r.nombre %>?')" style="display:inline;">
+                    <button class="btn-cancelar" type="submit">✕</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
     </div>
 
-    <!-- FORMULARIO -->
     <div class="form-card">
       <h3>Añadir reserva manual</h3>
       <% if (error === 'fecha') { %><div class="error-msg">La fecha y hora ya han pasado.</div><% } %>
@@ -283,7 +314,7 @@
         <div class="campo">
           <label>Teléfono</label>
           <div style="display:flex;gap:6px;">
-            <select name="prefijo" style="padding:9px 8px;background:#0a0a0f;border:1px solid #1e1e2a;border-radius:8px;font-size:13px;color:#ccc;">
+            <select name="prefijo">
               <option value="+34">🇪🇸 +34</option>
               <option value="+1">🇺🇸 +1</option>
               <option value="+44">🇬🇧 +44</option>
@@ -310,53 +341,72 @@
   </div>
 
   <script>
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.getElementById('themeBtn').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+      if (window.chartInstance) window.chartInstance.destroy();
+      renderChart();
+    }
+
     function filtrar() {
       const fecha = document.getElementById('filtroFecha').value;
       if (fecha) window.location.href = '/panel?fecha=' + fecha;
     }
-    function limpiar() {
-      window.location.href = '/panel';
-    }
+    function limpiar() { window.location.href = '/panel'; }
     function filtrarTabla() {
       const texto = document.getElementById('buscador').value.toLowerCase();
-      const filas = document.querySelectorAll('#tablaReservas tbody tr');
-      filas.forEach(fila => {
+      document.querySelectorAll('#tablaReservas tbody tr').forEach(fila => {
         const nombre = fila.cells[0]?.textContent.toLowerCase() || '';
         fila.style.display = nombre.includes(texto) ? '' : 'none';
       });
     }
 
-    const reservas = <%- JSON.stringify(reservas.map(r => ({ fecha: r.fecha }))) %>;
-    const labels = [];
-    const datos = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const fecha = d.toISOString().split('T')[0];
-      labels.push(d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }));
-      datos.push(reservas.filter(r => r.fecha === fecha).length);
-    }
-    new Chart(document.getElementById('grafico'), {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          data: datos,
-          backgroundColor: 'rgba(124,111,255,0.3)',
-          borderColor: '#7C6FFF',
-          borderWidth: 1,
-          borderRadius: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { color: '#161620' }, ticks: { color: '#555', font: { size: 11 } } },
-          y: { grid: { color: '#161620' }, ticks: { color: '#555', stepSize: 1, font: { size: 11 } } }
-        }
+    function renderChart() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const reservas = <%- JSON.stringify(reservas.map(r => ({ fecha: r.fecha }))) %>;
+      const labels = [], datos = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const fecha = d.toISOString().split('T')[0];
+        labels.push(d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }));
+        datos.push(reservas.filter(r => r.fecha === fecha).length);
       }
-    });
+      const accent = isDark ? '#7C6FFF' : '#4F46E5';
+      const gridColor = isDark ? '#1e1e2a' : '#e2e5f0';
+      const tickColor = isDark ? '#6b7280' : '#9ca3af';
+      window.chartInstance = new Chart(document.getElementById('grafico'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            data: datos,
+            backgroundColor: accent + '33',
+            borderColor: accent,
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 } } },
+            y: { grid: { color: gridColor }, ticks: { color: tickColor, stepSize: 1, font: { size: 11 } } }
+          }
+        }
+      });
+    }
+    renderChart();
   </script>
 </body>
 </html>
+```
+
