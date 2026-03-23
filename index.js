@@ -586,9 +586,22 @@ cron.schedule('0 10 * * *', async () => {
     console.error('Error en recordatorios:', err.message);
   }
 });
+app.get('/exportar-reservas', requireLogin, async (req, res) => {
+  const usuarioId = req.session.usuario.id;
+  const reservas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY fecha ASC, hora ASC', [usuarioId]);
+  
+  const csv = [
+    'Nombre,Fecha,Hora,Personas,Canal,Estado,Recibida',
+    ...reservas.rows.map(r => `${r.nombre},${r.fecha},${r.hora},${r.personas},${r.canal || ''},${r.estado || 'confirmada'},${new Date(r.creada_en).toLocaleDateString('es-ES')}`)
+  ].join('\n');
 
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=reservas.csv');
+  res.send(csv);
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('Servidor escuchando en puerto', PORT);
 });
+
 

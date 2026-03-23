@@ -7,147 +7,258 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: #0f0f13; color: #e2e2e2; display: flex; min-height: 100vh; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0a0a0f; color: #e2e2e2; display: flex; min-height: 100vh; }
 
     /* SIDEBAR */
-    .sidebar { width: 240px; background: #17171f; border-right: 1px solid #2a2a35; display: flex; flex-direction: column; padding: 24px 0; position: fixed; height: 100vh; }
-    .sidebar-logo { padding: 0 20px 24px; border-bottom: 1px solid #2a2a35; }
-    .sidebar-logo h2 { color: #7C6FFF; font-size: 18px; }
-    .sidebar-logo p { color: #666; font-size: 12px; margin-top: 2px; }
-    .sidebar-menu { padding: 20px 12px; flex: 1; }
-    .menu-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #888; font-size: 14px; cursor: pointer; margin-bottom: 4px; text-decoration: none; }
-    .menu-item:hover { background: #1e1e28; color: #e2e2e2; }
-    .menu-item.active { background: #2a2560; color: #7C6FFF; }
-    .menu-icon { font-size: 16px; }
-    .sidebar-footer { padding: 16px 20px; border-top: 1px solid #2a2a35; }
+    .sidebar { width: 220px; background: #111118; border-right: 1px solid #1e1e2a; display: flex; flex-direction: column; padding: 20px 0; position: fixed; height: 100vh; z-index: 100; }
+    .sidebar-logo { padding: 0 16px 20px; border-bottom: 1px solid #1e1e2a; }
+    .sidebar-logo h2 { color: #7C6FFF; font-size: 16px; font-weight: 700; }
+    .sidebar-logo p { color: #555; font-size: 11px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar-menu { padding: 16px 8px; flex: 1; }
+    .menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: #666; font-size: 13px; cursor: pointer; margin-bottom: 2px; text-decoration: none; transition: all .15s; }
+    .menu-item:hover { background: #1a1a24; color: #ccc; }
+    .menu-item.active { background: #1e1a3a; color: #7C6FFF; }
+    .menu-icon { font-size: 15px; width: 20px; text-align: center; }
+    .sidebar-footer { padding: 14px 16px; border-top: 1px solid #1e1e2a; }
     .avatar { display: flex; align-items: center; gap: 10px; }
-    .avatar-circle { width: 36px; height: 36px; background: #2a2560; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #7C6FFF; font-weight: bold; font-size: 14px; }
-    .avatar-info { flex: 1; }
-    .avatar-name { font-size: 13px; color: #e2e2e2; }
-    .avatar-rest { font-size: 11px; color: #666; }
-    .logout { color: #666; font-size: 12px; text-decoration: none; }
+    .avatar-circle { width: 32px; height: 32px; background: #1e1a3a; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #7C6FFF; font-weight: bold; font-size: 13px; flex-shrink: 0; }
+    .avatar-name { font-size: 12px; color: #ccc; }
+    .avatar-email { font-size: 11px; color: #555; }
+    .logout { color: #555; font-size: 11px; text-decoration: none; display: block; margin-top: 10px; }
     .logout:hover { color: #ff6b6b; }
 
     /* MAIN */
-    .main { margin-left: 240px; flex: 1; padding: 32px; }
-    .page-header { margin-bottom: 28px; }
-    .page-header h1 { font-size: 24px; color: #e2e2e2; }
-    .page-header p { color: #666; font-size: 14px; margin-top: 4px; }
+    .main { margin-left: 220px; flex: 1; padding: 28px; max-width: calc(100vw - 220px); }
+
+    /* HEADER */
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+    .page-header h1 { font-size: 22px; color: #e2e2e2; font-weight: 600; }
+    .page-header p { color: #555; font-size: 13px; margin-top: 3px; }
+    .header-actions { display: flex; gap: 10px; }
+    .btn-export { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: #1e1e2a; border: 1px solid #2a2a38; border-radius: 8px; color: #888; font-size: 13px; cursor: pointer; text-decoration: none; transition: all .15s; }
+    .btn-export:hover { background: #252530; color: #ccc; }
 
     /* STATS */
-    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
-    .stat { background: #17171f; border: 1px solid #2a2a35; border-radius: 12px; padding: 20px; }
-    .stat .numero { font-size: 32px; font-weight: bold; color: #7C6FFF; }
-    .stat .label { font-size: 13px; color: #666; margin-top: 4px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+    .stat { background: #111118; border: 1px solid #1e1e2a; border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; }
+    .stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .stat.purple::before { background: #7C6FFF; }
+    .stat.green::before { background: #4ade80; }
+    .stat.blue::before { background: #60a5fa; }
+    .stat.amber::before { background: #fbbf24; }
+    .stat-label { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: #e2e2e2; }
+    .stat-sub { font-size: 11px; color: #555; margin-top: 4px; }
 
-    /* GRAFICO */
-    .grafico-card { background: #17171f; border: 1px solid #2a2a35; border-radius: 12px; padding: 24px; margin-bottom: 28px; }
-    .grafico-card h3 { font-size: 15px; color: #e2e2e2; margin-bottom: 20px; }
+    /* GRID */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .card { background: #111118; border: 1px solid #1e1e2a; border-radius: 12px; padding: 20px; }
+    .card h3 { font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
 
-    /* FILTROS */
-    .filtros { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; }
-    .filtros input { padding: 10px 14px; background: #17171f; border: 1px solid #2a2a35; border-radius: 8px; font-size: 14px; color: #e2e2e2; outline: none; }
-    .filtros input:focus { border-color: #7C6FFF; }
-    .btn-purple { padding: 10px 18px; background: #7C6FFF; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
-    .btn-purple:hover { background: #6a5ce8; }
-    .btn-gray { padding: 10px 18px; background: #2a2a35; color: #888; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
-    .btn-gray:hover { background: #333340; color: #e2e2e2; }
-    .actualizando { font-size: 12px; color: #555; margin-left: auto; }
+    /* PROXIMAS RESERVAS */
+    .proximas { display: flex; flex-direction: column; gap: 10px; }
+    .reserva-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #0f0f16; border-radius: 8px; border: 1px solid #1a1a24; }
+    .reserva-hora { font-size: 13px; font-weight: 600; color: #7C6FFF; min-width: 44px; }
+    .reserva-nombre { font-size: 13px; color: #e2e2e2; flex: 1; }
+    .reserva-personas { font-size: 12px; color: #555; }
+    .empty-small { text-align: center; padding: 24px; color: #444; font-size: 13px; }
 
-    /* SECCION */
-    .seccion { margin-bottom: 32px; }
-    .seccion-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-    .seccion-header h2 { font-size: 16px; color: #e2e2e2; }
-    .badge { background: #2a2560; color: #7C6FFF; padding: 3px 10px; border-radius: 20px; font-size: 12px; }
-
-    /* TABLA */
-    table { width: 100%; border-collapse: collapse; background: #17171f; border-radius: 12px; overflow: hidden; border: 1px solid #2a2a35; }
-    th { background: #1e1e28; color: #888; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
-    td { padding: 14px 16px; border-bottom: 1px solid #1e1e28; font-size: 14px; color: #ccc; }
+    /* TABLA COMPLETA */
+    .tabla-card { background: #111118; border: 1px solid #1e1e2a; border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+    .tabla-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1e1e2a; }
+    .tabla-header h3 { font-size: 14px; color: #e2e2e2; font-weight: 500; }
+    .buscador { display: flex; align-items: center; gap: 8px; background: #0f0f16; border: 1px solid #1e1e2a; border-radius: 8px; padding: 7px 12px; }
+    .buscador input { background: none; border: none; outline: none; color: #ccc; font-size: 13px; width: 200px; }
+    .buscador input::placeholder { color: #444; }
+    .filtro-fecha { display: flex; align-items: center; gap: 8px; }
+    .filtro-fecha input { padding: 7px 10px; background: #0f0f16; border: 1px solid #1e1e2a; border-radius: 8px; font-size: 13px; color: #ccc; outline: none; }
+    .btn-filtro { padding: 7px 14px; background: #7C6FFF; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; }
+    .btn-filtro:hover { background: #6a5ce8; }
+    .btn-clear { padding: 7px 12px; background: #1e1e2a; color: #888; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #0d0d14; color: #555; padding: 10px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
+    td { padding: 12px 16px; border-bottom: 1px solid #161620; font-size: 13px; color: #aaa; }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #1a1a24; }
-    .hora-badge { background: #2a2560; color: #7C6FFF; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
-    .btn-cancelar { background: #2a1515; color: #ff6b6b; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
-    .btn-cancelar:hover { background: #3a1a1a; }
-    .empty { text-align: center; padding: 40px; color: #555; font-size: 14px; }
+    tr:hover td { background: #13131c; }
+    .nombre-td { color: #e2e2e2; font-weight: 500; }
+    .hora-pill { background: #1e1a3a; color: #7C6FFF; padding: 3px 10px; border-radius: 20px; font-size: 12px; display: inline-block; }
+    .estado-pill { padding: 3px 10px; border-radius: 20px; font-size: 11px; display: inline-block; font-weight: 500; }
+    .estado-confirmada { background: #0a2a1a; color: #4ade80; }
+    .estado-pendiente { background: #2a2010; color: #fbbf24; }
+    .estado-cancelada { background: #2a1015; color: #f87171; }
+    .canal-pill { padding: 3px 8px; border-radius: 20px; font-size: 11px; }
+    .canal-llamada { background: #1e1a3a; color: #a78bfa; }
+    .canal-whatsapp { background: #0a2a15; color: #4ade80; }
+    .canal-manual { background: #1e1e2a; color: #888; }
+    .btn-cancelar { background: none; border: none; color: #555; cursor: pointer; font-size: 12px; padding: 4px 8px; border-radius: 6px; transition: all .15s; }
+    .btn-cancelar:hover { background: #2a1015; color: #f87171; }
+    .empty { text-align: center; padding: 48px; color: #444; font-size: 14px; }
 
     /* FORMULARIO */
-    .form-card { background: #17171f; border: 1px solid #2a2a35; border-radius: 12px; padding: 24px; }
-    .form-card h2 { font-size: 16px; color: #e2e2e2; margin-bottom: 20px; }
-    .form-manual { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-    .campo { display: flex; flex-direction: column; gap: 6px; }
-    .campo label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
-    .campo input { padding: 10px 14px; background: #0f0f13; border: 1px solid #2a2a35; border-radius: 8px; font-size: 14px; color: #e2e2e2; outline: none; }
-    .campo input:focus { border-color: #7C6FFF; }
-    .error-msg { background: #2a1515; color: #ff6b6b; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+    .form-card { background: #111118; border: 1px solid #1e1e2a; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+    .form-card h3 { font-size: 14px; color: #e2e2e2; font-weight: 500; margin-bottom: 16px; }
+    .form-grid { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .campo { display: flex; flex-direction: column; gap: 5px; }
+    .campo label { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+    .campo input, .campo select { padding: 9px 12px; background: #0a0a0f; border: 1px solid #1e1e2a; border-radius: 8px; font-size: 13px; color: #ccc; outline: none; transition: border .15s; }
+    .campo input:focus, .campo select:focus { border-color: #7C6FFF; }
+    .btn-add { padding: 9px 20px; background: #7C6FFF; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; height: 38px; }
+    .btn-add:hover { background: #6a5ce8; }
+    .error-msg { background: #1a0a0a; border: 1px solid #3a1515; color: #f87171; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; }
   </style>
 </head>
 <body>
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h2>ReservasBot</h2>
+      <p><%= usuario.restaurante %></p>
+    </div>
+    <div class="sidebar-menu">
+      <a href="/panel" class="menu-item active">
+        <span class="menu-icon">📅</span> Reservas
+      </a>
+      <a href="/clientes" class="menu-item">
+        <span class="menu-icon">👥</span> Clientes
+      </a>
+      <a href="/configuracion" class="menu-item">
+        <span class="menu-icon">⚙️</span> Configuración
+      </a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="avatar">
+        <div class="avatar-circle"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
+        <div class="avatar-info" style="flex:1;min-width:0;">
+          <div class="avatar-name"><%= usuario.nombre %></div>
+          <div class="avatar-email"><%= usuario.email %></div>
+        </div>
+      </div>
+      <a href="/logout" class="logout">Cerrar sesión →</a>
+    </div>
+  </div>
 
-  <%- include('partials/sidebar', { usuario, paginaActiva: 'reservas' }) %>
-
-  <!-- MAIN -->
   <div class="main">
     <div class="page-header">
-      <h1>Panel de Reservas</h1>
-      <p>Hoy: <%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
+      <div>
+        <h1>Panel de Reservas</h1>
+        <p>Hoy: <%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
+      </div>
+      <div class="header-actions">
+        <a href="/exportar-reservas" class="btn-export">⬇ Exportar CSV</a>
+      </div>
     </div>
 
     <!-- STATS -->
     <div class="stats">
-      <div class="stat">
-        <div class="numero"><%= reservasHoy.length %></div>
-        <div class="label">Reservas hoy</div>
+      <div class="stat purple">
+        <div class="stat-label">Reservas hoy</div>
+        <div class="stat-value"><%= reservasHoy.length %></div>
+        <div class="stat-sub">confirmadas</div>
       </div>
-      <div class="stat">
-        <div class="numero"><%= reservasHoy.reduce((a, r) => a + (r.personas || 0), 0) %></div>
-        <div class="label">Personas hoy</div>
+      <div class="stat green">
+        <div class="stat-label">Personas hoy</div>
+        <div class="stat-value"><%= reservasHoy.reduce((a, r) => a + (r.personas || 0), 0) %></div>
+        <div class="stat-sub">comensales</div>
       </div>
-      <div class="stat">
-        <div class="numero"><%= reservas.length %></div>
-        <div class="label">Total reservas</div>
+      <div class="stat blue">
+        <div class="stat-label">Esta semana</div>
+        <div class="stat-value"><%= reservas.filter(r => { const d = new Date(r.fecha); const hoy = new Date(); const diff = (d - hoy) / (1000*60*60*24); return diff >= 0 && diff <= 7; }).length %></div>
+        <div class="stat-sub">proximas reservas</div>
+      </div>
+      <div class="stat amber">
+        <div class="stat-label">Total historial</div>
+        <div class="stat-value"><%= reservas.length %></div>
+        <div class="stat-sub">todas las reservas</div>
       </div>
     </div>
 
-    <!-- GRAFICO -->
-    <div class="grafico-card">
-      <h3>Reservas por día (últimos 7 días)</h3>
-      <canvas id="grafico" height="80"></canvas>
-    </div>
-
-    <!-- FILTROS -->
-    <div class="filtros">
-      <input type="date" id="filtroFecha" value="<%= fechaFiltro || '' %>">
-      <button class="btn-purple" onclick="filtrar()">Filtrar</button>
-      <button class="btn-gray" onclick="limpiar()">Ver todas</button>
-      <span class="actualizando" id="ultimaActualizacion">Cargando...</span>
-    </div>
-
-    <% if (fechaFiltro) { %>
-      <div class="seccion">
-        <div class="seccion-header">
-          <h2>Resultados para <%= fechaFiltro %></h2>
-          <span class="badge"><%= reservasFiltradas.length %></span>
+    <!-- GRID GRAFICO + PROXIMAS -->
+    <div class="grid-2">
+      <div class="card">
+        <h3>Reservas últimos 7 días</h3>
+        <canvas id="grafico" height="120"></canvas>
+      </div>
+      <div class="card">
+        <h3>Próximas reservas hoy</h3>
+        <div class="proximas">
+          <% const proximas = reservasHoy.sort((a,b) => a.hora > b.hora ? 1 : -1); %>
+          <% if (proximas.length === 0) { %>
+            <div class="empty-small">No hay reservas para hoy</div>
+          <% } else { %>
+            <% proximas.slice(0, 5).forEach(r => { %>
+              <div class="reserva-item">
+                <span class="reserva-hora"><%= r.hora %></span>
+                <span class="reserva-nombre"><%= r.nombre %></span>
+                <span class="reserva-personas"><%= r.personas %> pers.</span>
+              </div>
+            <% }) %>
+            <% if (proximas.length > 5) { %>
+              <div style="text-align:center;font-size:12px;color:#555;">+<%= proximas.length - 5 %> más</div>
+            <% } %>
+          <% } %>
         </div>
-        <table>
+      </div>
+    </div>
+
+    <!-- TABLA -->
+    <div class="tabla-card">
+      <div class="tabla-header">
+        <h3>Todas las reservas</h3>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <div class="buscador">
+            <span style="color:#444;">🔍</span>
+            <input type="text" id="buscador" placeholder="Buscar por nombre..." oninput="filtrarTabla()">
+          </div>
+          <div class="filtro-fecha">
+            <input type="date" id="filtroFecha" value="<%= fechaFiltro || '' %>">
+            <button class="btn-filtro" onclick="filtrar()">Filtrar</button>
+            <button class="btn-clear" onclick="limpiar()">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <% if (fechaFiltro && reservasFiltradas.length === 0) { %>
+        <div class="empty">No hay reservas para esta fecha</div>
+      <% } else { %>
+        <table id="tablaReservas">
           <thead>
-            <tr><th>#</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Recibida</th><th>Acción</th></tr>
+            <tr>
+              <th>Nombre</th>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Personas</th>
+              <th>Canal</th>
+              <th>Estado</th>
+              <th>Recibida</th>
+              <th></th>
+            </tr>
           </thead>
           <tbody>
-            <% if (reservasFiltradas.length === 0) { %>
-              <tr><td colspan="7" class="empty">No hay reservas para esta fecha</td></tr>
+            <% const listaReservas = fechaFiltro ? reservasFiltradas : reservas; %>
+            <% if (listaReservas.length === 0) { %>
+              <tr><td colspan="8" class="empty">No hay reservas todavia</td></tr>
             <% } else { %>
-              <% reservasFiltradas.forEach((r, i) => { %>
+              <% listaReservas.forEach(r => { %>
                 <tr>
-                  <td><%= i + 1 %></td>
-                  <td><strong style="color:#e2e2e2"><%= r.nombre %></strong></td>
+                  <td class="nombre-td"><%= r.nombre %></td>
                   <td><%= r.fecha %></td>
-                  <td><span class="hora-badge"><%= r.hora %></span></td>
-                  <td><%= r.personas %> personas</td>
-                  <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
+                  <td><span class="hora-pill"><%= r.hora %></span></td>
+                  <td><%= r.personas %> pers.</td>
                   <td>
-                    <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('Cancelar reserva de <%= r.nombre %>?')">
-                      <button class="btn-cancelar" type="submit">Cancelar</button>
+                    <% if (r.canal === 'whatsapp') { %>
+                      <span class="canal-pill canal-whatsapp">WhatsApp</span>
+                    <% } else if (r.canal === 'manual') { %>
+                      <span class="canal-pill canal-manual">Presencial</span>
+                    <% } else { %>
+                      <span class="canal-pill canal-llamada">Llamada</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <span class="estado-pill estado-<%= r.estado || 'confirmada' %>"><%= r.estado || 'confirmada' %></span>
+                  </td>
+                  <td><%= new Date(r.creada_en).toLocaleDateString('es-ES') %></td>
+                  <td>
+                    <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('Cancelar reserva de <%= r.nombre %>?')" style="display:inline;">
+                      <button class="btn-cancelar" type="submit">✕</button>
                     </form>
                   </td>
                 </tr>
@@ -155,105 +266,30 @@
             <% } %>
           </tbody>
         </table>
-      </div>
-    <% } else { %>
+      <% } %>
+    </div>
 
-      <div class="seccion">
-        <div class="seccion-header">
-          <h2>Reservas de hoy</h2>
-          <span class="badge"><%= reservasHoy.length %></span>
-        </div>
-        <table>
-          <thead>
-            <tr><th>#</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Recibida</th><th>Acción</th></tr>
-          </thead>
-          <tbody>
-            <% if (reservasHoy.length === 0) { %>
-              <tr><td colspan="7" class="empty">No hay reservas para hoy</td></tr>
-            <% } else { %>
-              <% reservasHoy.forEach((r, i) => { %>
-                <tr>
-                  <td><%= i + 1 %></td>
-                  <td><strong style="color:#e2e2e2"><%= r.nombre %></strong></td>
-                  <td><%= r.fecha %></td>
-                  <td><span class="hora-badge"><%= r.hora %></span></td>
-                  <td><%= r.personas %> personas</td>
-                  <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
-                  <td>
-                    <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('Cancelar reserva de <%= r.nombre %>?')">
-                      <button class="btn-cancelar" type="submit">Cancelar</button>
-                    </form>
-                  </td>
-                </tr>
-              <% }) %>
-            <% } %>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="seccion">
-        <div class="seccion-header">
-          <h2>Todas las reservas</h2>
-          <span class="badge"><%= reservas.length %></span>
-        </div>
-        <table>
-          <thead>
-            <tr><th>#</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Recibida</th><th>Acción</th></tr>
-          </thead>
-          <tbody>
-            <% if (reservas.length === 0) { %>
-              <tr><td colspan="7" class="empty">No hay reservas todavia</td></tr>
-            <% } else { %>
-              <% reservas.forEach((r, i) => { %>
-                <tr>
-                  <td><%= i + 1 %></td>
-                  <td><strong style="color:#e2e2e2"><%= r.nombre %></strong></td>
-                  <td><%= r.fecha %></td>
-                  <td><span class="hora-badge"><%= r.hora %></span></td>
-                  <td><%= r.personas %> personas</td>
-                  <td><%= new Date(r.creada_en).toLocaleTimeString('es-ES') %></td>
-                  <td>
-                    <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('Cancelar reserva de <%= r.nombre %>?')">
-                      <button class="btn-cancelar" type="submit">Cancelar</button>
-                    </form>
-                  </td>
-                </tr>
-              <% }) %>
-            <% } %>
-          </tbody>
-        </table>
-      </div>
-
-    <% } %>
-
-    <!-- FORMULARIO MANUAL -->
+    <!-- FORMULARIO -->
     <div class="form-card">
-      <h2>Añadir reserva manual</h2>
-      <% if (error === 'fecha') { %>
-      <div class="error-msg">No puedes añadir una reserva en una fecha y hora pasada.</div>
-      <% } %>
-      <% if (error === 'cupo') { %>
-     <div class="error-msg">No hay mesas disponibles para esa fecha, hora y numero de personas.</div>
-      <% } %>
-      <% if (error === 'telefono') { %>
-     <div class="error-msg">El telefono es obligatorio.</div>
-      <% } %>
-      <form method="POST" action="/nueva-reserva" class="form-manual">
+      <h3>Añadir reserva manual</h3>
+      <% if (error === 'fecha') { %><div class="error-msg">La fecha y hora ya han pasado.</div><% } %>
+      <% if (error === 'cupo') { %><div class="error-msg">No hay mesas disponibles para esa fecha, hora y número de personas.</div><% } %>
+      <% if (error === 'telefono') { %><div class="error-msg">El teléfono es obligatorio.</div><% } %>
+      <form method="POST" action="/nueva-reserva" class="form-grid">
         <div class="campo">
           <label>Nombre</label>
-          <input name="nombre" required placeholder="Nombre del cliente" style="width:180px;">
+          <input name="nombre" required placeholder="Nombre cliente" style="width:160px;">
         </div>
         <div class="campo">
-          <label>Telefono</label>
-          <div style="display:flex;gap:6px;align-items:center;">
-            <select name="prefijo" style="padding:10px 8px;background:#0f0f13;border:1px solid #2a2a35;border-radius:8px;font-size:14px;color:#e2e2e2;">
+          <label>Teléfono</label>
+          <div style="display:flex;gap:6px;">
+            <select name="prefijo" style="padding:9px 8px;background:#0a0a0f;border:1px solid #1e1e2a;border-radius:8px;font-size:13px;color:#ccc;">
               <option value="+34">🇪🇸 +34</option>
               <option value="+1">🇺🇸 +1</option>
               <option value="+44">🇬🇧 +44</option>
               <option value="+33">🇫🇷 +33</option>
-              <option value="+49">🇩🇪 +49</option>
             </select>
-            <input name="telefono" required placeholder="600000000" style="width:130px;" pattern="[0-9]{9}" title="9 digitos sin prefijo">
+            <input name="telefono" required placeholder="600000000" pattern="[0-9]{9}" style="width:120px;">
           </div>
         </div>
         <div class="campo">
@@ -266,12 +302,11 @@
         </div>
         <div class="campo">
           <label>Personas</label>
-          <input name="personas" type="number" min="1" max="20" required placeholder="Num" style="width:80px;">
+          <input name="personas" type="number" min="1" max="20" required placeholder="2" style="width:70px;">
         </div>
-        <button type="submit" class="btn-purple" style="height:42px;">Añadir reserva</button>
+        <button type="submit" class="btn-add">+ Añadir</button>
       </form>
     </div>
-
   </div>
 
   <script>
@@ -282,8 +317,15 @@
     function limpiar() {
       window.location.href = '/panel';
     }
+    function filtrarTabla() {
+      const texto = document.getElementById('buscador').value.toLowerCase();
+      const filas = document.querySelectorAll('#tablaReservas tbody tr');
+      filas.forEach(fila => {
+        const nombre = fila.cells[0]?.textContent.toLowerCase() || '';
+        fila.style.display = nombre.includes(texto) ? '' : 'none';
+      });
+    }
 
-  // Gráfico
     const reservas = <%- JSON.stringify(reservas.map(r => ({ fecha: r.fecha }))) %>;
     const labels = [];
     const datos = [];
@@ -294,38 +336,27 @@
       labels.push(d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }));
       datos.push(reservas.filter(r => r.fecha === fecha).length);
     }
-
     new Chart(document.getElementById('grafico'), {
       type: 'bar',
       data: {
-        labels: labels,
+        labels,
         datasets: [{
-          label: 'Reservas',
           data: datos,
-          backgroundColor: '#2a2560',
+          backgroundColor: 'rgba(124,111,255,0.3)',
           borderColor: '#7C6FFF',
           borderWidth: 1,
-          borderRadius: 6
+          borderRadius: 4
         }]
       },
       options: {
         responsive: true,
         plugins: { legend: { display: false } },
         scales: {
-          x: { grid: { color: '#1e1e28' }, ticks: { color: '#666' } },
-          y: { grid: { color: '#1e1e28' }, ticks: { color: '#666', stepSize: 1 } }
+          x: { grid: { color: '#161620' }, ticks: { color: '#555', font: { size: 11 } } },
+          y: { grid: { color: '#161620' }, ticks: { color: '#555', stepSize: 1, font: { size: 11 } } }
         }
       }
     });
-
-    setInterval(() => {
-      fetch('/api/reservas')
-        .then(r => r.json())
-        .then(() => {
-          document.getElementById('ultimaActualizacion').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-ES');
-        });
-    }, 30000);
-    document.getElementById('ultimaActualizacion').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-ES');
   </script>
 </body>
 </html>
