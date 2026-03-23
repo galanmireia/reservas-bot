@@ -6,6 +6,8 @@ app.use(express.urlencoded({ extended: false }));
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const cron = require('node-cron');
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -17,36 +19,6 @@ const db = new Pool({
 });
 
 const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-async function enviarEmailRestaurante(usuarioId, datos) {
-  try {
-    const usuario = await db.query('SELECT * FROM usuarios WHERE id = $1', [usuarioId]);
-    if (!usuario.rows.length) return;
-    const email = usuario.rows[0].email;
-    const restaurante = usuario.rows[0].restaurante;
-
-    await resend.emails.send({
-      from: 'ReservasBot <onboarding@resend.dev>',
-      to: email,
-      subject: `Nueva reserva — ${datos.nombre}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #f9f9f9; border-radius: 12px;">
-          <h2 style="color: #4F46E5;">Nueva reserva en ${restaurante}</h2>
-          <div style="background: white; border-radius: 8px; padding: 20px; margin-top: 16px;">
-            <p style="margin: 8px 0;"><strong>Nombre:</strong> ${datos.nombre}</p>
-            <p style="margin: 8px 0;"><strong>Fecha:</strong> ${datos.fecha}</p>
-            <p style="margin: 8px 0;"><strong>Hora:</strong> ${datos.hora}</p>
-            <p style="margin: 8px 0;"><strong>Personas:</strong> ${datos.personas}</p>
-            <p style="margin: 8px 0;"><strong>Canal:</strong> ${datos.canal || 'Bot'}</p>
-          </div>
-          <p style="color: #888; font-size: 12px; margin-top: 16px;">ReservasBot — Panel: https://reservas-bot-production.up.railway.app/panel</p>
-        </div>
-      `
-    });
-    console.log('Email enviado a:', email);
-  } catch (err) {
-    console.error('Error enviando email:', err.message);
-  }
-}
 
 const conversaciones = {};
 const conversacionesWhatsapp = {};
@@ -69,8 +41,9 @@ async function enviarEmailRestaurante(usuarioId, datos) {
     if (!usuario.rows.length) return;
     const email = usuario.rows[0].email;
     const restaurante = usuario.rows[0].restaurante;
-    await transporter.sendMail({
-      from: `ReservasBot <${process.env.EMAIL_USER}>`,
+
+    await resend.emails.send({
+      from: 'ReservasBot <onboarding@resend.dev>',
       to: email,
       subject: `Nueva reserva — ${datos.nombre}`,
       html: `
@@ -252,7 +225,7 @@ Informacion del restaurante:
 
 Puedes ayudar al cliente a: 1) HACER una reserva nueva. 2) CANCELAR una reserva existente. 3) MODIFICAR una reserva existente. 4) CONSULTAR sus reservas. 5) RESPONDER preguntas sobre el restaurante, menu, horarios y ubicacion.
 
-Se amable y breve. Cuando el cliente quiera gestionar una reserva y tengas TODOS los datos necesarios, responde UNICAMENTE con estas palabras exactas, sin añadir nada mas: "un momento por favor ACCION:NUEVA" o "un momento por favor ACCION:CANCELAR" o "un momento por favor ACCION:MODIFICAR" o "un momento por favor ACCION:CONSULTAR". No añadas ninguna frase adicional.`;
+Se amable y breve. Cuando el cliente quiera gestionar una reserva y tengas TODOS los datos necesarios, responde UNICAMENTE con estas palabras exactas, sin anadir nada mas: "un momento por favor ACCION:NUEVA" o "un momento por favor ACCION:CANCELAR" o "un momento por favor ACCION:MODIFICAR" o "un momento por favor ACCION:CONSULTAR". No anadas ninguna frase adicional.`;
 
   if (contexto?.cliente?.nombre) {
     prompt += ` El cliente que contacta se llama ${contexto.cliente.nombre}, saludale por su nombre desde el principio.`;
@@ -360,12 +333,13 @@ app.post('/responder', async (req, res) => {
 
     if (mensaje.toLowerCase().includes('un momento por favor')) {
       const datos = await extraerDatosReserva(conversaciones[callSid]);
-        try {
-         mensaje = await procesarAccion(datos, callSid, contexto, telefono, usuarioId);
-         } catch (err) {
+      try {
+        mensaje = await procesarAccion(datos, callSid, contexto, telefono, usuarioId);
+      } catch (err) {
         console.error('Error en procesarAccion:', err.message);
-        mensaje = 'Tu reserva ha sido confirmada. Te esperamos!';
-     }
+        mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
+      }
+      console.log('Respuesta final:', mensaje);
       if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada')) {
         const nuevoContexto = await obtenerContextoCliente(telefono);
         conversaciones[callSid] = [
@@ -419,7 +393,12 @@ app.post('/whatsapp', async (req, res) => {
 
     if (respuesta.toLowerCase().includes('un momento por favor')) {
       const datos = await extraerDatosReserva(conversacionesWhatsapp[from]);
-      respuesta = await procesarAccion(datos, from, contexto, from, usuarioId);
+      try {
+        respuesta = await procesarAccion(datos, from, contexto, from, usuarioId);
+      } catch (err) {
+        console.error('Error en procesarAccion WhatsApp:', err.message);
+        respuesta = 'Tu reserva ha sido procesada. Te esperamos!';
+      }
       if (respuesta.includes('confirmada') || respuesta.includes('cancelada') || respuesta.includes('modificada')) {
         const nuevoContexto = await obtenerContextoCliente(from);
         conversacionesWhatsapp[from] = [
