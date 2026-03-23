@@ -20,40 +20,14 @@ const db = new Pool({
 
 const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-async function initDB() {
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS conversaciones_activas (
-      session_id VARCHAR(255) PRIMARY KEY,
-      mensajes JSONB NOT NULL,
-      actualizado_en TIMESTAMP DEFAULT NOW()
-    )
-  `);
-}
-initDB().catch(err => console.error('Error inicializando DB:', err.message));
-
-async function getConversacion(sessionId) {
-  const r = await db.query('SELECT mensajes FROM conversaciones_activas WHERE session_id = $1', [sessionId]);
-  return r.rows.length > 0 ? r.rows[0].mensajes : null;
-}
-
-async function setConversacion(sessionId, mensajes) {
-  await db.query(
-    `INSERT INTO conversaciones_activas (session_id, mensajes, actualizado_en)
-     VALUES ($1, $2::jsonb, NOW())
-     ON CONFLICT (session_id) DO UPDATE SET mensajes = $2::jsonb, actualizado_en = NOW()`,
-    [sessionId, JSON.stringify(mensajes)]
-  );
-}
+const conversaciones = {};
+const conversacionesWhatsapp = {};
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'reservasbot_secret_key',
   resave: false,
   saveUninitialized: false,
-  cookie: {
-    maxAge: 24 * 60 * 60 * 1000,
-    httpOnly: true,
-    sameSite: 'lax'
-  }
+  cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax' }
 }));
 
 async function enviarWhatsApp(telefono, mensaje) {
@@ -80,7 +54,6 @@ async function enviarEmailRestaurante(usuarioId, datos) {
     if (!usuario.rows.length) return;
     const email = usuario.rows[0].email;
     const restaurante = usuario.rows[0].restaurante;
-
     await resend.emails.send({
       from: 'ReservasBot <onboarding@resend.dev>',
       to: email,
@@ -263,20 +236,18 @@ INFO DEL RESTAURANTE:
 Direccion: ${direccion} | Horario: ${horario} | Tel: ${telefono} | Menu: ${menu} | Especialidad: ${especialidad} | Parking: ${aparcamiento}
 
 GESTION DE RESERVAS:
-Cuando tengas nombre+fecha+hora+personas, resume los datos al cliente y pregunta "¿Es correcto?". Solo cuando el cliente confirme di EXACTAMENTE: "un momento por favor ACCION:NUEVA"
-Para cancelar necesitas confirmacion del cliente antes de procesar.
-Para modificar necesitas confirmacion del cliente antes de procesar.
-Para cancelar cuando el cliente confirme: "un momento por favor ACCION:CANCELAR"
-Para modificar cuando el cliente confirme: "un momento por favor ACCION:MODIFICAR"
-Para consultar: "un momento por favor ACCION:CONSULTAR"
-NUNCA añadas nada mas despues del "un momento por favor ACCION:XXX"`;
+Cuando tengas nombre+fecha+hora+personas, resume los datos al cliente y pregunta "Es correcto?". Solo cuando el cliente confirme di EXACTAMENTE una de estas frases sin anadir nada mas:
+"un momento por favor ACCION:NUEVA"
+"un momento por favor ACCION:CANCELAR"
+"un momento por favor ACCION:MODIFICAR"
+"un momento por favor ACCION:CONSULTAR"`;
 
   if (contexto?.cliente?.nombre) {
-    prompt += ` El cliente que contacta se llama ${contexto.cliente.nombre}, saludale por su nombre desde el principio.`;
+    prompt += ` El cliente se llama ${contexto.cliente.nombre}, saludale por su nombre.`;
   }
   if (contexto?.reservas?.length > 0) {
     const reservasTexto = contexto.reservas.map(r => `${r.nombre} - ${r.fecha} a las ${r.hora} para ${r.personas} personas`).join(', ');
-    prompt += ` Sus reservas recientes son: ${reservasTexto}.`;
+    prompt += ` Sus reservas recientes: ${reservasTexto}.`;
   }
 
   return prompt;
@@ -321,17 +292,13 @@ app.post('/llamada', async (req, res) => {
     const numeroTwilio = req.body.To || null;
     const hoy = new Date().toISOString().split('T')[0];
     console.log('Llamada recibida de:', telefono);
-
     const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
     const contexto = await obtenerContextoCliente(telefono);
     const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
-
-    await setConversacion(callSid, [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }]);
-
+    conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
     const saludo = contexto?.cliente?.nombre
       ? `Hola ${contexto.cliente.nombre}, soy Mario. En que puedo ayudarte?`
       : 'Hola, soy Mario, el asistente del restaurante. En que puedo ayudarte?';
-
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="8">
@@ -354,31 +321,23 @@ app.post('/responder', async (req, res) => {
     const numeroTwilio = req.body.To || null;
     const textoCliente = req.body.SpeechResult || '';
     console.log('Cliente dijo:', textoCliente);
-
     const hoy = new Date().toISOString().split('T')[0];
     const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
     const contexto = await obtenerContextoCliente(telefono);
     const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
-
-    let msgs = await getConversacion(callSid);
-    if (!msgs) {
-      msgs = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
+    if (!conversaciones[callSid]) {
+      conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
     }
-
-    msgs.push({ role: 'user', content: textoCliente });
-
+    conversaciones[callSid].push({ role: 'user', content: textoCliente });
     const respuestaIA = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages: msgs
+      messages: conversaciones[callSid]
     });
-
     let mensaje = respuestaIA.choices[0].message.content;
-    msgs.push({ role: 'assistant', content: mensaje });
-    await setConversacion(callSid, msgs);
+    conversaciones[callSid].push({ role: 'assistant', content: mensaje });
     console.log('Mensaje completo:', mensaje);
-
     if (mensaje.toLowerCase().includes('un momento por favor')) {
-      const datos = await extraerDatosReserva(msgs);
+      const datos = await extraerDatosReserva(conversaciones[callSid]);
       try {
         mensaje = await procesarAccion(datos, callSid, contexto, telefono, usuarioId);
       } catch (err) {
@@ -386,15 +345,14 @@ app.post('/responder', async (req, res) => {
         mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
       }
       console.log('Respuesta final:', mensaje);
-      if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada')) {
+      if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('confirmada') || mensaje.includes('procesada')) {
         const nuevoContexto = await obtenerContextoCliente(telefono);
-        await setConversacion(callSid, [
+        conversaciones[callSid] = [
           { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
           { role: 'assistant', content: mensaje }
-        ]);
+        ];
       }
     }
-
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="8">
@@ -416,46 +374,37 @@ app.post('/whatsapp', async (req, res) => {
     const mensaje = req.body.Body;
     const numeroTwilio = req.body.To || null;
     console.log('WhatsApp de:', from, '→', mensaje);
-
     const hoy = new Date().toISOString().split('T')[0];
     const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
     const contexto = await obtenerContextoCliente(from);
     const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
-
-    let msgs = await getConversacion(from);
-    if (!msgs) {
-      msgs = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
+    if (!conversacionesWhatsapp[from]) {
+      conversacionesWhatsapp[from] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
     }
-
-    msgs.push({ role: 'user', content: mensaje });
-
+    conversacionesWhatsapp[from].push({ role: 'user', content: mensaje });
     const respuestaIA = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages: msgs
+      messages: conversacionesWhatsapp[from]
     });
-
     let respuesta = respuestaIA.choices[0].message.content;
     console.log('Bot responde:', respuesta);
-    msgs.push({ role: 'assistant', content: respuesta });
-    await setConversacion(from, msgs);
-
+    conversacionesWhatsapp[from].push({ role: 'assistant', content: respuesta });
     if (respuesta.toLowerCase().includes('un momento por favor')) {
-      const datos = await extraerDatosReserva(msgs);
+      const datos = await extraerDatosReserva(conversacionesWhatsapp[from]);
       try {
         respuesta = await procesarAccion(datos, from, contexto, from, usuarioId);
       } catch (err) {
         console.error('Error en procesarAccion WhatsApp:', err.message);
         respuesta = 'Tu reserva ha sido procesada. Te esperamos!';
       }
-      if (respuesta.includes('confirmada') || respuesta.includes('cancelada') || respuesta.includes('modificada')) {
+      if (respuesta.includes('confirmada') || respuesta.includes('cancelada') || respuesta.includes('modificada') || respuesta.includes('procesada')) {
         const nuevoContexto = await obtenerContextoCliente(from);
-        await setConversacion(from, [
+        conversacionesWhatsapp[from] = [
           { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
           { role: 'assistant', content: respuesta }
-        ]);
+        ];
       }
     }
-
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Message>${respuesta}</Message>
@@ -474,16 +423,13 @@ app.get('/panel', requireLogin, async (req, res) => {
   const error = req.query.error || null;
   const hoy = new Date().toISOString().split('T')[0];
   const usuarioId = req.session.usuario.id;
-
   const todas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY creada_en DESC', [usuarioId]);
   const hoyQuery = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 AND fecha = $2 ORDER BY hora ASC', [usuarioId, hoy]);
-
   let filtradas = [];
   if (fechaFiltro) {
     const filtroQuery = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 AND fecha = $2 ORDER BY hora ASC', [usuarioId, fechaFiltro]);
     filtradas = filtroQuery.rows;
   }
-
   res.render('reservas', {
     reservas: todas.rows,
     reservasHoy: hoyQuery.rows,
@@ -536,6 +482,18 @@ app.get('/clientes', requireLogin, async (req, res) => {
   res.render('clientes', { clientes: clientes.rows, usuario: req.session.usuario });
 });
 
+app.get('/clientes/:id', requireLogin, async (req, res) => {
+  const usuarioId = req.session.usuario.id;
+  const clienteId = req.params.id;
+  const cliente = await db.query('SELECT * FROM clientes WHERE id = $1', [clienteId]);
+  if (cliente.rows.length === 0) return res.redirect('/clientes');
+  const reservas = await db.query(
+    'SELECT * FROM reservas WHERE telefono_cliente = $1 AND usuario_id = $2 ORDER BY creada_en DESC',
+    [cliente.rows[0].telefono, usuarioId]
+  );
+  res.render('cliente-detalle', { cliente: cliente.rows[0], reservas: reservas.rows, usuario: req.session.usuario });
+});
+
 app.get('/configuracion', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
   const config = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
@@ -568,7 +526,18 @@ app.post('/configuracion', requireLogin, async (req, res) => {
   res.redirect('/configuracion?exito=1');
 });
 
-app.get('/test-recordatorios', requireLogin, async (_req, res) => {
+app.post('/mesas/añadir', requireLogin, async (req, res) => {
+  const { numero, capacidad } = req.body;
+  await db.query('INSERT INTO mesas (numero, capacidad) VALUES ($1, $2)', [parseInt(numero), parseInt(capacidad)]);
+  res.redirect('/configuracion');
+});
+
+app.post('/mesas/eliminar/:id', requireLogin, async (req, res) => {
+  await db.query('DELETE FROM mesas WHERE id = $1', [req.params.id]);
+  res.redirect('/configuracion');
+});
+
+app.get('/test-recordatorios', requireLogin, async (req, res) => {
   const manana = new Date();
   manana.setDate(manana.getDate() + 1);
   const fechaManana = manana.toISOString().split('T')[0];
@@ -598,6 +567,12 @@ cron.schedule('0 10 * * *', async () => {
       [fechaManana]
     );
     for (const reserva of reservas.rows) {
+      if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
+        await enviarWhatsApp(
+          reserva.telefono_cliente,
+          `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas.`
+        );
+      }
       await enviarEmailRestaurante(reserva.usuario_id, {
         nombre: reserva.nombre,
         fecha: reserva.fecha,
@@ -612,39 +587,8 @@ cron.schedule('0 10 * * *', async () => {
   }
 });
 
-cron.schedule('*/30 * * * *', async () => {
-  try {
-    await db.query("DELETE FROM conversaciones_activas WHERE actualizado_en < NOW() - INTERVAL '2 hours'");
-  } catch (err) {
-    console.error('Error limpiando conversaciones:', err.message);
-  }
-});
-
 const PORT = process.env.PORT || 3000;
-app.get('/clientes/:id', requireLogin, async (req, res) => {
-  const usuarioId = req.session.usuario.id;
-  const clienteId = req.params.id;
-
-  const cliente = await db.query('SELECT * FROM clientes WHERE id = $1', [clienteId]);
-  if (cliente.rows.length === 0) return res.redirect('/clientes');
-
-  const reservas = await db.query(
-    'SELECT * FROM reservas WHERE telefono_cliente = $1 AND usuario_id = $2 ORDER BY creada_en DESC',
-    [cliente.rows[0].telefono, usuarioId]
-  );
-
-  res.render('cliente-detalle', { cliente: cliente.rows[0], reservas: reservas.rows, usuario: req.session.usuario });
-});
-app.post('/mesas/añadir', requireLogin, async (req, res) => {
-  const { numero, capacidad } = req.body;
-  await db.query('INSERT INTO mesas (numero, capacidad) VALUES ($1, $2)', [parseInt(numero), parseInt(capacidad)]);
-  res.redirect('/configuracion');
-});
-
-app.post('/mesas/eliminar/:id', requireLogin, async (req, res) => {
-  await db.query('DELETE FROM mesas WHERE id = $1', [req.params.id]);
-  res.redirect('/configuracion');
-});
 app.listen(PORT, () => {
   console.log('Servidor escuchando en puerto', PORT);
 });
+
