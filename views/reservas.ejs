@@ -244,8 +244,17 @@
           <input name="nombre" required placeholder="Nombre del cliente" style="width:180px;">
         </div>
         <div class="campo">
-        <label>Telefono</label>
-        <input name="telefono" required placeholder="+34600000000" style="width:150px;">
+          <label>Telefono</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <select name="prefijo" style="padding:10px 8px;background:#0f0f13;border:1px solid #2a2a35;border-radius:8px;font-size:14px;color:#e2e2e2;">
+              <option value="+34">🇪🇸 +34</option>
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+44">🇬🇧 +44</option>
+              <option value="+33">🇫🇷 +33</option>
+              <option value="+49">🇩🇪 +49</option>
+            </select>
+            <input name="telefono" required placeholder="600000000" style="width:130px;" pattern="[0-9]{9}" title="9 digitos sin prefijo">
+          </div>
         </div>
         <div class="campo">
           <label>Fecha</label>

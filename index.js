@@ -251,20 +251,23 @@ const SYSTEM_PROMPT = (hoy, contexto, config = null) => {
   const especialidad = config?.especialidad || 'Cocido madrileno los jueves';
   const aparcamiento = config?.aparcamiento || 'Parking publico a 200 metros';
 
-  let prompt = `Eres un asistente virtual del restaurante llamado Mario. La fecha de hoy es ${hoy}. Solo puedes hablar sobre temas relacionados con el restaurante. Si el cliente pregunta sobre cualquier otro tema responde: "Lo siento, solo puedo ayudarte con informacion sobre el restaurante." Cuando te pregunten por la especialidad, el menu, los platos o la comida, SIEMPRE responde con la informacion del restaurante que tienes. Antes de decir "un momento por favor" asegurate de tener TODOS los datos: nombre, fecha, hora Y numero de personas. Si falta alguno preguntalo antes de continuar.
+  let prompt = `Eres Mario, asistente de reservas de ${nombre}. Hoy es ${hoy}.
 
-Informacion del restaurante:
-- Nombre: ${nombre}
-- Direccion: ${direccion}
-- Horario: ${horario}
-- Telefono: ${telefono}
-- Menu completo: ${menu}
-- Especialidad destacada: ${especialidad}
-- Aparcamiento: ${aparcamiento}
+REGLAS ESTRICTAS:
+- Responde SIEMPRE en menos de 2 frases cortas
+- NUNCA uses listas ni puntos
+- NUNCA repitas informacion que el cliente ya dio
+- Solo hablas de este restaurante. Si preguntan otra cosa: "Solo puedo ayudarte con el restaurante."
 
-Puedes ayudar al cliente a: 1) HACER una reserva nueva. 2) CANCELAR una reserva existente. 3) MODIFICAR una reserva existente. 4) CONSULTAR sus reservas. 5) RESPONDER preguntas sobre el restaurante, menu, horarios y ubicacion.
+INFO DEL RESTAURANTE:
+Direccion: ${direccion} | Horario: ${horario} | Tel: ${telefono} | Menu: ${menu} | Especialidad: ${especialidad} | Parking: ${aparcamiento}
 
-Se amable y breve. Cuando el cliente quiera gestionar una reserva y tengas TODOS los datos necesarios, responde UNICAMENTE con estas palabras exactas, sin anadir nada mas: "un momento por favor ACCION:NUEVA" o "un momento por favor ACCION:CANCELAR" o "un momento por favor ACCION:MODIFICAR" o "un momento por favor ACCION:CONSULTAR". No anadas ninguna frase adicional.`;
+GESTION DE RESERVAS:
+Cuando tengas nombre+fecha+hora+personas di EXACTAMENTE: "un momento por favor ACCION:NUEVA"
+Para cancelar necesitas fecha o nombre: "un momento por favor ACCION:CANCELAR"
+Para modificar necesitas reserva actual y nuevos datos: "un momento por favor ACCION:MODIFICAR"
+Para consultar: "un momento por favor ACCION:CONSULTAR"
+NUNCA añadas nada mas despues del "un momento por favor ACCION:XXX"`;
 
   if (contexto?.cliente?.nombre) {
     prompt += ` El cliente que contacta se llama ${contexto.cliente.nombre}, saludale por su nombre desde el principio.`;
@@ -500,18 +503,19 @@ app.post('/cancelar/:id', requireLogin, async (req, res) => {
 });
 
 app.post('/nueva-reserva', requireLogin, async (req, res) => {
-  const { nombre, fecha, hora, personas, telefono } = req.body;
+  const { nombre, fecha, hora, personas, telefono, prefijo } = req.body;
+  const telefonoCompleto = telefono ? `${prefijo || '+34'}${telefono.replace(/\s/g, '')}` : null;
   const ahora = new Date();
   const fechaHoraReserva = new Date(`${fecha}T${hora}`);
   if (fechaHoraReserva <= ahora) return res.redirect('/panel?error=fecha');
   const disponibilidad = await hayDisponibilidad(fecha, hora, parseInt(personas));
   if (!disponibilidad.disponible) return res.redirect('/panel?error=cupo');
-  if (!telefono) return res.redirect('/panel?error=telefono');
+  if (!telefonoCompleto) return res.redirect('/panel?error=telefono');
   await db.query(
     'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-    ['manual', nombre, fecha, hora, parseInt(personas), telefono, req.session.usuario.id, 'manual']
+    ['manual', nombre, fecha, hora, parseInt(personas), telefonoCompleto, req.session.usuario.id, 'manual']
   );
-  await obtenerOCrearCliente(telefono, nombre);
+  await obtenerOCrearCliente(telefonoCompleto, nombre);
   await enviarEmailRestaurante(req.session.usuario.id, { nombre, fecha, hora, personas, canal: 'manual' });
   res.redirect('/panel');
 });
