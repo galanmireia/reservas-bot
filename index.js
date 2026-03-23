@@ -621,6 +621,30 @@ cron.schedule('*/30 * * * *', async () => {
 });
 
 const PORT = process.env.PORT || 3000;
+app.get('/clientes/:id', requireLogin, async (req, res) => {
+  const usuarioId = req.session.usuario.id;
+  const clienteId = req.params.id;
+
+  const cliente = await db.query('SELECT * FROM clientes WHERE id = $1', [clienteId]);
+  if (cliente.rows.length === 0) return res.redirect('/clientes');
+
+  const reservas = await db.query(
+    'SELECT * FROM reservas WHERE telefono_cliente = $1 AND usuario_id = $2 ORDER BY creada_en DESC',
+    [cliente.rows[0].telefono, usuarioId]
+  );
+
+  res.render('cliente-detalle', { cliente: cliente.rows[0], reservas: reservas.rows, usuario: req.session.usuario });
+});
+app.post('/mesas/añadir', requireLogin, async (req, res) => {
+  const { numero, capacidad } = req.body;
+  await db.query('INSERT INTO mesas (numero, capacidad) VALUES ($1, $2)', [parseInt(numero), parseInt(capacidad)]);
+  res.redirect('/configuracion');
+});
+
+app.post('/mesas/eliminar/:id', requireLogin, async (req, res) => {
+  await db.query('DELETE FROM mesas WHERE id = $1', [req.params.id]);
+  res.redirect('/configuracion');
+});
 app.listen(PORT, () => {
   console.log('Servidor escuchando en puerto', PORT);
 });

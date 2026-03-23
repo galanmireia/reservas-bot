@@ -76,8 +76,8 @@
         <% if (clientes.length === 0) { %>
           <tr><td colspan="6" class="empty">No hay clientes todavia</td></tr>
         <% } else { %>
-          <% clientes.forEach((c, i) => { %>
-            <tr>
+         <% clientes.forEach((c, i) => { %>
+            <tr style="cursor:pointer;" onclick="window.location='/clientes/<%= c.id %>'">
               <td><%= i + 1 %></td>
               <td><strong style="color:#e2e2e2"><%= c.nombre || 'Sin nombre' %></strong></td>
               <td><%= c.telefono %></td>

@@ -106,15 +106,32 @@
       <div class="seccion">
         <h2>Mesas</h2>
         <div class="mesas-grid">
-          <% mesas.forEach(m => { %>
-            <div class="mesa-card">
-              <div class="num">Mesa <%= m.numero %></div>
-              <div class="cap"><%= m.capacidad %> personas</div>
-            </div>
-          <% }) %>
-        </div>
-        <p style="color:#666;font-size:13px;">Para modificar las mesas contacta con soporte.</p>
+  <% mesas.forEach(m => { %>
+    <div class="mesa-card">
+      <div class="num">Mesa <%= m.numero %></div>
+      <div class="cap"><%= m.capacidad %> personas</div>
+      <form method="POST" action="/mesas/eliminar/<%= m.id %>" onsubmit="return confirm('Eliminar mesa <%= m.numero %>?')" style="margin-top:8px;">
+        <button type="submit" style="background:#2a1515;color:#ff6b6b;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;">Eliminar</button>
+      </form>
+    </div>
+  <% }) %>
+</div>
+<form method="POST" action="/mesas/añadir" style="display:flex;gap:10px;margin-top:16px;align-items:flex-end;">
+  <div class="campo" style="margin:0;">
+    <label>Numero de mesa</label>
+    <input type="number" name="numero" required min="1" placeholder="6" style="width:100px;">
       </div>
+       <div class="campo" style="margin:0;">
+         <label>Capacidad</label>
+           <select name="capacidad" style="padding:10px 14px;background:#0f0f13;border:1px solid #2a2a35;border-radius:8px;font-size:14px;color:#e2e2e2;">
+             <option value="2">2 personas</option>
+             <option value="4">4 personas</option>
+             <option value="6">6 personas</option>
+             <option value="8">8 personas</option>
+         </select>
+      </div>
+      <button type="submit" class="btn-purple">Añadir mesa</button>
+    </form>
 
       <button type="submit" class="btn-purple">Guardar configuración</button>
     </form>
