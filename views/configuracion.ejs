@@ -1,66 +1,109 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Configuración — <%= usuario.restaurante %></title>
   <style>
+    :root {
+      --bg: #f5f6fa; --bg2: #ffffff; --bg3: #eef0f6; --border: #e2e5f0;
+      --text: #1a1d2e; --text2: #6b7280; --text3: #9ca3af;
+      --accent: #4F46E5; --accent-light: #EEF2FF; --accent-hover: #4338CA;
+      --sidebar: #1a1d2e; --sidebar-text: #94a3b8; --sidebar-active: #4F46E5;
+      --sidebar-active-bg: rgba(79,70,229,0.15); --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    [data-theme="dark"] {
+      --bg: #0d0d14; --bg2: #111118; --bg3: #16161f; --border: #1e1e2a;
+      --text: #e2e2e2; --text2: #6b7280; --text3: #444;
+      --accent: #7C6FFF; --accent-light: #1e1a3a; --accent-hover: #6a5ce8;
+      --sidebar: #0d0d14; --sidebar-text: #6b7280; --sidebar-active: #7C6FFF;
+      --sidebar-active-bg: rgba(124,111,255,0.12); --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: #0f0f13; color: #e2e2e2; display: flex; min-height: 100vh; }
-    .sidebar { width: 240px; background: #17171f; border-right: 1px solid #2a2a35; display: flex; flex-direction: column; padding: 24px 0; position: fixed; height: 100vh; }
-    .sidebar-logo { padding: 0 20px 24px; border-bottom: 1px solid #2a2a35; }
-    .sidebar-logo h2 { color: #7C6FFF; font-size: 18px; }
-    .sidebar-logo p { color: #666; font-size: 12px; margin-top: 2px; }
-    .sidebar-menu { padding: 20px 12px; flex: 1; }
-    .menu-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #888; font-size: 14px; cursor: pointer; margin-bottom: 4px; text-decoration: none; }
-    .menu-item:hover { background: #1e1e28; color: #e2e2e2; }
-    .menu-item.active { background: #2a2560; color: #7C6FFF; }
-    .sidebar-footer { padding: 16px 20px; border-top: 1px solid #2a2a35; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; transition: background .2s, color .2s; }
+    .sidebar { width: 220px; background: var(--sidebar); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; padding: 20px 0; position: fixed; height: 100vh; z-index: 100; }
+    .sidebar-logo { padding: 0 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .sidebar-logo h2 { color: #fff; font-size: 16px; font-weight: 700; }
+    .sidebar-logo p { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 2px; }
+    .sidebar-menu { padding: 16px 8px; flex: 1; }
+    .menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--sidebar-text); font-size: 13px; margin-bottom: 2px; text-decoration: none; transition: all .15s; }
+    .menu-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .menu-item.active { background: var(--sidebar-active-bg); color: var(--sidebar-active); }
+    .sidebar-footer { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.06); }
     .avatar { display: flex; align-items: center; gap: 10px; }
-    .avatar-circle { width: 36px; height: 36px; background: #2a2560; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #7C6FFF; font-weight: bold; font-size: 14px; }
-    .avatar-info { flex: 1; }
-    .avatar-name { font-size: 13px; color: #e2e2e2; }
-    .avatar-rest { font-size: 11px; color: #666; }
-    .logout { color: #666; font-size: 12px; text-decoration: none; display: block; margin-top: 12px; }
-    .logout:hover { color: #ff6b6b; }
-    .main { margin-left: 240px; flex: 1; padding: 32px; }
-    .page-header { margin-bottom: 28px; }
-    .page-header h1 { font-size: 24px; color: #e2e2e2; }
-    .page-header p { color: #666; font-size: 14px; margin-top: 4px; }
-    .seccion { background: #17171f; border: 1px solid #2a2a35; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
-    .seccion h2 { font-size: 16px; color: #e2e2e2; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #2a2a35; }
-    .campo { margin-bottom: 16px; }
-    .campo label { display: block; font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-    .campo input, .campo textarea { width: 100%; padding: 10px 14px; background: #0f0f13; border: 1px solid #2a2a35; border-radius: 8px; font-size: 14px; color: #e2e2e2; outline: none; font-family: inherit; }
-    .campo input:focus, .campo textarea:focus { border-color: #7C6FFF; }
-    .campo textarea { resize: vertical; min-height: 100px; }
+    .avatar-circle { width: 32px; height: 32px; background: var(--sidebar-active-bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--sidebar-active); font-weight: bold; font-size: 13px; flex-shrink: 0; }
+    .avatar-name { font-size: 12px; color: rgba(255,255,255,0.7); }
+    .avatar-email { font-size: 11px; color: rgba(255,255,255,0.3); }
+    .logout { color: rgba(255,255,255,0.3); font-size: 11px; text-decoration: none; display: block; margin-top: 10px; }
+    .logout:hover { color: #f87171; }
+    .main { margin-left: 220px; flex: 1; padding: 28px; max-width: 800px; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+    .page-header h1 { font-size: 22px; font-weight: 600; }
+    .page-header p { color: var(--text2); font-size: 13px; margin-top: 3px; }
+    .theme-toggle { width: 36px; height: 36px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .seccion { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow); }
+    .seccion-title { font-size: 14px; font-weight: 600; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
     .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .btn-purple { padding: 10px 24px; background: #7C6FFF; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
-    .btn-purple:hover { background: #6a5ce8; }
-    .exito { background: #0a2a1a; color: #4ade80; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
-    .mesas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px; }
-    .mesa-card { background: #0f0f13; border: 1px solid #2a2a35; border-radius: 8px; padding: 16px; text-align: center; }
-    .mesa-card .num { font-size: 20px; font-weight: bold; color: #7C6FFF; }
-    .mesa-card .cap { font-size: 12px; color: #666; margin-top: 4px; }
+    .campo { margin-bottom: 16px; }
+    .campo label { display: block; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; font-weight: 500; }
+    .campo input, .campo textarea, .campo select { width: 100%; padding: 10px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); outline: none; font-family: inherit; transition: border .15s; }
+    .campo input:focus, .campo textarea:focus, .campo select:focus { border-color: var(--accent); }
+    .campo textarea { resize: vertical; min-height: 90px; }
+    .campo input[readonly] { opacity: 0.5; cursor: not-allowed; }
+    .btn-save { padding: 10px 24px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+    .btn-save:hover { background: var(--accent-hover); }
+    .exito { background: #dcfce7; border: 1px solid #bbf7d0; color: #16a34a; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; }
+    [data-theme="dark"] .exito { background: #0a2a1a; border-color: #14532d; color: #4ade80; }
+    .mesas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .mesa-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+    .mesa-num { font-size: 18px; font-weight: 700; color: var(--accent); }
+    .mesa-cap { font-size: 11px; color: var(--text3); margin-top: 2px; }
+    .btn-del-mesa { margin-top: 8px; background: none; border: 1px solid var(--border); color: var(--text3); padding: 3px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; width: 100%; }
+    .btn-del-mesa:hover { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+    [data-theme="dark"] .btn-del-mesa:hover { background: #2a1015; color: #f87171; border-color: #3a1515; }
+    .add-mesa { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .add-mesa .campo { margin: 0; }
   </style>
 </head>
 <body>
-  <%- include('partials/sidebar', { usuario, paginaActiva: 'configuracion' }) %>
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h2>ReservasBot</h2>
+      <p><%= usuario.restaurante %></p>
+    </div>
+    <div class="sidebar-menu">
+      <a href="/panel" class="menu-item"><span>📅</span> Reservas</a>
+      <a href="/clientes" class="menu-item"><span>👥</span> Clientes</a>
+      <a href="/configuracion" class="menu-item active"><span>⚙️</span> Configuración</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="avatar">
+        <div class="avatar-circle"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
+        <div style="flex:1;min-width:0;">
+          <div class="avatar-name"><%= usuario.nombre %></div>
+          <div class="avatar-email"><%= usuario.email %></div>
+        </div>
+      </div>
+      <a href="/logout" class="logout">Cerrar sesión →</a>
+    </div>
+  </div>
 
   <div class="main">
     <div class="page-header">
-      <h1>Configuración</h1>
-      <p>Personaliza tu restaurante y el comportamiento del bot</p>
+      <div>
+        <h1>Configuración</h1>
+        <p>Personaliza tu restaurante y el bot</p>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙</button>
     </div>
 
     <% if (exito) { %>
-      <div class="exito">Configuración guardada correctamente.</div>
+      <div class="exito">✓ Configuración guardada correctamente.</div>
     <% } %>
 
     <form method="POST" action="/configuracion">
-
       <div class="seccion">
-        <h2>Información del restaurante</h2>
+        <div class="seccion-title">🏪 Información del restaurante</div>
         <div class="fila">
           <div class="campo">
             <label>Nombre del restaurante</label>
@@ -77,64 +120,78 @@
         </div>
         <div class="fila">
           <div class="campo">
-            <label>Horario apertura</label>
+            <label>Horario</label>
             <input type="text" name="horario" value="<%= config.horario || '' %>" placeholder="Lun-Dom 13:00-16:00 y 20:00-23:30">
           </div>
           <div class="campo">
             <label>Aparcamiento</label>
-            <input type="text" name="aparcamiento" value="<%= config.aparcamiento || '' %>" placeholder="Parking publico a 200m">
+            <input type="text" name="aparcamiento" value="<%= config.aparcamiento || '' %>" placeholder="Parking público a 200m">
           </div>
-          <div class="campo">
-            <label>Número de Twilio asignado</label>
-            <input type="text" name="numero_twilio" value="<%= usuario.numero_twilio || '' %>" placeholder="+12318533764" readonly style="opacity:0.5;cursor:not-allowed;">
-          </div>
+        </div>
+        <div class="campo">
+          <label>Número Twilio asignado</label>
+          <input type="text" value="<%= usuario.numero_twilio || 'No asignado' %>" readonly>
         </div>
       </div>
 
       <div class="seccion">
-        <h2>Menu</h2>
+        <div class="seccion-title">🍽️ Menú</div>
         <div class="campo">
-          <label>Descripcion del menu</label>
+          <label>Descripción del menú</label>
           <textarea name="menu"><%= config.menu || '' %></textarea>
         </div>
         <div class="campo">
           <label>Especialidad</label>
-          <input type="text" name="especialidad" value="<%= config.especialidad || '' %>" placeholder="Cocido madrileno los jueves">
+          <input type="text" name="especialidad" value="<%= config.especialidad || '' %>" placeholder="Cocido madrileño los jueves">
         </div>
       </div>
 
-      <div class="seccion">
-        <h2>Mesas</h2>
-        <div class="mesas-grid">
-  <% mesas.forEach(m => { %>
-    <div class="mesa-card">
-      <div class="num">Mesa <%= m.numero %></div>
-      <div class="cap"><%= m.capacidad %> personas</div>
-      <form method="POST" action="/mesas/eliminar/<%= m.id %>" onsubmit="return confirm('Eliminar mesa <%= m.numero %>?')" style="margin-top:8px;">
-        <button type="submit" style="background:#2a1515;color:#ff6b6b;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;">Eliminar</button>
-      </form>
-    </div>
-  <% }) %>
-</div>
-<form method="POST" action="/mesas/añadir" style="display:flex;gap:10px;margin-top:16px;align-items:flex-end;">
-  <div class="campo" style="margin:0;">
-    <label>Numero de mesa</label>
-    <input type="number" name="numero" required min="1" placeholder="6" style="width:100px;">
-      </div>
-       <div class="campo" style="margin:0;">
-         <label>Capacidad</label>
-           <select name="capacidad" style="padding:10px 14px;background:#0f0f13;border:1px solid #2a2a35;border-radius:8px;font-size:14px;color:#e2e2e2;">
-             <option value="2">2 personas</option>
-             <option value="4">4 personas</option>
-             <option value="6">6 personas</option>
-             <option value="8">8 personas</option>
-         </select>
-      </div>
-      <button type="submit" class="btn-purple">Añadir mesa</button>
+      <button type="submit" class="btn-save">Guardar configuración</button>
     </form>
 
-      <button type="submit" class="btn-purple">Guardar configuración</button>
-    </form>
+    <div class="seccion" style="margin-top:20px;">
+      <div class="seccion-title">🪑 Mesas</div>
+      <div class="mesas-grid">
+        <% mesas.forEach(m => { %>
+          <div class="mesa-card">
+            <div class="mesa-num">Mesa <%= m.numero %></div>
+            <div class="mesa-cap"><%= m.capacidad %> personas</div>
+            <form method="POST" action="/mesas/eliminar/<%= m.id %>" onsubmit="return confirm('¿Eliminar mesa <%= m.numero %>?')">
+              <button type="submit" class="btn-del-mesa">Eliminar</button>
+            </form>
+          </div>
+        <% }) %>
+      </div>
+      <form method="POST" action="/mesas/añadir" class="add-mesa">
+        <div class="campo">
+          <label>Número</label>
+          <input type="number" name="numero" required min="1" placeholder="6" style="width:80px;">
+        </div>
+        <div class="campo">
+          <label>Capacidad</label>
+          <select name="capacidad" style="width:130px;">
+            <option value="2">2 personas</option>
+            <option value="4">4 personas</option>
+            <option value="6">6 personas</option>
+            <option value="8">8 personas</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-save" style="height:38px;padding:0 16px;">+ Añadir mesa</button>
+      </form>
+    </div>
   </div>
+
+  <script>
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.getElementById('themeBtn').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+    }
+  </script>
 </body>
 </html>
