@@ -8,6 +8,10 @@ const session = require('express-session');
 const cron = require('node-cron');
 const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
+const { ElevenLabsClient } = require('elevenlabs');
+const elevenlabs = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
+const ELEVENLABS_ENABLED = process.env.ELEVENLABS_ENABLED === 'true';
+const ELEVENLABS_VOICE_ID = 'uQw4jpKzMLrZuo0RLPS9';
 
 const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -29,6 +33,23 @@ app.use(session({
   saveUninitialized: false,
   cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax' }
 }));
+
+app.get('/audio', async (req, res) => {
+  try {
+    const texto = req.query.texto;
+    if (!texto) return res.status(400).send('Sin texto');
+    const audioStream = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
+      text: texto,
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+    });
+    res.setHeader('Content-Type', 'audio/mpeg');
+    audioStream.pipe(res);
+  } catch (err) {
+    console.error('Error ElevenLabs:', err.message);
+    res.status(500).send('Error generando audio');
+  }
+});
 
 async function enviarWhatsApp(telefono, mensaje) {
   try {
@@ -161,7 +182,7 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
     );
     if (reservas.rows.length === 0) return 'No tienes reservas proximas.';
     const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} - ${r.fecha} a las ${r.hora} para ${r.personas} personas`).join('\n');
-    return `Tus reservas proximas son:\n${lista}`;
+    return `Tus reservas proximas son: ${lista}`;
   }
 
   if (datos.accion === 'CANCELAR') {
@@ -296,10 +317,20 @@ app.post('/llamada', async (req, res) => {
     const contexto = await obtenerContextoCliente(telefono);
     const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
     conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
+
     const saludo = contexto?.cliente?.nombre
-      ? `Hola ${contexto.cliente.nombre}, soy Mario. En que puedo ayudarte?`
-      : 'Hola, soy Mario, el asistente del restaurante. En que puedo ayudarte?';
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+      ? `Hola ${contexto.cliente.nombre}, soy Laura, la asistente del restaurante. En que puedo ayudarte?`
+      : 'Hola, soy Laura, la asistente del restaurante. En que puedo ayudarte?';
+
+    const audioUrl = `https://reservas-bot-production.up.railway.app/audio?texto=${encodeURIComponent(saludo)}`;
+    const twiml = ELEVENLABS_ENABLED
+      ? `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="8">
+    <Play>${audioUrl}</Play>
+  </Gather>
+</Response>`
+      : `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="8">
     <Say language="es-ES">${saludo}</Say>
@@ -336,6 +367,7 @@ app.post('/responder', async (req, res) => {
     let mensaje = respuestaIA.choices[0].message.content;
     conversaciones[callSid].push({ role: 'assistant', content: mensaje });
     console.log('Mensaje completo:', mensaje);
+
     if (mensaje.toLowerCase().includes('un momento por favor')) {
       const datos = await extraerDatosReserva(conversaciones[callSid]);
       try {
@@ -345,7 +377,7 @@ app.post('/responder', async (req, res) => {
         mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
       }
       console.log('Respuesta final:', mensaje);
-      if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('confirmada') || mensaje.includes('procesada')) {
+      if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('procesada')) {
         const nuevoContexto = await obtenerContextoCliente(telefono);
         conversaciones[callSid] = [
           { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
@@ -353,7 +385,16 @@ app.post('/responder', async (req, res) => {
         ];
       }
     }
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+
+    const audioUrlResp = `https://reservas-bot-production.up.railway.app/audio?texto=${encodeURIComponent(mensaje)}`;
+    const twiml = ELEVENLABS_ENABLED
+      ? `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="8">
+    <Play>${audioUrlResp}</Play>
+  </Gather>
+</Response>`
+      : `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="8">
     <Say language="es-ES">${mensaje}</Say>
@@ -537,6 +578,18 @@ app.post('/mesas/eliminar/:id', requireLogin, async (req, res) => {
   res.redirect('/configuracion');
 });
 
+app.get('/exportar-reservas', requireLogin, async (req, res) => {
+  const usuarioId = req.session.usuario.id;
+  const reservas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY fecha ASC, hora ASC', [usuarioId]);
+  const csv = [
+    'Nombre,Fecha,Hora,Personas,Canal,Estado,Recibida',
+    ...reservas.rows.map(r => `${r.nombre},${r.fecha},${r.hora},${r.personas},${r.canal || ''},${r.estado || 'confirmada'},${new Date(r.creada_en).toLocaleDateString('es-ES')}`)
+  ].join('\n');
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=reservas.csv');
+  res.send(csv);
+});
+
 app.get('/test-recordatorios', requireLogin, async (req, res) => {
   const manana = new Date();
   manana.setDate(manana.getDate() + 1);
@@ -586,22 +639,13 @@ cron.schedule('0 10 * * *', async () => {
     console.error('Error en recordatorios:', err.message);
   }
 });
-app.get('/exportar-reservas', requireLogin, async (req, res) => {
-  const usuarioId = req.session.usuario.id;
-  const reservas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY fecha ASC, hora ASC', [usuarioId]);
-  
-  const csv = [
-    'Nombre,Fecha,Hora,Personas,Canal,Estado,Recibida',
-    ...reservas.rows.map(r => `${r.nombre},${r.fecha},${r.hora},${r.personas},${r.canal || ''},${r.estado || 'confirmada'},${new Date(r.creada_en).toLocaleDateString('es-ES')}`)
-  ].join('\n');
 
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename=reservas.csv');
-  res.send(csv);
-});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('Servidor escuchando en puerto', PORT);
 });
+```
 
-
+Guarda, commit y push. Luego añade en Railway → Variables:
+```
+ELEVENLABS_ENABLED=true
