@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — ReservasBot</title>
+  <style>
+    :root {
+      --bg: #f5f6fa; --bg2: #ffffff; --bg3: #eef0f6; --border: #e2e5f0;
+      --text: #1a1d2e; --text2: #6b7280; --text3: #9ca3af;
+      --accent: #4F46E5; --accent-light: #EEF2FF; --accent-hover: #4338CA;
+      --sidebar: #1a1d2e; --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    [data-theme="dark"] {
+      --bg: #0d0d14; --bg2: #111118; --bg3: #16161f; --border: #1e1e2a;
+      --text: #e2e2e2; --text2: #6b7280; --text3: #444;
+      --accent: #7C6FFF; --accent-light: #1e1a3a; --accent-hover: #6a5ce8;
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: var(--sidebar); display: flex; flex-direction: column; padding: 20px 0; position: fixed; height: 100vh; }
+    .sidebar-logo { padding: 0 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .sidebar-logo h2 { color: #fff; font-size: 16px; font-weight: 700; }
+    .sidebar-logo p { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 2px; }
+    .sidebar-menu { padding: 16px 8px; flex: 1; }
+    .menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: rgba(255,255,255,0.5); font-size: 13px; margin-bottom: 2px; text-decoration: none; transition: all .15s; }
+    .menu-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .menu-item.active { background: rgba(124,111,255,0.15); color: #7C6FFF; }
+    .sidebar-footer { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+    .logout { color: rgba(255,255,255,0.3); font-size: 11px; text-decoration: none; display: block; }
+    .logout:hover { color: #f87171; }
+    .main { margin-left: 220px; flex: 1; padding: 28px; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+    .page-header h1 { font-size: 22px; font-weight: 600; }
+    .page-header p { color: var(--text2); font-size: 13px; margin-top: 3px; }
+    .theme-toggle { width: 36px; height: 36px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 16px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+    .stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
+    .stat-icon { font-size: 20px; margin-bottom: 10px; }
+    .stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .stat-value { font-size: 28px; font-weight: 700; }
+    .tabla-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+    .tabla-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .tabla-header h3 { font-size: 14px; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: var(--bg3); color: var(--text2); padding: 10px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg3); }
+    .nombre-td { color: var(--text); font-weight: 500; }
+    .badge { background: var(--accent-light); color: var(--accent); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .badge-green { background: #dcfce7; color: #16a34a; }
+    .badge-red { background: #fee2e2; color: #dc2626; }
+    [data-theme="dark"] .badge-green { background: #0a2a1a; color: #4ade80; }
+    [data-theme="dark"] .badge-red { background: #2a1015; color: #f87171; }
+    .empty { text-align: center; padding: 48px; color: var(--text3); font-size: 14px; }
+    .btn-delete { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; }
+    .btn-delete:hover { background: #fee2e2; color: #dc2626; }
+    [data-theme="dark"] .btn-delete:hover { background: #2a1015; color: #f87171; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h2>ReservasBot</h2>
+      <p>Panel de administración</p>
+    </div>
+    <div class="sidebar-menu">
+      <a href="/admin" class="menu-item active"><span>🏠</span> Dashboard</a>
+      <a href="/panel" class="menu-item"><span>📅</span> Mi panel</a>
+    </div>
+    <div class="sidebar-footer">
+      <a href="/logout" class="logout">Cerrar sesión →</a>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="page-header">
+      <div>
+        <h1>Panel de Administración</h1>
+        <p>Gestión global de ReservasBot</p>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-icon">🏪</div>
+        <div class="stat-label">Restaurantes</div>
+        <div class="stat-value"><%= restaurantes.length %></div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon">📅</div>
+        <div class="stat-label">Reservas totales</div>
+        <div class="stat-value"><%= totalReservas %></div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon">👥</div>
+        <div class="stat-label">Clientes totales</div>
+        <div class="stat-value"><%= totalClientes %></div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon">📈</div>
+        <div class="stat-label">Reservas hoy</div>
+        <div class="stat-value"><%= reservasHoy %></div>
+      </div>
+    </div>
+
+    <div class="tabla-card">
+      <div class="tabla-header">
+        <h3>Todos los restaurantes</h3>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Restaurante</th>
+            <th>Email</th>
+            <th>Número Twilio</th>
+            <th>Reservas</th>
+            <th>Registro</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (restaurantes.length === 0) { %>
+            <tr><td colspan="7" class="empty">No hay restaurantes registrados</td></tr>
+          <% } else { %>
+            <% restaurantes.forEach((r, i) => { %>
+              <tr>
+                <td><%= i + 1 %></td>
+                <td class="nombre-td"><%= r.restaurante %></td>
+                <td><%= r.email %></td>
+                <td>
+                  <% if (r.numero_twilio) { %>
+                    <span class="badge badge-green"><%= r.numero_twilio %></span>
+                  <% } else { %>
+                    <span class="badge badge-red">Sin asignar</span>
+                  <% } %>
+                </td>
+                <td><span class="badge"><%= r.total_reservas || 0 %></span></td>
+                <td><%= new Date(r.creado_en).toLocaleDateString('es-ES') %></td>
+                <td>
+                  <form method="POST" action="/admin/restaurante/<%= r.id %>/eliminar" onsubmit="return confirm('Eliminar cuenta de <%= r.restaurante %>?')" style="display:inline;">
+                    <button class="btn-delete" type="submit">🗑️</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.getElementById('themeBtn').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+    }
+  </script>
+</body>
+</html>

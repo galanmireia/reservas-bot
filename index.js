@@ -726,6 +726,42 @@ app.get('/', (req, res) => {
   res.render('landing');
 });
 app.get('/legal', (req, res) => res.render('legal'));
+function requireAdmin(req, res, next) {
+  if (!req.session.usuario || req.session.usuario.rol !== 'admin') return res.redirect('/panel');
+  next();
+}
+
+app.get('/admin', requireAdmin, async (req, res) => {
+  const restaurantes = await db.query(`
+    SELECT u.*, COUNT(r.id) as total_reservas
+    FROM usuarios u
+    LEFT JOIN reservas r ON r.usuario_id = u.id
+    WHERE u.rol = 'restaurante'
+    GROUP BY u.id
+    ORDER BY u.creado_en DESC
+  `);
+  const totalReservas = await db.query('SELECT COUNT(*) FROM reservas');
+  const totalClientes = await db.query('SELECT COUNT(*) FROM clientes');
+  const hoy = new Date().toISOString().split('T')[0];
+  const reservasHoy = await db.query('SELECT COUNT(*) FROM reservas WHERE fecha = $1', [hoy]);
+
+  res.render('admin', {
+    restaurantes: restaurantes.rows,
+    totalReservas: totalReservas.rows[0].count,
+    totalClientes: totalClientes.rows[0].count,
+    reservasHoy: reservasHoy.rows[0].count,
+    usuario: req.session.usuario
+  });
+});
+
+app.post('/admin/restaurante/:id/eliminar', requireAdmin, async (req, res) => {
+  await db.query('DELETE FROM reservas WHERE usuario_id = $1', [req.params.id]);
+  await db.query('DELETE FROM configuracion WHERE usuario_id = $1', [req.params.id]);
+  await db.query('DELETE FROM dias_cerrados WHERE usuario_id = $1', [req.params.id]);
+  await db.query('DELETE FROM usuarios WHERE id = $1', [req.params.id]);
+  res.redirect('/admin');
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('Servidor escuchando en puerto', PORT);
