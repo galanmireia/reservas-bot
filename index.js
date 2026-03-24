@@ -725,6 +725,7 @@ cron.schedule('0 10 * * *', async () => {
 app.get('/', (req, res) => {
   res.render('landing');
 });
+app.get('/legal', (req, res) => res.render('legal'));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('Servidor escuchando en puerto', PORT);

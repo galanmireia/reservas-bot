@@ -180,7 +180,34 @@
       </form>
     </div>
   </div>
-
+    <div class="seccion" style="margin-top:20px;">
+  <div class="seccion-title">🚫 Días cerrados</div>
+  <% if (diasCerrados.length > 0) { %>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+      <% diasCerrados.forEach(d => { %>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+          <span style="font-size:13px;color:var(--text);">📅 <%= d.fecha %> <span style="color:var(--text2);margin-left:8px;"><%= d.motivo || '' %></span></span>
+          <form method="POST" action="/dias-cerrados/eliminar/<%= d.id %>">
+            <button type="submit" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color=''">✕</button>
+          </form>
+        </div>
+      <% }) %>
+    </div>
+  <% } else { %>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:16px;">No hay días cerrados configurados.</p>
+  <% } %>
+  <form method="POST" action="/dias-cerrados/añadir" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+    <div class="campo">
+      <label>Fecha</label>
+      <input type="date" name="fecha" required>
+    </div>
+    <div class="campo">
+      <label>Motivo (opcional)</label>
+      <input type="text" name="motivo" placeholder="Festivo, vacaciones..." style="width:200px;">
+    </div>
+    <button type="submit" class="btn-save" style="height:38px;padding:0 16px;">+ Añadir día cerrado</button>
+  </form>
+</div>
   <script>
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
