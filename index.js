@@ -38,13 +38,26 @@ app.get('/audio', async (req, res) => {
   try {
     const texto = req.query.texto;
     if (!texto) return res.status(400).send('Sin texto');
-    const audioStream = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
+    
+    const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
       text: texto,
       model_id: 'eleven_multilingual_v2',
       voice_settings: { stability: 0.5, similarity_boost: 0.75 }
     });
+
     res.setHeader('Content-Type', 'audio/mpeg');
-    audioStream.pipe(res);
+    
+    if (response.pipe) {
+      response.pipe(res);
+    } else if (response[Symbol.asyncIterator]) {
+      for await (const chunk of response) {
+        res.write(chunk);
+      }
+      res.end();
+    } else {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      res.send(buffer);
+    }
   } catch (err) {
     console.error('Error ElevenLabs:', err.message);
     res.status(500).send('Error generando audio');
