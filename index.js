@@ -38,15 +38,12 @@ app.get('/audio', async (req, res) => {
   try {
     const texto = req.query.texto;
     if (!texto) return res.status(400).send('Sin texto');
-    
     const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
       text: texto,
       model_id: 'eleven_multilingual_v2',
       voice_settings: { stability: 0.5, similarity_boost: 0.75 }
     });
-
     res.setHeader('Content-Type', 'audio/mpeg');
-    
     if (response.pipe) {
       response.pipe(res);
     } else if (response[Symbol.asyncIterator]) {
@@ -91,10 +88,10 @@ async function enviarEmailRestaurante(usuarioId, datos) {
     await resend.emails.send({
       from: 'ReservasBot <onboarding@resend.dev>',
       to: email,
-      subject: `Nueva reserva — ${datos.nombre}`,
+      subject: `${datos.canal?.includes('CANCELACION') ? '❌ Cancelación' : datos.canal?.includes('MODIFICACION') ? '✏️ Modificación' : '✅ Nueva reserva'} — ${datos.nombre}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #f9f9f9; border-radius: 12px;">
-          <h2 style="color: #4F46E5;">Nueva reserva en ${restaurante}</h2>
+          <h2 style="color: #4F46E5;">${datos.canal?.includes('CANCELACION') ? 'Reserva cancelada' : datos.canal?.includes('MODIFICACION') ? 'Reserva modificada' : 'Nueva reserva'} en ${restaurante}</h2>
           <div style="background: white; border-radius: 8px; padding: 20px; margin-top: 16px;">
             <p style="margin: 8px 0;"><strong>Nombre:</strong> ${datos.nombre}</p>
             <p style="margin: 8px 0;"><strong>Fecha:</strong> ${datos.fecha}</p>
@@ -161,12 +158,34 @@ async function hayDisponibilidad(fecha, hora, personas) {
   return { disponible: true };
 }
 
+async function obtenerListaEspera(usuarioId, fecha, hora, personas) {
+  const lista = await db.query(
+    'SELECT COUNT(*) FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND hora = $3 AND personas <= $4',
+    [usuarioId, fecha, hora, personas <= 2 ? 2 : 4]
+  );
+  return parseInt(lista.rows[0].count);
+}
+
+async function avisarListaEspera(usuarioId, fecha, hora, personas) {
+  const enEspera = await db.query(
+    'SELECT * FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND personas <= $3 ORDER BY creada_en ASC LIMIT 1',
+    [usuarioId, fecha, personas <= 2 ? 2 : 4]
+  );
+  if (enEspera.rows.length === 0) return;
+  const cliente = enEspera.rows[0];
+  await enviarWhatsApp(
+    cliente.telefono,
+    `Hola ${cliente.nombre}, hay un hueco disponible en el restaurante para el ${fecha} a las ${hora} para ${cliente.personas} personas. Responde SI para confirmar tu reserva o NO para cancelar tu espera.`
+  );
+  await db.query('DELETE FROM lista_espera WHERE id = $1', [cliente.id]);
+}
+
 async function extraerDatosReserva(mensajes) {
   const respuesta = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     messages: [
       ...mensajes,
-      { role: 'user', content: `Extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR o CONSULTAR), nombre, fecha, hora, personas, nueva_fecha, nueva_hora, nuevas_personas. La fecha debe estar en formato YYYY-MM-DD usando como referencia que hoy es ${new Date().toISOString().split('T')[0]}. La hora en formato HH:MM. Si algun dato no aplica o falta pon null. Responde SOLO con el JSON, sin texto adicional, sin comillas de codigo.` }
+      { role: 'user', content: `Extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR o ESPERA), nombre, fecha, hora, personas, nueva_fecha, nueva_hora, nuevas_personas. La fecha debe estar en formato YYYY-MM-DD usando como referencia que hoy es ${new Date().toISOString().split('T')[0]}. La hora en formato HH:MM. Si algun dato no aplica o falta pon null. Responde SOLO con el JSON, sin texto adicional, sin comillas de codigo.` }
     ]
   });
   try {
@@ -187,6 +206,7 @@ async function obtenerConfigRestaurante(usuarioId) {
 async function procesarAccion(datos, canal, contexto, telefonoCliente = null, usuarioId = null, config = null) {
   if (!datos) return 'Disculpa, no he podido entender los datos. Puedes repetirmelos?';
   const telefonoParaWhatsapp = telefonoCliente || canal;
+  const uid = usuarioId || await obtenerUsuarioPorDefecto();
 
   if (datos.accion === 'CONSULTAR') {
     const reservas = await db.query(
@@ -206,12 +226,20 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
       reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1', [telefonoParaWhatsapp, datos.nombre]);
     }
     if (!reserva || reserva.rows.length === 0) return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre?';
-    
+
     const fechaReserva = new Date(`${reserva.rows[0].fecha}T${reserva.rows[0].hora}`);
     const horasRestantes = (fechaReserva - new Date()) / (1000 * 60 * 60);
-    if (horasRestantes < 2) return `Lo siento, no es posible cancelar con menos de 2 horas de antelacion.`;
-    
+    if (horasRestantes < 2) return 'Lo siento, no es posible cancelar con menos de 2 horas de antelacion.';
+
     await db.query('DELETE FROM reservas WHERE id = $1', [reserva.rows[0].id]);
+    await avisarListaEspera(uid, reserva.rows[0].fecha, reserva.rows[0].hora, reserva.rows[0].personas);
+    await enviarEmailRestaurante(uid, {
+      nombre: reserva.rows[0].nombre,
+      fecha: reserva.rows[0].fecha,
+      hora: reserva.rows[0].hora,
+      personas: reserva.rows[0].personas,
+      canal: '❌ CANCELACION por cliente'
+    });
     return `Reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a las ${reserva.rows[0].hora} cancelada correctamente.`;
   }
 
@@ -231,59 +259,84 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
     const disponibilidad = await hayDisponibilidad(nuevaFecha, nuevaHora, nuevasPersonas);
     if (!disponibilidad.disponible) return `Lo siento, ${disponibilidad.motivo} Te gustaria elegir otra hora o fecha?`;
     await db.query('UPDATE reservas SET fecha = $1, hora = $2, personas = $3 WHERE id = $4', [nuevaFecha, nuevaHora, nuevasPersonas, reserva.rows[0].id]);
+    await avisarListaEspera(uid, reserva.rows[0].fecha, reserva.rows[0].hora, reserva.rows[0].personas);
+    await enviarEmailRestaurante(uid, {
+      nombre: reserva.rows[0].nombre,
+      fecha: nuevaFecha,
+      hora: nuevaHora,
+      personas: nuevasPersonas,
+      canal: `✏️ MODIFICACION por cliente (antes: ${reserva.rows[0].fecha} ${reserva.rows[0].hora})`
+    });
     return `Reserva modificada correctamente. Nueva fecha: ${nuevaFecha} a las ${nuevaHora} para ${nuevasPersonas} personas.`;
+  }
+
+  if (datos.accion === 'ESPERA') {
+    if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas para apuntarte a la lista de espera.';
+    await db.query(
+      'INSERT INTO lista_espera (usuario_id, telefono, nombre, fecha, hora, personas) VALUES ($1, $2, $3, $4, $5, $6)',
+      [uid, telefonoParaWhatsapp, datos.nombre, datos.fecha, datos.hora, datos.personas]
+    );
+    const enEspera = await obtenerListaEspera(uid, datos.fecha, datos.hora, datos.personas);
+    return `Perfecto ${datos.nombre}, te he apuntado en la lista de espera para el ${datos.fecha} a las ${datos.hora}. Eres el numero ${enEspera} en la lista. Te avisaremos por WhatsApp si hay una cancelacion.`;
   }
 
   if (datos.accion === 'NUEVA') {
     if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas para hacer la reserva.';
     const fechaReserva = new Date(`${datos.fecha}T${datos.hora}`);
     if (fechaReserva <= new Date()) return 'Lo siento, esa fecha y hora ya han pasado. Para que otra fecha te gustaria reservar?';
-    if (usuarioId) {
+
+    if (uid) {
       const diaCerrado = await db.query(
         'SELECT * FROM dias_cerrados WHERE usuario_id = $1 AND fecha = $2',
-        [usuarioId, datos.fecha]
+        [uid, datos.fecha]
       );
       if (diaCerrado.rows.length > 0) {
         const motivo = diaCerrado.rows[0].motivo || 'ese dia estamos cerrados';
         return `Lo siento, ${motivo}. No podemos aceptar reservas para esa fecha. Elige otro dia.`;
       }
     }
+
     if (config?.horario) {
-    const horaReserva = parseInt(datos.hora.replace(':', ''));
-    const esHorarioValido = (horaReserva >= 1300 && horaReserva <= 1600) || (horaReserva >= 2000 && horaReserva <= 2330);
-    if (!esHorarioValido) return `Lo siento, nuestro horario es ${config.horario}. Elige una hora dentro de nuestro horario de apertura.`;
-  }
+      const horaReserva = parseInt(datos.hora.replace(':', ''));
+      const esHorarioValido = (horaReserva >= 1300 && horaReserva <= 1600) || (horaReserva >= 2000 && horaReserva <= 2330);
+      if (!esHorarioValido) return `Lo siento, nuestro horario es ${config.horario}. Elige una hora dentro de nuestro horario de apertura.`;
+    }
+
     const disponibilidad = await hayDisponibilidad(datos.fecha, datos.hora, datos.personas);
     if (!disponibilidad.disponible) {
-  const horaNum = parseInt(datos.hora.replace(':', ''));
-  const alternativas = [];
-  const horasProbar = [
-    String(horaNum - 100).padStart(4, '0'),
-    String(horaNum + 100).padStart(4, '0'),
-    String(horaNum - 200).padStart(4, '0'),
-    String(horaNum + 200).padStart(4, '0')
-  ];
-  for (const h of horasProbar) {
-    const horaFormateada = `${h.slice(0,2)}:${h.slice(2)}`;
-    const horaInt = parseInt(h);
-    if (horaInt < 1300 || (horaInt > 1600 && horaInt < 2000) || horaInt > 2330) continue;
-    const disp = await hayDisponibilidad(datos.fecha, horaFormateada, datos.personas);
-    if (disp.disponible) alternativas.push(horaFormateada);
-    if (alternativas.length === 2) break;
-  }
-  if (alternativas.length > 0) {
-    return `Lo siento, no hay mesas disponibles a las ${datos.hora}. Tenemos sitio a las ${alternativas.join(' o a las ')}. Te apunto en alguna de estas horas?`;
-  }
-  return `Lo siento, no hay mesas disponibles para ${datos.personas} personas el ${datos.fecha}. Te gustaria reservar otro dia?`;
-}
+      const enEspera = await obtenerListaEspera(uid, datos.fecha, datos.hora, datos.personas);
+      const horaNum = parseInt(datos.hora.replace(':', ''));
+      const alternativas = [];
+      const horasProbar = [
+        String(horaNum - 100).padStart(4, '0'),
+        String(horaNum + 100).padStart(4, '0'),
+        String(horaNum - 200).padStart(4, '0'),
+        String(horaNum + 200).padStart(4, '0')
+      ];
+      for (const h of horasProbar) {
+        const horaFormateada = `${h.slice(0,2)}:${h.slice(2)}`;
+        const horaInt = parseInt(h);
+        if (horaInt < 1300 || (horaInt > 1600 && horaInt < 2000) || horaInt > 2330) continue;
+        const disp = await hayDisponibilidad(datos.fecha, horaFormateada, datos.personas);
+        if (disp.disponible) alternativas.push(horaFormateada);
+        if (alternativas.length === 2) break;
+      }
+      const msgEspera = enEspera > 0
+        ? `Hay ${enEspera} persona${enEspera > 1 ? 's' : ''} en lista de espera para ese horario.`
+        : 'Serias el primero en la lista de espera para ese horario.';
 
-    const canalTipo = telefonoCliente && telefonoCliente.includes('whatsapp') ? 'whatsapp' : 'llamada';
+      if (alternativas.length > 0) {
+        return `Lo siento, no hay mesas a las ${datos.hora}. Tengo sitio a las ${alternativas.join(' o a las ')}. O si prefieres, puedo apuntarte a la lista de espera — ${msgEspera} Que prefieres, horario alternativo o lista de espera?`;
+      }
+      return `Lo siento, no hay mesas disponibles el ${datos.fecha}. ${msgEspera} Te apunto en la lista de espera y te aviso si hay una cancelacion?`;
+    }
+
     await db.query(
       'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-      [canal, datos.nombre, datos.fecha, datos.hora, datos.personas, telefonoParaWhatsapp, uid, canalTipo]
+      [canal, datos.nombre, datos.fecha, datos.hora, datos.personas, telefonoParaWhatsapp, uid, telefonoCliente && telefonoCliente.includes('whatsapp') ? 'whatsapp' : 'llamada']
     );
     await obtenerOCrearCliente(telefonoParaWhatsapp, datos.nombre);
-    await enviarEmailRestaurante(uid, { nombre: datos.nombre, fecha: datos.fecha, hora: datos.hora, personas: datos.personas, canal: canalTipo });
+    await enviarEmailRestaurante(uid, { nombre: datos.nombre, fecha: datos.fecha, hora: datos.hora, personas: datos.personas, canal: telefonoCliente?.includes('whatsapp') ? 'whatsapp' : 'llamada' });
     return `Perfecto ${datos.nombre}, tu reserva esta confirmada para el ${datos.fecha} a las ${datos.hora} para ${datos.personas} personas. Te esperamos!`;
   }
 
@@ -299,7 +352,7 @@ const SYSTEM_PROMPT = (hoy, contexto, config = null) => {
   const especialidad = config?.especialidad || 'Cocido madrileno los jueves';
   const aparcamiento = config?.aparcamiento || 'Parking publico a 200 metros';
 
-  let prompt = `Eres Mario, asistente de reservas de ${nombre}. Hoy es ${hoy}.
+  let prompt = `Eres Laura, asistente de reservas de ${nombre}. Hoy es ${hoy}.
 
 REGLAS ESTRICTAS:
 - Responde SIEMPRE en menos de 2 frases cortas
@@ -315,7 +368,8 @@ Cuando tengas nombre+fecha+hora+personas, resume los datos al cliente y pregunta
 "un momento por favor ACCION:NUEVA"
 "un momento por favor ACCION:CANCELAR"
 "un momento por favor ACCION:MODIFICAR"
-"un momento por favor ACCION:CONSULTAR"`;
+"un momento por favor ACCION:CONSULTAR"
+Si el cliente quiere apuntarse a la lista de espera di EXACTAMENTE: "un momento por favor ACCION:ESPERA"`;
 
   if (contexto?.cliente?.nombre) {
     prompt += ` El cliente se llama ${contexto.cliente.nombre}, saludale por su nombre.`;
@@ -335,6 +389,14 @@ function requireLogin(req, res, next) {
   next();
 }
 
+function requireAdmin(req, res, next) {
+  if (!req.session.usuario || req.session.usuario.rol !== 'admin') return res.redirect('/panel');
+  next();
+}
+
+app.get('/', (req, res) => res.render('landing'));
+app.get('/legal', (req, res) => res.render('legal'));
+
 app.get('/login', (req, res) => res.render('login', { error: null }));
 
 app.post('/login', async (req, res) => {
@@ -347,7 +409,7 @@ app.post('/login', async (req, res) => {
   if (usuario.rows[0].rol === 'admin') {
     res.redirect('/admin');
   } else {
-   res.redirect('/panel');
+    res.redirect('/panel');
   }
 });
 
@@ -375,11 +437,9 @@ app.post('/llamada', async (req, res) => {
     const contexto = await obtenerContextoCliente(telefono);
     const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
     conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
-
     const saludo = contexto?.cliente?.nombre
       ? `Hola ${contexto.cliente.nombre}, soy Laura, la asistente del restaurante. En que puedo ayudarte?`
       : 'Hola, soy Laura, la asistente del restaurante. En que puedo ayudarte?';
-
     const audioUrl = `https://reservas-bot-production.up.railway.app/audio?texto=${encodeURIComponent(saludo)}`;
     const twiml = ELEVENLABS_ENABLED
       ? `<?xml version="1.0" encoding="UTF-8"?>
@@ -425,7 +485,6 @@ app.post('/responder', async (req, res) => {
     let mensaje = respuestaIA.choices[0].message.content;
     conversaciones[callSid].push({ role: 'assistant', content: mensaje });
     console.log('Mensaje completo:', mensaje);
-
     if (mensaje.toLowerCase().includes('un momento por favor')) {
       const datos = await extraerDatosReserva(conversaciones[callSid]);
       try {
@@ -435,7 +494,7 @@ app.post('/responder', async (req, res) => {
         mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
       }
       console.log('Respuesta final:', mensaje);
-      if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('procesada')) {
+      if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('procesada') || mensaje.includes('lista de espera')) {
         const nuevoContexto = await obtenerContextoCliente(telefono);
         conversaciones[callSid] = [
           { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
@@ -443,7 +502,6 @@ app.post('/responder', async (req, res) => {
         ];
       }
     }
-
     const audioUrlResp = `https://reservas-bot-production.up.railway.app/audio?texto=${encodeURIComponent(mensaje)}`;
     const twiml = ELEVENLABS_ENABLED
       ? `<?xml version="1.0" encoding="UTF-8"?>
@@ -496,7 +554,7 @@ app.post('/whatsapp', async (req, res) => {
         console.error('Error en procesarAccion WhatsApp:', err.message);
         respuesta = 'Tu reserva ha sido procesada. Te esperamos!';
       }
-      if (respuesta.includes('confirmada') || respuesta.includes('cancelada') || respuesta.includes('modificada') || respuesta.includes('procesada')) {
+      if (respuesta.includes('confirmada') || respuesta.includes('cancelada') || respuesta.includes('modificada') || respuesta.includes('procesada') || respuesta.includes('lista de espera')) {
         const nuevoContexto = await obtenerContextoCliente(from);
         conversacionesWhatsapp[from] = [
           { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
@@ -548,24 +606,21 @@ app.post('/cancelar/:id', requireLogin, async (req, res) => {
   await db.query('DELETE FROM reservas WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
   res.redirect('/panel');
 });
+
 app.post('/editar-reserva/:id', requireLogin, async (req, res) => {
   const { nombre, fecha, hora, personas } = req.body;
   const usuarioId = req.session.usuario.id;
-
   const ahora = new Date();
   const fechaHoraReserva = new Date(`${fecha}T${hora}`);
   if (fechaHoraReserva <= ahora) return res.redirect('/panel?error=fecha');
-
   const disponibilidad = await hayDisponibilidad(fecha, hora, parseInt(personas));
   if (!disponibilidad.disponible) return res.redirect('/panel?error=cupo');
-
   await db.query(
     'UPDATE reservas SET nombre=$1, fecha=$2, hora=$3, personas=$4 WHERE id=$5 AND usuario_id=$6',
     [nombre, fecha, hora, parseInt(personas), req.params.id, usuarioId]
   );
   res.redirect('/panel');
 });
-
 
 app.post('/nueva-reserva', requireLogin, async (req, res) => {
   const { nombre, fecha, hora, personas, telefono, prefijo } = req.body;
@@ -655,6 +710,7 @@ app.post('/mesas/eliminar/:id', requireLogin, async (req, res) => {
   await db.query('DELETE FROM mesas WHERE id = $1', [req.params.id]);
   res.redirect('/configuracion');
 });
+
 app.post('/dias-cerrados/añadir', requireLogin, async (req, res) => {
   const { fecha, motivo } = req.body;
   await db.query('INSERT INTO dias_cerrados (usuario_id, fecha, motivo) VALUES ($1, $2, $3)', [req.session.usuario.id, fecha, motivo || null]);
@@ -665,6 +721,7 @@ app.post('/dias-cerrados/eliminar/:id', requireLogin, async (req, res) => {
   await db.query('DELETE FROM dias_cerrados WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
   res.redirect('/configuracion');
 });
+
 app.get('/exportar-reservas', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
   const reservas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY fecha ASC, hora ASC', [usuarioId]);
@@ -675,6 +732,36 @@ app.get('/exportar-reservas', requireLogin, async (req, res) => {
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename=reservas.csv');
   res.send(csv);
+});
+
+app.get('/admin', requireAdmin, async (req, res) => {
+  const restaurantes = await db.query(`
+    SELECT u.*, COUNT(r.id) as total_reservas
+    FROM usuarios u
+    LEFT JOIN reservas r ON r.usuario_id = u.id
+    WHERE u.rol != 'admin' OR u.rol IS NULL
+    GROUP BY u.id
+    ORDER BY u.creado_en DESC
+  `);
+  const totalReservas = await db.query('SELECT COUNT(*) FROM reservas');
+  const totalClientes = await db.query('SELECT COUNT(*) FROM clientes');
+  const hoy = new Date().toISOString().split('T')[0];
+  const reservasHoy = await db.query('SELECT COUNT(*) FROM reservas WHERE fecha = $1', [hoy]);
+  res.render('admin', {
+    restaurantes: restaurantes.rows,
+    totalReservas: totalReservas.rows[0].count,
+    totalClientes: totalClientes.rows[0].count,
+    reservasHoy: reservasHoy.rows[0].count,
+    usuario: req.session.usuario
+  });
+});
+
+app.post('/admin/restaurante/:id/eliminar', requireAdmin, async (req, res) => {
+  await db.query('DELETE FROM reservas WHERE usuario_id = $1', [req.params.id]);
+  await db.query('DELETE FROM configuracion WHERE usuario_id = $1', [req.params.id]);
+  await db.query('DELETE FROM dias_cerrados WHERE usuario_id = $1', [req.params.id]);
+  await db.query('DELETE FROM usuarios WHERE id = $1', [req.params.id]);
+  res.redirect('/admin');
 });
 
 app.get('/test-recordatorios', requireLogin, async (req, res) => {
@@ -725,45 +812,6 @@ cron.schedule('0 10 * * *', async () => {
   } catch (err) {
     console.error('Error en recordatorios:', err.message);
   }
-});
-app.get('/', (req, res) => {
-  res.render('landing');
-});
-app.get('/legal', (req, res) => res.render('legal'));
-function requireAdmin(req, res, next) {
-  if (!req.session.usuario || req.session.usuario.rol !== 'admin') return res.redirect('/panel');
-  next();
-}
-
-app.get('/admin', requireAdmin, async (req, res) => {
-  const restaurantes = await db.query(`
-    SELECT u.*, COUNT(r.id) as total_reservas
-    FROM usuarios u
-    LEFT JOIN reservas r ON r.usuario_id = u.id
-    WHERE u.rol != 'admin' OR u.rol IS NULL
-    GROUP BY u.id
-    ORDER BY u.creado_en DESC
-  `);
-  const totalReservas = await db.query('SELECT COUNT(*) FROM reservas');
-  const totalClientes = await db.query('SELECT COUNT(*) FROM clientes');
-  const hoy = new Date().toISOString().split('T')[0];
-  const reservasHoy = await db.query('SELECT COUNT(*) FROM reservas WHERE fecha = $1', [hoy]);
-
-  res.render('admin', {
-    restaurantes: restaurantes.rows,
-    totalReservas: totalReservas.rows[0].count,
-    totalClientes: totalClientes.rows[0].count,
-    reservasHoy: reservasHoy.rows[0].count,
-    usuario: req.session.usuario
-  });
-});
-
-app.post('/admin/restaurante/:id/eliminar', requireAdmin, async (req, res) => {
-  await db.query('DELETE FROM reservas WHERE usuario_id = $1', [req.params.id]);
-  await db.query('DELETE FROM configuracion WHERE usuario_id = $1', [req.params.id]);
-  await db.query('DELETE FROM dias_cerrados WHERE usuario_id = $1', [req.params.id]);
-  await db.query('DELETE FROM usuarios WHERE id = $1', [req.params.id]);
-  res.redirect('/admin');
 });
 
 const PORT = process.env.PORT || 3000;
