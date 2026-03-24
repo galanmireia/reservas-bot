@@ -185,7 +185,7 @@ async function extraerDatosReserva(mensajes) {
     model: 'gpt-4o-mini',
     messages: [
       ...mensajes,
-      { role: 'user', content: `Extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR o ESPERA), nombre, fecha, hora, personas, nueva_fecha, nueva_hora, nuevas_personas. La fecha debe estar en formato YYYY-MM-DD usando como referencia que hoy es ${new Date().toISOString().split('T')[0]}. La hora en formato HH:MM. Si algun dato no aplica o falta pon null. Responde SOLO con el JSON, sin texto adicional, sin comillas de codigo.` }
+      { role: 'user', content: `Extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, nueva_fecha, nueva_hora, nuevas_personas. La fecha debe estar en formato YYYY-MM-DD usando como referencia que hoy es ${new Date().toISOString().split('T')[0]}. La hora en formato HH:MM. Si algun dato no aplica o falta pon null. Responde SOLO con el JSON, sin texto adicional, sin comillas de codigo.` }
     ]
   });
   try {
@@ -269,7 +269,18 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
     });
     return `Reserva modificada correctamente. Nueva fecha: ${nuevaFecha} a las ${nuevaHora} para ${nuevasPersonas} personas.`;
   }
-
+if (datos.accion === 'DISPONIBILIDAD') {
+  const fecha = datos.fecha || new Date().toISOString().split('T')[0];
+  const personas = datos.personas || 2;
+  const horasAComprobar = ['13:00','13:30','14:00','14:30','15:00','15:30','20:00','20:30','21:00','21:30','22:00','22:30','23:00'];
+  const horasLibres = [];
+  for (const hora of horasAComprobar) {
+    const disp = await hayDisponibilidad(fecha, hora, personas);
+    if (disp.disponible) horasLibres.push(hora);
+  }
+  if (horasLibres.length === 0) return `Lo siento, no tenemos mesas disponibles para ${personas} personas el ${fecha}.`;
+  return `Para ${personas} personas el ${fecha} tenemos disponibilidad a las: ${horasLibres.join(', ')}.`;
+}
   if (datos.accion === 'ESPERA') {
     if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas para apuntarte a la lista de espera.';
     await db.query(
@@ -364,7 +375,8 @@ REGLAS ESTRICTAS:
 - Responde SIEMPRE en menos de 2 frases cortas
 - NUNCA uses listas ni puntos
 - NUNCA repitas informacion que el cliente ya dio
-- Solo hablas de este restaurante. Si preguntan otra cosa: "Solo puedo ayudarte con el restaurante."
+- Solo hablas de temas relacionados con este restaurante: reservas, menu, horarios, ubicacion, especialidades, disponibilidad. Si preguntan algo totalmente ajeno al restaurante di: "Solo puedo ayudarte con temas del restaurante."
+- Si te preguntan por el menu, especialidad, horarios o ubicacion SIEMPRE responde con la informacion que tienes.
 
 INFO DEL RESTAURANTE:
 Direccion: ${direccion} | Horario: ${horario} | Tel: ${telefono} | Menu: ${menu} | Especialidad: ${especialidad} | Parking: ${aparcamiento}
@@ -375,7 +387,9 @@ Cuando tengas nombre+fecha+hora+personas, resume los datos al cliente y pregunta
 "un momento por favor ACCION:CANCELAR"
 "un momento por favor ACCION:MODIFICAR"
 "un momento por favor ACCION:CONSULTAR"
-Si el cliente quiere apuntarse a la lista de espera di EXACTAMENTE: "un momento por favor ACCION:ESPERA"`;
+Si el cliente quiere apuntarse a la lista de espera di EXACTAMENTE: "un momento por favor ACCION:ESPERA"
+Si el cliente pregunta que horas hay disponibles o que hueco hay libre, di EXACTAMENTE: "un momento por favor ACCION:DISPONIBILIDAD"
+Si el cliente pregunta que reservas tiene o quiere ver sus reservas, di EXACTAMENTE: "un momento por favor ACCION:CONSULTAR"`;
 
   if (contexto?.cliente?.nombre) {
     prompt += ` El cliente se llama ${contexto.cliente.nombre}, saludale por su nombre.`;
