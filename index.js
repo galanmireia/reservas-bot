@@ -513,6 +513,24 @@ app.post('/cancelar/:id', requireLogin, async (req, res) => {
   await db.query('DELETE FROM reservas WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
   res.redirect('/panel');
 });
+app.post('/editar-reserva/:id', requireLogin, async (req, res) => {
+  const { nombre, fecha, hora, personas } = req.body;
+  const usuarioId = req.session.usuario.id;
+
+  const ahora = new Date();
+  const fechaHoraReserva = new Date(`${fecha}T${hora}`);
+  if (fechaHoraReserva <= ahora) return res.redirect('/panel?error=fecha');
+
+  const disponibilidad = await hayDisponibilidad(fecha, hora, parseInt(personas));
+  if (!disponibilidad.disponible) return res.redirect('/panel?error=cupo');
+
+  await db.query(
+    'UPDATE reservas SET nombre=$1, fecha=$2, hora=$3, personas=$4 WHERE id=$5 AND usuario_id=$6',
+    [nombre, fecha, hora, parseInt(personas), req.params.id, usuarioId]
+  );
+  res.redirect('/panel');
+});
+
 
 app.post('/nueva-reserva', requireLogin, async (req, res) => {
   const { nombre, fecha, hora, personas, telefono, prefijo } = req.body;
