@@ -711,7 +711,7 @@ app.post('/mesas/eliminar/:id', requireLogin, async (req, res) => {
   res.redirect('/configuracion');
 });
 
-app.post('/dias-cerrados/añadir', requireLogin, async (req, res) => {
+app.post('/dias-cerrados/anadir', requireLogin, async (req, res) => {
   const { fecha, motivo } = req.body;
   await db.query('INSERT INTO dias_cerrados (usuario_id, fecha, motivo) VALUES ($1, $2, $3)', [req.session.usuario.id, fecha, motivo || null]);
   res.redirect('/configuracion');
