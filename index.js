@@ -276,14 +276,36 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
 if (datos.accion === 'DISPONIBILIDAD') {
   const fecha = datos.fecha || new Date().toISOString().split('T')[0];
   const personas = datos.personas || 2;
-  const horasAComprobar = ['13:00','13:30','14:00','14:30','15:00','15:30','20:00','20:30','21:00','21:30','22:00','22:30','23:00'];
+  const horasFiltro = datos.hora;
+  
+  const horasMediodía = ['13:00','13:30','14:00','14:30','15:00','15:30'];
+  const horasNoche = ['20:00','20:30','21:00','21:30','22:00','22:30','23:00'];
+  
+  let horasAComprobar;
+  if (horasFiltro) {
+    const horaNum = parseInt(horasFiltro.replace(':', ''));
+    horasAComprobar = horaNum >= 2000 ? horasNoche : horasMediodía;
+  } else {
+    horasAComprobar = [...horasMediodía, ...horasNoche];
+  }
+
   const horasLibres = [];
   for (const hora of horasAComprobar) {
     const disp = await hayDisponibilidad(fecha, hora, personas);
     if (disp.disponible) horasLibres.push(hora);
   }
+
   if (horasLibres.length === 0) return `Lo siento, no tenemos mesas disponibles para ${personas} personas el ${fecha}.`;
-  return `Para ${personas} personas el ${fecha} tenemos disponibilidad a las: ${horasLibres.join(', ')}.`;
+  
+  const libresMediaodia = horasLibres.filter(h => parseInt(h.replace(':', '')) < 1600);
+  const libresNoche = horasLibres.filter(h => parseInt(h.replace(':', '')) >= 2000);
+  
+  let respuesta = `Para ${personas} personas el ${fecha} tenemos disponibilidad`;
+  if (libresMediaodia.length > 0) respuesta += ` al mediodia: ${libresMediaodia.join(', ')}`;
+  if (libresMediaodia.length > 0 && libresNoche.length > 0) respuesta += ` y`;
+  if (libresNoche.length > 0) respuesta += ` por la noche: ${libresNoche.join(', ')}`;
+  respuesta += `. Quieres reservar alguna de estas horas?`;
+  return respuesta;
 }
   if (datos.accion === 'ESPERA') {
     if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas para apuntarte a la lista de espera.';
@@ -379,7 +401,7 @@ REGLAS ESTRICTAS:
 - Responde SIEMPRE en menos de 2 frases cortas
 - NUNCA uses listas ni puntos
 - NUNCA repitas informacion que el cliente ya dio
-- Solo hablas de temas relacionados con este restaurante: reservas, menu, horarios, ubicacion, especialidades, disponibilidad. Si preguntan algo totalmente ajeno al restaurante di: "Solo puedo ayudarte con temas del restaurante."
+- Puedes hablar sobre: reservas, menu, especialidad, horarios, ubicacion, aparcamiento, disponibilidad de mesas y preguntas generales sobre el restaurante. Para cualquier otro tema di: "Solo puedo ayudarte con temas del restaurante."
 - Si te preguntan por el menu, especialidad, horarios o ubicacion SIEMPRE responde con la informacion que tienes.
 
 INFO DEL RESTAURANTE:
@@ -393,7 +415,8 @@ Cuando tengas nombre+fecha+hora+personas, resume los datos al cliente y pregunta
 "un momento por favor ACCION:CONSULTAR"
 Si el cliente quiere apuntarse a la lista de espera di EXACTAMENTE: "un momento por favor ACCION:ESPERA"
 Si el cliente pregunta que horas hay disponibles o que hueco hay libre, di EXACTAMENTE: "un momento por favor ACCION:DISPONIBILIDAD"
-Si el cliente pregunta que reservas tiene o quiere ver sus reservas, di EXACTAMENTE: "un momento por favor ACCION:CONSULTAR"`;
+Si el cliente pregunta que reservas tiene o quiere ver sus reservas, di EXACTAMENTE: "un momento por favor ACCION:CONSULTAR"
+Si el cliente pregunta por disponibilidad a la noche, manana, mediodia etc, interpreta correctamente el periodo del dia y di EXACTAMENTE: "un momento por favor ACCION:DISPONIBILIDAD"`;
 
   if (contexto?.cliente?.nombre) {
     prompt += ` El cliente se llama ${contexto.cliente.nombre}, saludale por su nombre.`;
