@@ -189,7 +189,16 @@
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
       <% diasCerrados.forEach(d => { %>
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
-          <span style="font-size:13px;color:var(--text);">📅 <%= new Date(d.fecha).toLocaleDateString('es-ES') %> <span style="color:var(--text2);margin-left:8px;"><%= d.motivo || '' %></span></span>
+          <span style="font-size:13px;color:var(--text);">
+  <% if (d.tipo === 'semana') { %>
+    📅 Todos los <%= ['Domingos','Lunes','Martes','Miércoles','Jueves','Viernes','Sábados'][d.dia_semana] %>
+  <% } else if (d.tipo === 'rango') { %>
+    📅 Del <%= new Date(d.fecha).toLocaleDateString('es-ES') %> al <%= new Date(d.fecha_fin).toLocaleDateString('es-ES') %>
+  <% } else { %>
+    📅 <%= new Date(d.fecha).toLocaleDateString('es-ES') %>
+  <% } %>
+  <span style="color:var(--text2);margin-left:8px;"><%= d.motivo || '' %></span>
+</span>
           <form method="POST" action="/dias-cerrados/eliminar/<%= d.id %>">
             <button type="submit" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color=''">✕</button>
           </form>
@@ -199,17 +208,43 @@
   <% } else { %>
     <p style="font-size:13px;color:var(--text3);margin-bottom:16px;">No hay días cerrados configurados.</p>
   <% } %>
-  <form method="POST" action="/dias-cerrados/anadir" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+  <form method="POST" action="/dias-cerrados/anadir" style="display:flex;flex-direction:column;gap:14px;">
+  <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
     <div class="campo">
+      <label>Tipo</label>
+      <select name="tipo" id="tipoCierre" onchange="actualizarFormCierre()" style="width:160px;">
+        <option value="fecha">Día específico</option>
+        <option value="semana">Día de la semana</option>
+        <option value="rango">Rango de fechas</option>
+      </select>
+    </div>
+    <div class="campo" id="campoDia" style="display:none;">
+      <label>Día de la semana</label>
+      <select name="dia_semana" style="width:140px;">
+        <option value="1">Lunes</option>
+        <option value="2">Martes</option>
+        <option value="3">Miércoles</option>
+        <option value="4">Jueves</option>
+        <option value="5">Viernes</option>
+        <option value="6">Sábado</option>
+        <option value="0">Domingo</option>
+      </select>
+    </div>
+    <div class="campo" id="campoFecha">
       <label>Fecha</label>
-      <input type="date" name="fecha" required>
+      <input type="date" name="fecha">
+    </div>
+    <div class="campo" id="campoFechaFin" style="display:none;">
+      <label>Fecha fin</label>
+      <input type="date" name="fecha_fin">
     </div>
     <div class="campo">
       <label>Motivo (opcional)</label>
-      <input type="text" name="motivo" placeholder="Festivo, vacaciones..." style="width:200px;">
+      <input type="text" name="motivo" placeholder="Festivo, vacaciones..." style="width:180px;">
     </div>
-    <button type="submit" class="btn-save" style="height:38px;padding:0 16px;">+ Añadir día cerrado</button>
-  </form>
+    <button type="submit" class="btn-save" style="height:38px;padding:0 16px;">+ Añadir</button>
+  </div>
+</form>
 </div>
   <script>
     const savedTheme = localStorage.getItem('theme') || 'light';
@@ -221,6 +256,12 @@
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('theme', next);
       document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+    }
+    function actualizarFormCierre() {
+      const tipo = document.getElementById('tipoCierre').value;
+      document.getElementById('campoDia').style.display = tipo === 'semana' ? 'flex' : 'none';
+      document.getElementById('campoFecha').style.display = tipo === 'fecha' ? 'flex' : tipo === 'rango' ? 'flex' : 'none';
+      document.getElementById('campoFechaFin').style.display = tipo === 'rango' ? 'flex' : 'none';
     }
   </script>
 </body>

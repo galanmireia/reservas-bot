@@ -286,14 +286,20 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
     if (fechaReserva <= new Date()) return 'Lo siento, esa fecha y hora ya han pasado. Para que otra fecha te gustaria reservar?';
 
     if (uid) {
-      const diaCerrado = await db.query(
-        'SELECT * FROM dias_cerrados WHERE usuario_id = $1 AND fecha = $2',
-        [uid, datos.fecha]
-      );
-      if (diaCerrado.rows.length > 0) {
-        const motivo = diaCerrado.rows[0].motivo || 'ese dia estamos cerrados';
-        return `Lo siento, ${motivo}. No podemos aceptar reservas para esa fecha. Elige otro dia.`;
-      }
+      const fechaObj = new Date(datos.fecha);
+      const diaSemana = fechaObj.getDay();
+
+      const diaCerrado = await db.query(`
+       SELECT * FROM dias_cerrados WHERE usuario_id = $1 AND (
+        (tipo = 'fecha' AND fecha = $2) OR
+        (tipo = 'semana' AND dia_semana = $3) OR
+        (tipo = 'rango' AND fecha <= $2 AND fecha_fin >= $2)
+     )`, [uid, datos.fecha, diaSemana]
+    );
+    if (diaCerrado.rows.length > 0) {
+       const motivo = diaCerrado.rows[0].motivo || 'ese dia estamos cerrados';
+       return `Lo siento, ${motivo}. No podemos aceptar reservas para esa fecha. Elige otro dia.`;
+    }
     }
 
     if (config?.horario) {
@@ -712,8 +718,11 @@ app.post('/mesas/eliminar/:id', requireLogin, async (req, res) => {
 });
 
 app.post('/dias-cerrados/anadir', requireLogin, async (req, res) => {
-  const { fecha, motivo } = req.body;
-  await db.query('INSERT INTO dias_cerrados (usuario_id, fecha, motivo) VALUES ($1, $2, $3)', [req.session.usuario.id, fecha, motivo || null]);
+  const { fecha, fecha_fin, motivo, tipo, dia_semana } = req.body;
+  await db.query(
+    'INSERT INTO dias_cerrados (usuario_id, fecha, fecha_fin, motivo, tipo, dia_semana) VALUES ($1, $2, $3, $4, $5, $6)',
+    [req.session.usuario.id, fecha || null, fecha_fin || null, motivo || null, tipo || 'fecha', dia_semana || null]
+  );
   res.redirect('/configuracion');
 });
 
