@@ -254,8 +254,29 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
     if (!esHorarioValido) return `Lo siento, nuestro horario es ${config.horario}. Elige una hora dentro de nuestro horario de apertura.`;
   }
     const disponibilidad = await hayDisponibilidad(datos.fecha, datos.hora, datos.personas);
-    if (!disponibilidad.disponible) return `Lo siento, ${disponibilidad.motivo} Te gustaria reservar para otra hora o fecha?`;
-    const uid = usuarioId || await obtenerUsuarioPorDefecto();
+    if (!disponibilidad.disponible) {
+  const horaNum = parseInt(datos.hora.replace(':', ''));
+  const alternativas = [];
+  const horasProbar = [
+    String(horaNum - 100).padStart(4, '0'),
+    String(horaNum + 100).padStart(4, '0'),
+    String(horaNum - 200).padStart(4, '0'),
+    String(horaNum + 200).padStart(4, '0')
+  ];
+  for (const h of horasProbar) {
+    const horaFormateada = `${h.slice(0,2)}:${h.slice(2)}`;
+    const horaInt = parseInt(h);
+    if (horaInt < 1300 || (horaInt > 1600 && horaInt < 2000) || horaInt > 2330) continue;
+    const disp = await hayDisponibilidad(datos.fecha, horaFormateada, datos.personas);
+    if (disp.disponible) alternativas.push(horaFormateada);
+    if (alternativas.length === 2) break;
+  }
+  if (alternativas.length > 0) {
+    return `Lo siento, no hay mesas disponibles a las ${datos.hora}. Tenemos sitio a las ${alternativas.join(' o a las ')}. Te apunto en alguna de estas horas?`;
+  }
+  return `Lo siento, no hay mesas disponibles para ${datos.personas} personas el ${datos.fecha}. Te gustaria reservar otro dia?`;
+}
+
     const canalTipo = telefonoCliente && telefonoCliente.includes('whatsapp') ? 'whatsapp' : 'llamada';
     await db.query(
       'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
