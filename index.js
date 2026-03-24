@@ -644,8 +644,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('Servidor escuchando en puerto', PORT);
 });
-```
-
-Guarda, commit y push. Luego añade en Railway → Variables:
-```
-ELEVENLABS_ENABLED=true
