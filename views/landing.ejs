@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReservasBot — El asistente inteligente para tu restaurante</title>
+  <style>
+    :root {
+      --bg: #ffffff; --bg2: #f5f6fa; --bg3: #eef0f6;
+      --text: #1a1d2e; --text2: #6b7280; --text3: #9ca3af;
+      --accent: #4F46E5; --accent-light: #EEF2FF; --accent-hover: #4338CA;
+      --border: #e2e5f0;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+    
+    /* NAV */
+    nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 80px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); z-index: 100; }
+    .nav-logo { font-size: 20px; font-weight: 700; color: var(--accent); }
+    .nav-links { display: flex; align-items: center; gap: 32px; }
+    .nav-links a { color: var(--text2); text-decoration: none; font-size: 14px; }
+    .nav-links a:hover { color: var(--text); }
+    .btn-nav { padding: 8px 20px; background: var(--accent); color: white; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; }
+    .btn-nav:hover { background: var(--accent-hover); color: white; }
+
+    /* HERO */
+    .hero { padding: 100px 80px 80px; text-align: center; max-width: 900px; margin: 0 auto; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-light); color: var(--accent); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; margin-bottom: 24px; }
+    .hero h1 { font-size: 52px; font-weight: 700; line-height: 1.15; margin-bottom: 20px; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { font-size: 18px; color: var(--text2); max-width: 600px; margin: 0 auto 36px; line-height: 1.6; }
+    .hero-btns { display: flex; gap: 14px; justify-content: center; }
+    .btn-primary { padding: 14px 32px; background: var(--accent); color: white; border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: 600; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { padding: 14px 32px; background: var(--bg2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: 500; }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* STATS */
+    .stats-bar { background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 32px 80px; display: flex; justify-content: center; gap: 80px; }
+    .stat-item { text-align: center; }
+    .stat-item .num { font-size: 32px; font-weight: 700; color: var(--accent); }
+    .stat-item .lbl { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+    /* COMO FUNCIONA */
+    .section { padding: 80px; max-width: 1100px; margin: 0 auto; }
+    .section-badge { display: inline-block; background: var(--accent-light); color: var(--accent); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+    .section h2 { font-size: 36px; font-weight: 700; margin-bottom: 12px; }
+    .section p.sub { font-size: 16px; color: var(--text2); margin-bottom: 48px; }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+    .step { text-align: center; padding: 32px 24px; background: var(--bg2); border-radius: 16px; border: 1px solid var(--border); }
+    .step-num { width: 48px; height: 48px; background: var(--accent); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; margin: 0 auto 16px; }
+    .step h3 { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
+    .step p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+
+    /* FUNCIONALIDADES */
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .feature { padding: 24px; background: var(--bg2); border-radius: 12px; border: 1px solid var(--border); }
+    .feature-icon { font-size: 28px; margin-bottom: 12px; }
+    .feature h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .feature p { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+    /* PRECIOS */
+    .pricing { background: var(--bg2); padding: 80px; }
+    .pricing-inner { max-width: 1000px; margin: 0 auto; }
+    .pricing h2 { font-size: 36px; font-weight: 700; text-align: center; margin-bottom: 12px; }
+    .pricing .sub { font-size: 16px; color: var(--text2); text-align: center; margin-bottom: 48px; }
+    .planes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .plan { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 32px; }
+    .plan.popular { border-color: var(--accent); position: relative; }
+    .plan-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 4px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .plan-name { font-size: 14px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .plan-price { font-size: 40px; font-weight: 700; margin-bottom: 4px; }
+    .plan-price span { font-size: 16px; color: var(--text2); font-weight: 400; }
+    .plan-desc { font-size: 13px; color: var(--text2); margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .plan-features { list-style: none; margin-bottom: 28px; }
+    .plan-features li { font-size: 13px; color: var(--text2); padding: 6px 0; display: flex; align-items: center; gap: 8px; }
+    .plan-features li::before { content: '✓'; color: var(--accent); font-weight: 700; }
+    .btn-plan { display: block; text-align: center; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; }
+    .btn-plan-outline { border: 1px solid var(--border); color: var(--text); }
+    .btn-plan-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-plan-filled { background: var(--accent); color: white; }
+    .btn-plan-filled:hover { background: var(--accent-hover); }
+
+    /* CTA */
+    .cta { padding: 80px; text-align: center; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); }
+    .cta h2 { font-size: 36px; font-weight: 700; color: white; margin-bottom: 16px; }
+    .cta p { font-size: 16px; color: rgba(255,255,255,0.8); margin-bottom: 36px; }
+    .btn-cta { padding: 14px 40px; background: white; color: var(--accent); border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: 700; }
+    .btn-cta:hover { background: #f5f5ff; }
+
+    /* FOOTER */
+    footer { padding: 32px 80px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    footer p { font-size: 13px; color: var(--text3); }
+    footer a { font-size: 13px; color: var(--text2); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">ReservasBot</div>
+    <div class="nav-links">
+      <a href="#como-funciona">Cómo funciona</a>
+      <a href="#funcionalidades">Funcionalidades</a>
+      <a href="#precios">Precios</a>
+      <a href="/login">Iniciar sesión</a>
+      <a href="/registro" class="btn-nav">Empieza gratis</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-badge">🤖 Inteligencia artificial para hostelería</div>
+    <h1>Tu restaurante nunca más<br><span>perderá una reserva</span></h1>
+    <p>ReservasBot atiende las llamadas y WhatsApp de tu restaurante automáticamente, 24 horas al día, 7 días a la semana.</p>
+    <div class="hero-btns">
+      <a href="/registro" class="btn-primary">Empieza gratis →</a>
+      <a href="#como-funciona" class="btn-secondary">Ver cómo funciona</a>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="num">24/7</div>
+      <div class="lbl">Disponible siempre</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">&lt;2s</div>
+      <div class="lbl">Tiempo de respuesta</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">100%</div>
+      <div class="lbl">Llamadas atendidas</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">0€</div>
+      <div class="lbl">Para empezar</div>
+    </div>
+  </div>
+
+  <!-- COMO FUNCIONA -->
+  <div class="section" id="como-funciona">
+    <div class="section-badge">Cómo funciona</div>
+    <h2>Simple para ti,<br>invisible para tus clientes</h2>
+    <p class="sub">En 3 pasos tu restaurante empieza a gestionar reservas automáticamente</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Cliente llama o escribe</h3>
+        <p>El cliente llama al teléfono de tu restaurante o te escribe por WhatsApp para hacer una reserva</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>El bot gestiona todo</h3>
+        <p>Laura, tu asistente virtual, atiende al cliente con voz natural, recoge los datos y comprueba disponibilidad</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Tú lo ves en el panel</h3>
+        <p>La reserva aparece en tu panel en tiempo real y recibes un email de confirmación al instante</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FUNCIONALIDADES -->
+  <div class="section" id="funcionalidades" style="background: var(--bg2); padding: 80px; max-width: 100%;">
+    <div style="max-width: 1100px; margin: 0 auto;">
+      <div class="section-badge">Funcionalidades</div>
+      <h2>Todo lo que necesita<br>tu restaurante</h2>
+      <p class="sub">Una solución completa para gestionar todas tus reservas</p>
+      <div class="features-grid">
+        <div class="feature">
+          <div class="feature-icon">📞</div>
+          <h3>Llamadas automáticas</h3>
+          <p>Atiende todas las llamadas con una voz natural en español. Nunca más una llamada sin respuesta.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">💬</div>
+          <h3>WhatsApp integrado</h3>
+          <p>Gestiona reservas por WhatsApp automáticamente. Los clientes pueden reservar, cancelar y modificar.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📊</div>
+          <h3>Panel en tiempo real</h3>
+          <p>Ve todas tus reservas del día en un panel limpio y profesional. Filtra, busca y exporta.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">✉️</div>
+          <h3>Emails automáticos</h3>
+          <p>Recibe un email cada vez que llega una reserva nueva. Nunca te pierdas nada.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🔔</div>
+          <h3>Recordatorios</h3>
+          <p>El sistema avisa a tus clientes el día anterior para reducir los no-shows.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🪑</div>
+          <h3>Control de mesas</h3>
+          <p>El bot comprueba disponibilidad en tiempo real y nunca acepta más reservas de las que tienes.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRECIOS -->
+  <div class="pricing" id="precios">
+    <div class="pricing-inner">
+      <div class="section-badge" style="display:block;text-align:center;">Precios</div>
+      <h2>Precios claros, sin sorpresas</h2>
+      <p class="sub">Primer mes gratis. Cancela cuando quieras.</p>
+      <div class="planes">
+        <div class="plan">
+          <div class="plan-name">Básico</div>
+          <div class="plan-price">49€ <span>/mes</span></div>
+          <div class="plan-desc">Perfecto para empezar a automatizar reservas</div>
+          <ul class="plan-features">
+            <li>Canal de llamadas</li>
+            <li>Panel de reservas</li>
+            <li>Email de confirmación</li>
+            <li>Hasta 200 reservas/mes</li>
+            <li>Soporte por email</li>
+          </ul>
+          <a href="/registro" class="btn-plan btn-plan-outline">Empezar gratis</a>
+        </div>
+        <div class="plan popular">
+          <div class="plan-badge">Más popular</div>
+          <div class="plan-name">Pro</div>
+          <div class="plan-price">99€ <span>/mes</span></div>
+          <div class="plan-desc">Para restaurantes con alto volumen de reservas</div>
+          <ul class="plan-features">
+            <li>Llamadas + WhatsApp</li>
+            <li>Voz natural (IA)</li>
+            <li>Recordatorios automáticos</li>
+            <li>Reservas ilimitadas</li>
+            <li>Exportar CSV</li>
+            <li>Soporte prioritario</li>
+          </ul>
+          <a href="/registro" class="btn-plan btn-plan-filled">Empezar gratis</a>
+        </div>
+        <div class="plan">
+          <div class="plan-name">Agencia</div>
+          <div class="plan-price">249€ <span>/mes</span></div>
+          <div class="plan-desc">Para cadenas y grupos de restaurantes</div>
+          <ul class="plan-features">
+            <li>Hasta 5 restaurantes</li>
+            <li>Todo lo del plan Pro</li>
+            <li>Panel multi-restaurante</li>
+            <li>Onboarding personalizado</li>
+            <li>Soporte dedicado</li>
+          </ul>
+          <a href="/registro" class="btn-plan btn-plan-outline">Contactar</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta">
+    <h2>¿Listo para no perder<br>más reservas?</h2>
+    <p>Empieza gratis hoy. Sin tarjeta de crédito. Sin compromisos.</p>
+    <a href="/registro" class="btn-cta">Crear cuenta gratis →</a>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>© 2026 ReservasBot. Todos los derechos reservados.</p>
+    <div style="display:flex;gap:24px;">
+      <a href="/login">Iniciar sesión</a>
+      <a href="/registro">Registro</a>
+    </div>
+  </footer>
+
+</body>
+</html>

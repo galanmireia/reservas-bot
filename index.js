@@ -184,7 +184,7 @@ async function obtenerConfigRestaurante(usuarioId) {
   return config.rows.length > 0 ? config.rows[0] : null;
 }
 
-async function procesarAccion(datos, canal, contexto, telefonoCliente = null, usuarioId = null) {
+async function procesarAccion(datos, canal, contexto, telefonoCliente = null, usuarioId = null, config = null) {
   if (!datos) return 'Disculpa, no he podido entender los datos. Puedes repetirmelos?';
   const telefonoParaWhatsapp = telefonoCliente || canal;
 
@@ -206,6 +206,11 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
       reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1', [telefonoParaWhatsapp, datos.nombre]);
     }
     if (!reserva || reserva.rows.length === 0) return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre?';
+    
+    const fechaReserva = new Date(`${reserva.rows[0].fecha}T${reserva.rows[0].hora}`);
+    const horasRestantes = (fechaReserva - new Date()) / (1000 * 60 * 60);
+    if (horasRestantes < 2) return `Lo siento, no es posible cancelar con menos de 2 horas de antelacion.`;
+    
     await db.query('DELETE FROM reservas WHERE id = $1', [reserva.rows[0].id]);
     return `Reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a las ${reserva.rows[0].hora} cancelada correctamente.`;
   }
@@ -233,6 +238,11 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
     if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas para hacer la reserva.';
     const fechaReserva = new Date(`${datos.fecha}T${datos.hora}`);
     if (fechaReserva <= new Date()) return 'Lo siento, esa fecha y hora ya han pasado. Para que otra fecha te gustaria reservar?';
+    if (config?.horario) {
+    const horaReserva = parseInt(datos.hora.replace(':', ''));
+    const esHorarioValido = (horaReserva >= 1300 && horaReserva <= 1600) || (horaReserva >= 2000 && horaReserva <= 2330);
+    if (!esHorarioValido) return `Lo siento, nuestro horario es ${config.horario}. Elige una hora dentro de nuestro horario de apertura.`;
+  }
     const disponibilidad = await hayDisponibilidad(datos.fecha, datos.hora, datos.personas);
     if (!disponibilidad.disponible) return `Lo siento, ${disponibilidad.motivo} Te gustaria reservar para otra hora o fecha?`;
     const uid = usuarioId || await obtenerUsuarioPorDefecto();
@@ -384,7 +394,7 @@ app.post('/responder', async (req, res) => {
     if (mensaje.toLowerCase().includes('un momento por favor')) {
       const datos = await extraerDatosReserva(conversaciones[callSid]);
       try {
-        mensaje = await procesarAccion(datos, callSid, contexto, telefono, usuarioId);
+        mensaje = await procesarAccion(datos, callSid, contexto, telefono, usuarioId, config);
       } catch (err) {
         console.error('Error en procesarAccion:', err.message);
         mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
@@ -446,7 +456,7 @@ app.post('/whatsapp', async (req, res) => {
     if (respuesta.toLowerCase().includes('un momento por favor')) {
       const datos = await extraerDatosReserva(conversacionesWhatsapp[from]);
       try {
-        respuesta = await procesarAccion(datos, from, contexto, from, usuarioId);
+        respuesta = await procesarAccion(datos, from, contexto, from, usuarioId, config);
       } catch (err) {
         console.error('Error en procesarAccion WhatsApp:', err.message);
         respuesta = 'Tu reserva ha sido procesada. Te esperamos!';
@@ -652,7 +662,9 @@ cron.schedule('0 10 * * *', async () => {
     console.error('Error en recordatorios:', err.message);
   }
 });
-
+app.get('/', (req, res) => {
+  res.render('landing');
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('Servidor escuchando en puerto', PORT);
