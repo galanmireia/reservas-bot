@@ -238,6 +238,16 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
     if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas para hacer la reserva.';
     const fechaReserva = new Date(`${datos.fecha}T${datos.hora}`);
     if (fechaReserva <= new Date()) return 'Lo siento, esa fecha y hora ya han pasado. Para que otra fecha te gustaria reservar?';
+    if (usuarioId) {
+      const diaCerrado = await db.query(
+        'SELECT * FROM dias_cerrados WHERE usuario_id = $1 AND fecha = $2',
+        [usuarioId, datos.fecha]
+      );
+      if (diaCerrado.rows.length > 0) {
+        const motivo = diaCerrado.rows[0].motivo || 'ese dia estamos cerrados';
+        return `Lo siento, ${motivo}. No podemos aceptar reservas para esa fecha. Elige otro dia.`;
+      }
+    }
     if (config?.horario) {
     const horaReserva = parseInt(datos.hora.replace(':', ''));
     const esHorarioValido = (horaReserva >= 1300 && horaReserva <= 1600) || (horaReserva >= 2000 && horaReserva <= 2330);
@@ -580,9 +590,11 @@ app.get('/configuracion', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
   const config = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
   const mesas = await db.query('SELECT * FROM mesas ORDER BY numero ASC');
+  const diasCerrados = await db.query('SELECT * FROM dias_cerrados WHERE usuario_id = $1 ORDER BY fecha ASC', [usuarioId]);
   res.render('configuracion', {
     config: config.rows.length > 0 ? config.rows[0] : {},
     mesas: mesas.rows,
+    diasCerrados: diasCerrados.rows,
     usuario: req.session.usuario,
     exito: req.query.exito || null
   });
@@ -618,7 +630,16 @@ app.post('/mesas/eliminar/:id', requireLogin, async (req, res) => {
   await db.query('DELETE FROM mesas WHERE id = $1', [req.params.id]);
   res.redirect('/configuracion');
 });
+app.post('/dias-cerrados/añadir', requireLogin, async (req, res) => {
+  const { fecha, motivo } = req.body;
+  await db.query('INSERT INTO dias_cerrados (usuario_id, fecha, motivo) VALUES ($1, $2, $3)', [req.session.usuario.id, fecha, motivo || null]);
+  res.redirect('/configuracion');
+});
 
+app.post('/dias-cerrados/eliminar/:id', requireLogin, async (req, res) => {
+  await db.query('DELETE FROM dias_cerrados WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
+  res.redirect('/configuracion');
+});
 app.get('/exportar-reservas', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
   const reservas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY fecha ASC, hora ASC', [usuarioId]);
