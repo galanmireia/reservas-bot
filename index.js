@@ -344,7 +344,11 @@ app.post('/login', async (req, res) => {
   const valido = await bcrypt.compare(password, usuario.rows[0].password);
   if (!valido) return res.render('login', { error: 'Email o contrasena incorrectos.' });
   req.session.usuario = usuario.rows[0];
-  res.redirect('/panel');
+  if (usuario.rows[0].rol === 'admin') {
+    res.redirect('/admin');
+  } else {
+   res.redirect('/panel');
+  }
 });
 
 app.get('/registro', (req, res) => res.render('registro', { error: null }));
@@ -736,7 +740,7 @@ app.get('/admin', requireAdmin, async (req, res) => {
     SELECT u.*, COUNT(r.id) as total_reservas
     FROM usuarios u
     LEFT JOIN reservas r ON r.usuario_id = u.id
-    WHERE u.rol = 'restaurante'
+    WHERE u.rol != 'admin' OR u.rol IS NULL
     GROUP BY u.id
     ORDER BY u.creado_en DESC
   `);

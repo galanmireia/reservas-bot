@@ -166,6 +166,9 @@
       <p><%= usuario.restaurante %></p>
     </div>
     <div class="sidebar-menu">
+      <% if (usuario.rol === 'admin') { %>
+       <a href="/admin" class="menu-item"><span>🔧</span> Admin</a>
+      <% } %>
       <a href="/panel" class="menu-item active"><span class="menu-icon">📅</span> Reservas</a>
       <a href="/clientes" class="menu-item"><span class="menu-icon">👥</span> Clientes</a>
       <a href="/configuracion" class="menu-item"><span class="menu-icon">⚙️</span> Configuración</a>
