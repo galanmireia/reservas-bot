@@ -189,7 +189,7 @@
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
       <% diasCerrados.forEach(d => { %>
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
-          <span style="font-size:13px;color:var(--text);">📅 <%= d.fecha %> <span style="color:var(--text2);margin-left:8px;"><%= d.motivo || '' %></span></span>
+          <span style="font-size:13px;color:var(--text);">📅 <%= new Date(d.fecha).toLocaleDateString('es-ES') %> <span style="color:var(--text2);margin-left:8px;"><%= d.motivo || '' %></span></span>
           <form method="POST" action="/dias-cerrados/eliminar/<%= d.id %>">
             <button type="submit" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color=''">✕</button>
           </form>
