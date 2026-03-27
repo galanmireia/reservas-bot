@@ -634,10 +634,12 @@ app.get('/panel', requireLogin, async (req, res) => {
     const filtroQuery = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 AND fecha = $2 ORDER BY hora ASC', [usuarioId, fechaFiltro]);
     filtradas = filtroQuery.rows;
   }
+  const espera = await db.query('SELECT * FROM lista_espera WHERE usuario_id = $1 ORDER BY creada_en ASC', [usuarioId]);
   res.render('reservas', {
     reservas: todas.rows,
     reservasHoy: hoyQuery.rows,
     reservasFiltradas: filtradas,
+    listaEspera: espera.rows,
     fechaFiltro,
     error,
     usuario: req.session.usuario
@@ -863,7 +865,10 @@ cron.schedule('0 10 * * *', async () => {
     console.error('Error en recordatorios:', err.message);
   }
 });
-
+app.post('/espera/eliminar/:id', requireLogin, async (req, res) => {
+  await db.query('DELETE FROM lista_espera WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
+  res.redirect('/panel');
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('Servidor escuchando en puerto', PORT);
