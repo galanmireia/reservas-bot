@@ -7,45 +7,21 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg: #f5f6fa;
-      --bg2: #ffffff;
-      --bg3: #eef0f6;
-      --border: #e2e5f0;
-      --text: #1a1d2e;
-      --text2: #6b7280;
-      --text3: #9ca3af;
-      --accent: #4F46E5;
-      --accent-light: #EEF2FF;
-      --accent-hover: #4338CA;
-      --sidebar: #1a1d2e;
-      --sidebar-text: #94a3b8;
-      --sidebar-active: #4F46E5;
-      --sidebar-active-bg: rgba(79,70,229,0.15);
-      --shadow: 0 1px 3px rgba(0,0,0,0.08);
-      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --bg: #f5f6fa; --bg2: #ffffff; --bg3: #eef0f6; --border: #e2e5f0;
+      --text: #1a1d2e; --text2: #6b7280; --text3: #9ca3af;
+      --accent: #4F46E5; --accent-light: #EEF2FF; --accent-hover: #4338CA;
+      --sidebar: #1a1d2e; --sidebar-text: #94a3b8; --sidebar-active: #4F46E5;
+      --sidebar-active-bg: rgba(79,70,229,0.15); --shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
     [data-theme="dark"] {
-      --bg: #0d0d14;
-      --bg2: #111118;
-      --bg3: #16161f;
-      --border: #1e1e2a;
-      --text: #e2e2e2;
-      --text2: #6b7280;
-      --text3: #444;
-      --accent: #7C6FFF;
-      --accent-light: #1e1a3a;
-      --accent-hover: #6a5ce8;
-      --sidebar: #0d0d14;
-      --sidebar-text: #6b7280;
-      --sidebar-active: #7C6FFF;
-      --sidebar-active-bg: rgba(124,111,255,0.12);
-      --shadow: 0 1px 3px rgba(0,0,0,0.3);
-      --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+      --bg: #0d0d14; --bg2: #111118; --bg3: #16161f; --border: #1e1e2a;
+      --text: #e2e2e2; --text2: #6b7280; --text3: #444;
+      --accent: #7C6FFF; --accent-light: #1e1a3a; --accent-hover: #6a5ce8;
+      --sidebar: #0d0d14; --sidebar-text: #6b7280; --sidebar-active: #7C6FFF;
+      --sidebar-active-bg: rgba(124,111,255,0.12); --shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
-
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; transition: background .2s, color .2s; }
-
     .btn-editar { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; transition: all .15s; }
     .btn-editar:hover { background: var(--accent-light); color: var(--accent); }
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
@@ -56,7 +32,6 @@
     .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
     .btn-modal-cancel { padding: 9px 18px; background: var(--bg3); color: var(--text2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; }
     .btn-modal-save { padding: 9px 18px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; }
-    /* SIDEBAR */
     .sidebar { width: 220px; background: var(--sidebar); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; padding: 20px 0; position: fixed; height: 100vh; z-index: 100; }
     .sidebar-logo { padding: 0 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
     .sidebar-logo h2 { color: #fff; font-size: 16px; font-weight: 700; }
@@ -73,11 +48,7 @@
     .avatar-email { font-size: 11px; color: rgba(255,255,255,0.3); }
     .logout { color: rgba(255,255,255,0.3); font-size: 11px; text-decoration: none; display: block; margin-top: 10px; }
     .logout:hover { color: #f87171; }
-
-    /* MAIN */
     .main { margin-left: 220px; flex: 1; padding: 28px; }
-
-    /* HEADER */
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
     .page-header h1 { font-size: 22px; font-weight: 600; }
     .page-header p { color: var(--text2); font-size: 13px; margin-top: 3px; }
@@ -86,29 +57,21 @@
     .btn-export:hover { border-color: var(--accent); color: var(--accent); }
     .theme-toggle { width: 36px; height: 36px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: var(--shadow); transition: all .15s; }
     .theme-toggle:hover { border-color: var(--accent); }
-
-    /* STATS */
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
     .stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
     .stat-icon { font-size: 20px; margin-bottom: 10px; }
     .stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
     .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
     .stat-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
-
-    /* GRID */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
     .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); }
     .card h3 { font-size: 13px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; font-weight: 500; }
-
-    /* PROXIMAS */
     .proximas { display: flex; flex-direction: column; gap: 8px; }
     .reserva-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--bg3); border-radius: 8px; }
     .reserva-hora { font-size: 13px; font-weight: 600; color: var(--accent); min-width: 44px; }
     .reserva-nombre { font-size: 13px; color: var(--text); flex: 1; font-weight: 500; }
     .reserva-personas { font-size: 12px; color: var(--text3); }
     .empty-small { text-align: center; padding: 24px; color: var(--text3); font-size: 13px; }
-
-    /* TABLA */
     .tabla-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; box-shadow: var(--shadow); }
     .tabla-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
     .tabla-header h3 { font-size: 14px; font-weight: 600; }
@@ -144,8 +107,6 @@
     .btn-cancelar:hover { background: #fee2e2; color: #dc2626; }
     [data-theme="dark"] .btn-cancelar:hover { background: #2a1015; color: #f87171; }
     .empty { text-align: center; padding: 48px; color: var(--text3); font-size: 14px; }
-
-    /* FORM */
     .form-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); }
     .form-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
     .form-grid { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
@@ -157,6 +118,8 @@
     .btn-add:hover { background: var(--accent-hover); }
     .error-msg { background: #fee2e2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; }
     [data-theme="dark"] .error-msg { background: #1a0a0a; border-color: #3a1515; color: #f87171; }
+    .espera-pill { background: #fef9c3; color: #ca8a04; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    [data-theme="dark"] .espera-pill { background: #2a2010; color: #fbbf24; }
   </style>
 </head>
 <body>
@@ -167,7 +130,7 @@
     </div>
     <div class="sidebar-menu">
       <% if (usuario.rol === 'admin') { %>
-       <a href="/admin" class="menu-item"><span>🔧</span> Admin</a>
+        <a href="/admin" class="menu-item"><span class="menu-icon">🔧</span> Admin</a>
       <% } %>
       <a href="/panel" class="menu-item active"><span class="menu-icon">📅</span> Reservas</a>
       <a href="/clientes" class="menu-item"><span class="menu-icon">👥</span> Clientes</a>
@@ -251,6 +214,48 @@
       </div>
     </div>
 
+    <!-- LISTA DE ESPERA -->
+    <div class="tabla-card">
+      <div class="tabla-header">
+        <h3>Lista de espera <span class="espera-pill"><%= listaEspera.length %> personas</span></h3>
+      </div>
+      <% if (listaEspera.length === 0) { %>
+        <div class="empty">No hay nadie en lista de espera</div>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Teléfono</th>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Personas</th>
+              <th>Apuntado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% listaEspera.forEach(l => { %>
+              <tr>
+                <td class="nombre-td"><%= l.nombre %></td>
+                <td><%= l.telefono %></td>
+                <td><%= l.fecha %></td>
+                <td><span class="hora-pill"><%= l.hora %></span></td>
+                <td><%= l.personas %> pers.</td>
+                <td><%= new Date(l.creada_en).toLocaleDateString('es-ES') %></td>
+                <td>
+                  <form method="POST" action="/espera/eliminar/<%= l.id %>" style="display:inline;">
+                    <button class="btn-cancelar" type="submit" onclick="return confirm('¿Eliminar de lista de espera?')">✕</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+
+    <!-- TODAS LAS RESERVAS -->
     <div class="tabla-card">
       <div class="tabla-header">
         <h3>Todas las reservas</h3>
@@ -266,7 +271,6 @@
           </div>
         </div>
       </div>
-
       <table id="tablaReservas">
         <thead>
           <tr>
@@ -353,35 +357,36 @@
       </form>
     </div>
   </div>
-        <div class="modal-overlay" id="modalEditar">
-  <div class="modal">
-    <h3>Editar reserva</h3>
-    <form method="POST" id="formEditar">
-      <div class="modal-grid">
-        <div class="campo">
-          <label>Nombre</label>
-          <input type="text" name="nombre" id="editNombre" required>
+
+  <div class="modal-overlay" id="modalEditar">
+    <div class="modal">
+      <h3>Editar reserva</h3>
+      <form method="POST" id="formEditar">
+        <div class="modal-grid">
+          <div class="campo">
+            <label>Nombre</label>
+            <input type="text" name="nombre" id="editNombre" required>
+          </div>
+          <div class="campo">
+            <label>Personas</label>
+            <input type="number" name="personas" id="editPersonas" min="1" max="20" required>
+          </div>
+          <div class="campo">
+            <label>Fecha</label>
+            <input type="date" name="fecha" id="editFecha" required>
+          </div>
+          <div class="campo">
+            <label>Hora</label>
+            <input type="time" name="hora" id="editHora" required>
+          </div>
         </div>
-        <div class="campo">
-          <label>Personas</label>
-          <input type="number" name="personas" id="editPersonas" min="1" max="20" required>
+        <div class="modal-btns">
+          <button type="button" class="btn-modal-cancel" onclick="cerrarEditar()">Cancelar</button>
+          <button type="submit" class="btn-modal-save">Guardar cambios</button>
         </div>
-        <div class="campo">
-          <label>Fecha</label>
-          <input type="date" name="fecha" id="editFecha" required>
-        </div>
-        <div class="campo">
-          <label>Hora</label>
-          <input type="time" name="hora" id="editHora" required>
-        </div>
-      </div>
-      <div class="modal-btns">
-        <button type="button" class="btn-modal-cancel" onclick="cerrarEditar()">Cancelar</button>
-        <button type="submit" class="btn-modal-save">Guardar cambios</button>
-      </div>
-    </form>
+      </form>
+    </div>
   </div>
-</div>
 
   <script>
     const savedTheme = localStorage.getItem('theme') || 'light';
@@ -410,17 +415,17 @@
         fila.style.display = nombre.includes(texto) ? '' : 'none';
       });
     }
-  function abrirEditar(id, nombre, fecha, hora, personas) {
-    document.getElementById('editNombre').value = nombre;
-    document.getElementById('editFecha').value = fecha;
-    document.getElementById('editHora').value = hora;
-    document.getElementById('editPersonas').value = personas;
-    document.getElementById('formEditar').action = '/editar-reserva/' + id;
-    document.getElementById('modalEditar').classList.add('active');
-  }
-function cerrarEditar() {
-  document.getElementById('modalEditar').classList.remove('active');
-}
+    function abrirEditar(id, nombre, fecha, hora, personas) {
+      document.getElementById('editNombre').value = nombre;
+      document.getElementById('editFecha').value = fecha;
+      document.getElementById('editHora').value = hora;
+      document.getElementById('editPersonas').value = personas;
+      document.getElementById('formEditar').action = '/editar-reserva/' + id;
+      document.getElementById('modalEditar').classList.add('active');
+    }
+    function cerrarEditar() {
+      document.getElementById('modalEditar').classList.remove('active');
+    }
 
     function renderChart() {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -462,5 +467,3 @@ function cerrarEditar() {
   </script>
 </body>
 </html>
-```
-
