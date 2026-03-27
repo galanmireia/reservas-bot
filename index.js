@@ -414,7 +414,12 @@ REGLAS IMPORTANTES:
 - Cuando te pregunten por el menu, platos, precios, especialidades o recomendaciones SIEMPRE responde con detalle usando la informacion que tienes.
 - Para MODIFICAR una reserva, primero pregunta QUE quiere cambiar (fecha, hora o personas) antes de confirmar nada
 - Para CANCELAR, confirma siempre que reserva quiere cancelar antes de procesarla
-- Para NUEVA reserva, cuando tengas todos los datos resume y pregunta "¿Es correcto?"
+- Para NUEVA reserva sigue SIEMPRE este orden exacto:
+  1. Recoge nombre, fecha, hora y personas
+  2. Pregunta: "¿Tienes alguna alergia, preferencia alimentaria o es alguna ocasion especial?"
+  3. Espera la respuesta del cliente (aunque diga que no)
+  4. SOLO despues de tener la respuesta sobre alergias/notas, resume TODOS los datos (incluyendo las notas si las hay) y pregunta "¿Es correcto?"
+  5. Cuando el cliente confirme di EXACTAMENTE "un momento por favor ACCION:NUEVA"
 - Solo cuando el cliente confirme di EXACTAMENTE una de estas frases:
   "un momento por favor ACCION:NUEVA"
   "un momento por favor ACCION:CANCELAR"
@@ -424,7 +429,6 @@ REGLAS IMPORTANTES:
   "un momento por favor ACCION:DISPONIBILIDAD"
 - Cuando el cliente pregunta disponibilidad o horas libres di: "un momento por favor ACCION:DISPONIBILIDAD"
 - Cuando el cliente quiere ver sus reservas di: "un momento por favor ACCION:CONSULTAR"
-- Cuando el cliente haga una reserva, al final preguntale si tiene alguna alergia, preferencia alimentaria u ocasion especial que debas tener en cuenta. Si responde que no, procede normalmente"
 `;
 
   if (contexto?.cliente?.nombre) {
