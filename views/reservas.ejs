@@ -280,6 +280,7 @@
             <th>Personas</th>
             <th>Canal</th>
             <th>Estado</th>
+            <th>Notas</th>
             <th>Recibida</th>
             <th></th>
           </tr>
@@ -305,6 +306,7 @@
                   <% } %>
                 </td>
                 <td><span class="estado-pill estado-<%= r.estado || 'confirmada' %>"><%= r.estado || 'confirmada' %></span></td>
+                <td><% if (r.notas) { %><span style="color:var(--accent);font-size:12px;">⚠️ <%= r.notas %></span><% } else { %><span style="color:var(--text3);font-size:12px;">—</span><% } %></td>
                 <td><%= new Date(r.creada_en).toLocaleDateString('es-ES') %></td>
                 <td>
                   <button class="btn-editar" onclick="abrirEditar('<%= r.id %>', '<%= r.nombre %>', '<%= r.fecha %>', '<%= r.hora %>', '<%= r.personas %>')" type="button">✏️</button>
@@ -352,6 +354,10 @@
         <div class="campo">
           <label>Personas</label>
           <input name="personas" type="number" min="1" max="20" required placeholder="2" style="width:70px;">
+        </div>
+        <div class="campo">
+          <label>Notas</label>
+          <input name="notas" placeholder="Alergias, vegano, cumpleaños..." style="width:200px;">
         </div>
         <button type="submit" class="btn-add">+ Añadir</button>
       </form>

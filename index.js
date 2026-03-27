@@ -98,6 +98,7 @@ async function enviarEmailRestaurante(usuarioId, datos) {
             <p style="margin: 8px 0;"><strong>Hora:</strong> ${datos.hora}</p>
             <p style="margin: 8px 0;"><strong>Personas:</strong> ${datos.personas}</p>
             <p style="margin: 8px 0;"><strong>Canal:</strong> ${datos.canal || 'Bot'}</p>
+            ${datos.notas ? `<p style="margin: 8px 0;"><strong>⚠️ Notas:</strong> ${datos.notas}</p>` : ''}
           </div>
           <p style="color: #888; font-size: 12px; margin-top: 16px;">ReservasBot — Panel: https://reservas-bot-production.up.railway.app/panel</p>
         </div>
@@ -185,7 +186,8 @@ async function extraerDatosReserva(mensajes) {
     model: 'gpt-4o-mini',
     messages: [
       ...mensajes,
-      { role: 'user', content: `Analiza la conversacion y extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, nueva_fecha, nueva_hora, nuevas_personas.
+      { role: 'user', content: `Analiza la conversacion y extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas (alergias, preferencias alimentarias, ocasiones especiales o cualquier nota relevante para el restaurante), nueva_fecha, nueva_hora, nuevas_personas.
+        
 
 IMPORTANTE: Si el ultimo mensaje del asistente contiene "ACCION:CONSULTAR" la accion es CONSULTAR. Si contiene "ACCION:NUEVA" la accion es NUEVA. Si contiene "ACCION:CANCELAR" la accion es CANCELAR. Si contiene "ACCION:MODIFICAR" la accion es MODIFICAR. Si contiene "ACCION:ESPERA" la accion es ESPERA. Si contiene "ACCION:DISPONIBILIDAD" la accion es DISPONIBILIDAD.
 
@@ -375,8 +377,8 @@ if (datos.accion === 'DISPONIBILIDAD') {
     }
 
     await db.query(
-      'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-      [canal, datos.nombre, datos.fecha, datos.hora, datos.personas, telefonoParaWhatsapp, uid, telefonoCliente && telefonoCliente.includes('whatsapp') ? 'whatsapp' : 'llamada']
+      'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal, notas) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      [canal, datos.nombre, datos.fecha, datos.hora, datos.personas, telefonoParaWhatsapp, uid, telefonoCliente && telefonoCliente.includes('whatsapp') ? 'whatsapp' : 'llamada', datos.notas || null]
     );
     await obtenerOCrearCliente(telefonoParaWhatsapp, datos.nombre);
     await enviarEmailRestaurante(uid, { nombre: datos.nombre, fecha: datos.fecha, hora: datos.hora, personas: datos.personas, canal: telefonoCliente?.includes('whatsapp') ? 'whatsapp' : 'llamada' });
@@ -408,8 +410,8 @@ INFO DEL RESTAURANTE:
 Nombre: ${nombre} | Direccion: ${direccion} | Horario: ${horario} | Tel: ${telefono} | Menu: ${menu} | Especialidad: ${especialidad} | Parking: ${aparcamiento}
 
 REGLAS IMPORTANTES:
-- Solo hablas de temas del restaurante. Si preguntan otra cosa: "Solo puedo ayudarte con temas del restaurante."
-- Si te preguntan por menu, especialidad, horarios o ubicacion SIEMPRE responde con la informacion que tienes
+- Solo hablas de temas del restaurante (reservas, menu, especialidades, horarios, ubicacion, aparcamiento, disponibilidad). Si preguntan algo completamente ajeno como politica, deportes etc di: "Solo puedo ayudarte con temas del restaurante."
+- Cuando te pregunten por el menu, platos, precios, especialidades o recomendaciones SIEMPRE responde con detalle usando la informacion que tienes.
 - Para MODIFICAR una reserva, primero pregunta QUE quiere cambiar (fecha, hora o personas) antes de confirmar nada
 - Para CANCELAR, confirma siempre que reserva quiere cancelar antes de procesarla
 - Para NUEVA reserva, cuando tengas todos los datos resume y pregunta "¿Es correcto?"
@@ -421,7 +423,9 @@ REGLAS IMPORTANTES:
   "un momento por favor ACCION:ESPERA"
   "un momento por favor ACCION:DISPONIBILIDAD"
 - Cuando el cliente pregunta disponibilidad o horas libres di: "un momento por favor ACCION:DISPONIBILIDAD"
-- Cuando el cliente quiere ver sus reservas di: "un momento por favor ACCION:CONSULTAR"`;
+- Cuando el cliente quiere ver sus reservas di: "un momento por favor ACCION:CONSULTAR"
+- Cuando el cliente haga una reserva, al final preguntale si tiene alguna alergia, preferencia alimentaria u ocasion especial que debas tener en cuenta. Si responde que no, procede normalmente"
+`;
 
   if (contexto?.cliente?.nombre) {
     prompt += ` El cliente se llama ${contexto.cliente.nombre}, saludale por su nombre.`;
@@ -677,7 +681,7 @@ app.post('/editar-reserva/:id', requireLogin, async (req, res) => {
 });
 
 app.post('/nueva-reserva', requireLogin, async (req, res) => {
-  const { nombre, fecha, hora, personas, telefono, prefijo } = req.body;
+  const { nombre, fecha, hora, personas, telefono, prefijo, notas } = req.body;
   const telefonoCompleto = telefono ? `${prefijo || '+34'}${telefono.replace(/\s/g, '')}` : null;
   const ahora = new Date();
   const fechaHoraReserva = new Date(`${fecha}T${hora}`);
@@ -686,11 +690,11 @@ app.post('/nueva-reserva', requireLogin, async (req, res) => {
   if (!disponibilidad.disponible) return res.redirect('/panel?error=cupo');
   if (!telefonoCompleto) return res.redirect('/panel?error=telefono');
   await db.query(
-    'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-    ['manual', nombre, fecha, hora, parseInt(personas), telefonoCompleto, req.session.usuario.id, 'manual']
+    'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal, notas) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+    ['manual', nombre, fecha, hora, parseInt(personas), telefonoCompleto, req.session.usuario.id, 'manual', notas || null]
   );
   await obtenerOCrearCliente(telefonoCompleto, nombre);
-  await enviarEmailRestaurante(req.session.usuario.id, { nombre, fecha, hora, personas, canal: 'manual' });
+  await enviarEmailRestaurante(req.session.usuario.id, { nombre, fecha, hora, personas, canal: 'manual', notas });
   res.redirect('/panel');
 });
 
