@@ -33,6 +33,7 @@ app.use(session({
   saveUninitialized: false,
   cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax' }
 }));
+const { setupMediaStreamWebSocket } = require('./streaming');
 
 app.get('/audio', async (req, res) => {
   try {
@@ -500,35 +501,23 @@ app.post('/llamada', async (req, res) => {
     const callSid = req.body.CallSid;
     const telefono = req.body.From || callSid;
     const numeroTwilio = req.body.To || null;
-    const hoy = new Date().toISOString().split('T')[0];
     console.log('Llamada recibida de:', telefono);
-    const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
-    const contexto = await obtenerContextoCliente(telefono);
-    const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
-    conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
-    const saludo = contexto?.cliente?.nombre
-      ? `Hola ${contexto.cliente.nombre}, soy Laura, la asistente del restaurante. En que puedo ayudarte?`
-      : 'Hola, soy Laura, la asistente del restaurante. En que puedo ayudarte?';
-    const audioUrl = `https://reservas-bot-production.up.railway.app/audio?texto=${encodeURIComponent(saludo)}`;
-    const twiml = ELEVENLABS_ENABLED
-      ? `<?xml version="1.0" encoding="UTF-8"?>
+
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
-    <Play>${audioUrl}</Play>
-  </Gather>
-</Response>`
-      : `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
-    <Say language="es-ES">${saludo}</Say>
-  </Gather>
+  <Connect>
+    <Stream url="wss://reservas-bot-production.up.railway.app/media-stream">
+      <Parameter name="callSid" value="${callSid}"/>
+      <Parameter name="to" value="${numeroTwilio || ''}"/>
+    </Stream>
+  </Connect>
 </Response>`;
     res.type('text/xml');
     res.send(twiml);
   } catch (err) {
     console.error('Error en /llamada:', err);
     res.type('text/xml');
-    res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say language="es-ES">Lo sentimos, ha ocurrido un error. Por favor intentelo de nuevo.</Say></Response>`);
+    res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say language="es-ES">Lo sentimos, ha ocurrido un error.</Say></Response>`);
   }
 });
 
@@ -894,6 +883,12 @@ app.post('/espera/eliminar/:id', requireLogin, async (req, res) => {
   res.redirect('/panel');
 });
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = require('http').createServer(app);
+const { WebSocketServer } = require('ws');
+const wss = new WebSocketServer({ server, path: '/media-stream' });
+
+setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerContextoCliente, obtenerUsuarioPorNumero, obtenerConfigRestaurante, SYSTEM_PROMPT);
+
+server.listen(PORT, () => {
   console.log('Servidor escuchando en puerto', PORT);
 });
