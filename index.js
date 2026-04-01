@@ -385,6 +385,7 @@ if (datos.accion === 'DISPONIBILIDAD') {
     await enviarEmailRestaurante(uid, { nombre: datos.nombre, fecha: datos.fecha, hora: datos.hora, personas: datos.personas, canal: telefonoCliente?.includes('whatsapp') ? 'whatsapp' : 'llamada' });
     const fechaFormateada = new Date(datos.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
     return `Perfecto ${datos.nombre}, tu reserva esta confirmada para el ${fechaFormateada} a las ${datos.hora} para ${datos.personas} personas. Te esperamos!`;
+  }
 
   return 'No he entendido lo que necesitas. Quieres hacer, consultar, cancelar o modificar una reserva?';
 }
