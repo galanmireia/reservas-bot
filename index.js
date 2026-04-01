@@ -40,7 +40,7 @@ app.get('/audio', async (req, res) => {
     if (!texto) return res.status(400).send('Sin texto');
     const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
       text: texto,
-      model_id: 'eleven_multilingual_v2',
+      model_id: 'eleven_turbo_v2_5',
       voice_settings: { stability: 0.5, similarity_boost: 0.75 }
     });
     res.setHeader('Content-Type', 'audio/mpeg');
@@ -184,6 +184,7 @@ async function avisarListaEspera(usuarioId, fecha, hora, personas) {
 async function extraerDatosReserva(mensajes) {
   const respuesta = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
+    max_tokens: 150,
     messages: [
       ...mensajes,
       { role: 'user', content: `Analiza la conversacion y extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas (alergias, preferencias alimentarias, ocasiones especiales o cualquier nota relevante para el restaurante), nueva_fecha, nueva_hora, nuevas_personas.
@@ -504,13 +505,13 @@ app.post('/llamada', async (req, res) => {
     const twiml = ELEVENLABS_ENABLED
       ? `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="8">
+  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
     <Play>${audioUrl}</Play>
   </Gather>
 </Response>`
       : `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="8">
+  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
     <Say language="es-ES">${saludo}</Say>
   </Gather>
 </Response>`;
@@ -540,6 +541,7 @@ app.post('/responder', async (req, res) => {
     conversaciones[callSid].push({ role: 'user', content: textoCliente });
     const respuestaIA = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
+      max_tokens: 150,
       messages: conversaciones[callSid]
     });
     let mensaje = respuestaIA.choices[0].message.content;
@@ -566,13 +568,13 @@ app.post('/responder', async (req, res) => {
     const twiml = ELEVENLABS_ENABLED
       ? `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="8">
+  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
     <Play>${audioUrlResp}</Play>
   </Gather>
 </Response>`
       : `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="8">
+  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
     <Say language="es-ES">${mensaje}</Say>
   </Gather>
 </Response>`;
@@ -601,6 +603,7 @@ app.post('/whatsapp', async (req, res) => {
     conversacionesWhatsapp[from].push({ role: 'user', content: mensaje });
     const respuestaIA = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
+      max_tokens: 150,
       messages: conversacionesWhatsapp[from]
     });
     let respuesta = respuestaIA.choices[0].message.content;
