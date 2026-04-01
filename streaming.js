@@ -100,17 +100,26 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
           console.log('Respuesta IA:', mensaje);
 
           if (mensaje.toLowerCase().includes('un momento por favor')) {
-            const { extraerDatosReserva } = require('./index');
-            // procesamos accion
-            try {
-              const datos = await extraerDatosReservaLocal(conversacion, openai);
-              const contexto = { cliente: null, reservas: [] };
-              mensaje = await procesarAccion(datos, callSid, contexto, telefonoCliente, usuarioId, config);
-            } catch (err) {
-              console.error('Error procesarAccion:', err.message);
-              mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
-            }
-          }
+  try {
+    const datos = await extraerDatosReservaLocal(conversacion, openai);
+    console.log('Datos extraidos:', JSON.stringify(datos));
+    const contexto = await obtenerContextoCliente(telefonoCliente || callSid);
+    mensaje = await procesarAccion(datos, callSid, contexto, telefonoCliente || callSid, usuarioId, config);
+    console.log('Respuesta procesarAccion:', mensaje);
+    
+    if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('lista de espera')) {
+      const nuevoContexto = await obtenerContextoCliente(telefonoCliente || callSid);
+      const hoy = new Date().toISOString().split('T')[0];
+      conversacion = [
+        { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
+        { role: 'assistant', content: mensaje }
+      ];
+    }
+  } catch (err) {
+    console.error('Error procesarAccion:', err.message);
+    mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
+  }
+}
 
           const audioBase64 = await textToSpeechStream(mensaje);
           if (audioBase64 && ws.readyState === WebSocket.OPEN) {
