@@ -1,8 +1,8 @@
 const WebSocket = require('ws');
-const { DeepgramClient, LiveTranscriptionEvents } = require('@deepgram/sdk');
+const { createClient, LiveTranscriptionEvents } = require('@deepgram/sdk');
 const { ElevenLabsClient } = require('elevenlabs');
 
-const deepgramClient = new DeepgramClient({ key: process.env.DEEPGRAM_API_KEY });
+const deepgramClient = createClient(process.env.DEEPGRAM_API_KEY);
 const elevenlabs = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
 const ELEVENLABS_VOICE_ID = 'uQw4jpKzMLrZuo0RLPS9';
 
