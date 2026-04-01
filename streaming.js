@@ -11,7 +11,7 @@ async function textToSpeechStream(text) {
     const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
       text,
       model_id: 'eleven_turbo_v2_5',
-      voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+     voice_settings: { stability: 0.8, similarity_boost: 0.85, style: 0, use_speaker_boost: true },
       output_format: 'ulaw_8000'
     });
 
