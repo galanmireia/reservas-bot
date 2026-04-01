@@ -509,6 +509,7 @@ app.post('/llamada', async (req, res) => {
     <Stream url="wss://reservas-bot-production.up.railway.app/media-stream">
       <Parameter name="callSid" value="${callSid}"/>
       <Parameter name="to" value="${numeroTwilio || ''}"/>
+      <Parameter name="from" value="${telefono || ''}"/>
     </Stream>
   </Connect>
 </Response>`;

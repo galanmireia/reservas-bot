@@ -42,6 +42,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
 
     let streamSid = null;
     let callSid = null;
+    let telefonoCliente = null;
     let deepgramLive = null;
     let conversacion = [];
     let usuarioId = null;
@@ -104,7 +105,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
             try {
               const datos = await extraerDatosReservaLocal(conversacion, openai);
               const contexto = { cliente: null, reservas: [] };
-              mensaje = await procesarAccion(datos, callSid, contexto, callSid, usuarioId, config);
+              mensaje = await procesarAccion(datos, callSid, contexto, telefonoCliente, usuarioId, config);
             } catch (err) {
               console.error('Error procesarAccion:', err.message);
               mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
@@ -156,6 +157,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
           case 'start':
             streamSid = data.start.streamSid;
             callSid = data.start.callSid;
+            telefonoCliente = data.start.customParameters?.from || callSid;
             console.log('Stream iniciado:', streamSid, callSid);
 
             usuarioId = await obtenerUsuarioPorNumero(data.start.customParameters?.to || null);
