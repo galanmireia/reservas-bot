@@ -52,16 +52,16 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
 
     async function iniciarDeepgram() {
       deepgramLive = deepgramClient.listen.live({
-        model: 'nova-2',
-        language: 'es',
-        smart_format: true,
-        encoding: 'mulaw',
-        sample_rate: 8000,
-        channels: 1,
-        interim_results: true,
-        utterance_end_ms: 1000,
-        vad_events: true
-      });
+      model: 'nova-2',
+      language: 'es',
+      smart_format: true,
+      encoding: 'mulaw',
+      sample_rate: 8000,
+      channels: 1,
+      interim_results: true,
+      utterance_end_ms: 1000,
+       vad_events: true
+    });
 
       deepgramLive.on(LiveTranscriptionEvents.Open, () => {
         console.log('Deepgram conectado');
