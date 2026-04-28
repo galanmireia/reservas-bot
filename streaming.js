@@ -109,7 +109,8 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
     
     if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('lista de espera')) {
       const nuevoContexto = await obtenerContextoCliente(telefonoCliente || callSid);
-      const hoy = new Date().toISOString().split('T')[0];
+      const ahora = new Date();
+      const hoy = ahora.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
       conversacion = [
         { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
         { role: 'assistant', content: mensaje }
