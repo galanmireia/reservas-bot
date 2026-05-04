@@ -143,16 +143,19 @@ async function obtenerUsuarioPorNumero(numero) {
   return await obtenerUsuarioPorDefecto();
 }
 
-async function hayDisponibilidad(fecha, hora, personas) {
+async function hayDisponibilidad(fecha, hora, personas, uid = null) {
   if (personas > 4) return { disponible: false, motivo: 'No tenemos mesas para mas de 4 personas.' };
   const capacidadNecesaria = personas <= 2 ? 2 : 4;
-  const mesasAdecuadas = await db.query('SELECT id FROM mesas WHERE capacidad = $1', [capacidadNecesaria]);
+  const mesasAdecuadas = await db.query(
+    'SELECT id FROM mesas WHERE capacidad = $1 AND usuario_id = $2',
+    [capacidadNecesaria, uid]
+  );
   const [horaH, horaM] = hora.split(':').map(Number);
   const horaInicio = `${String(horaH - 1).padStart(2, '0')}:${String(horaM).padStart(2, '0')}`;
   const horaFin = `${String(horaH + 1).padStart(2, '0')}:${String(horaM).padStart(2, '0')}`;
   const reservasOcupadas = await db.query(
-    `SELECT COUNT(*) FROM reservas WHERE fecha = $1 AND hora >= $2 AND hora <= $3 AND personas > $4`,
-    [fecha, horaInicio, horaFin, capacidadNecesaria === 2 ? 0 : 2]
+    `SELECT COUNT(*) FROM reservas WHERE fecha = $1 AND hora >= $2 AND hora <= $3 AND personas > $4 AND usuario_id = $5`,
+    [fecha, horaInicio, horaFin, capacidadNecesaria === 2 ? 0 : 2, uid]
   );
   const totalMesas = mesasAdecuadas.rows.length;
   const ocupadas = parseInt(reservasOcupadas.rows[0].count);
@@ -676,7 +679,7 @@ app.post('/editar-reserva/:id', requireLogin, async (req, res) => {
   const ahora = new Date();
   const fechaHoraReserva = new Date(`${fecha}T${hora}`);
   if (fechaHoraReserva <= ahora) return res.redirect('/panel?error=fecha');
-  const disponibilidad = await hayDisponibilidad(fecha, hora, parseInt(personas));
+  const disponibilidad = await hayDisponibilidad(fecha, hora, parseInt(personas), usuarioId);
   if (!disponibilidad.disponible) return res.redirect('/panel?error=cupo');
   await db.query(
     'UPDATE reservas SET nombre=$1, fecha=$2, hora=$3, personas=$4 WHERE id=$5 AND usuario_id=$6',
@@ -691,7 +694,7 @@ app.post('/nueva-reserva', requireLogin, async (req, res) => {
   const ahora = new Date();
   const fechaHoraReserva = new Date(`${fecha}T${hora}`);
   if (fechaHoraReserva <= ahora) return res.redirect('/panel?error=fecha');
-  const disponibilidad = await hayDisponibilidad(fecha, hora, parseInt(personas));
+  const disponibilidad = await hayDisponibilidad(fecha, hora, parseInt(personas), req.session.usuario.id);
   if (!disponibilidad.disponible) return res.redirect('/panel?error=cupo');
   if (!telefonoCompleto) return res.redirect('/panel?error=telefono');
   await db.query(
@@ -765,7 +768,7 @@ app.post('/configuracion', requireLogin, async (req, res) => {
 
 app.post('/mesas/añadir', requireLogin, async (req, res) => {
   const { numero, capacidad } = req.body;
-  await db.query('INSERT INTO mesas (numero, capacidad) VALUES ($1, $2)', [parseInt(numero), parseInt(capacidad)]);
+  await db.query('INSERT INTO mesas (numero, capacidad, usuario_id) VALUES ($1, $2, $3)', [parseInt(numero), parseInt(capacidad), req.session.usuario.id]);
   res.redirect('/configuracion');
 });
 
