@@ -864,7 +864,15 @@ app.get('/api/reservas', requireLogin, async (req, res) => {
 });
 
 app.post('/cancelar/:id', requireLogin, async (req, res) => {
-  await db.query('DELETE FROM reservas WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
+  const reserva = await db.query(
+    'SELECT * FROM reservas WHERE id = $1 AND usuario_id = $2',
+    [req.params.id, req.session.usuario.id]
+  );
+  if (reserva.rows.length > 0) {
+    const r = reserva.rows[0];
+    await db.query('DELETE FROM reservas WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
+    await avisarListaEspera(req.session.usuario.id, r.fecha, r.hora, r.personas);
+  }
   res.redirect('/panel');
 });
 
