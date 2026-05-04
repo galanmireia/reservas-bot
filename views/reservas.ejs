@@ -157,7 +157,9 @@
       <div class="header-actions">
         <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙</button>
         <a href="/exportar-reservas" class="btn-export">⬇ Exportar CSV</a>
-      </div>
+          <form method="POST" action="/borrar-reservas-pasadas" style="display:inline;" onsubmit="return confirm('¿Borrar reservas pasadas? No se puede deshacer.')">
+        <button type="submit" class="btn-export" style="color:#dc2626;border-color:#fecaca;">🗑 Borrar pasadas</button>
+          </form>
     </div>
 
     <div class="stats">

@@ -879,6 +879,11 @@ cron.schedule('0 10 * * *', async () => {
     console.error('Error en recordatorios:', err.message);
   }
 });
+app.post('/borrar-reservas-pasadas', requireLogin, async (req, res) => {
+  const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+  await db.query('DELETE FROM reservas WHERE usuario_id = $1 AND fecha < $2', [req.session.usuario.id, hoy]);
+  res.redirect('/panel');
+});
 app.post('/espera/eliminar/:id', requireLogin, async (req, res) => {
   await db.query('DELETE FROM lista_espera WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
   res.redirect('/panel');
