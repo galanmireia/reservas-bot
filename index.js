@@ -246,7 +246,7 @@ async function hayDisponibilidad(fecha, hora, personas, uid = null, excluirId = 
     disponible: false,
     motivo: `No quedan mesas disponibles para ${personas} personas en ese horario.`
   };
-}S
+}
 
 async function obtenerListaEspera(usuarioId, fecha, hora, personas) {
   const lista = await db.query(
