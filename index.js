@@ -267,7 +267,7 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
     const nuevasPersonas = datos.nuevas_personas || reserva.rows[0].personas;
     const fechaReserva = new Date(`${nuevaFecha}T${nuevaHora}`);
     if (fechaReserva <= new Date()) return 'La nueva fecha y hora ya han pasado. Puedes indicarme otra?';
-    const disponibilidad = await hayDisponibilidad(nuevaFecha, nuevaHora, nuevasPersonas);
+    const disponibilidad = await hayDisponibilidad(nuevaFecha, nuevaHora, nuevasPersonas, uid);
     if (!disponibilidad.disponible) return `Lo siento, ${disponibilidad.motivo} Te gustaria elegir otra hora o fecha?`;
     await db.query('UPDATE reservas SET fecha = $1, hora = $2, personas = $3 WHERE id = $4', [nuevaFecha, nuevaHora, nuevasPersonas, reserva.rows[0].id]);
     await avisarListaEspera(uid, reserva.rows[0].fecha, reserva.rows[0].hora, reserva.rows[0].personas);
@@ -298,7 +298,7 @@ if (datos.accion === 'DISPONIBILIDAD') {
 
   const horasLibres = [];
   for (const hora of horasAComprobar) {
-    const disp = await hayDisponibilidad(fecha, hora, personas);
+    const disp = await hayDisponibilidad(fecha, hora, personas, uid);
     if (disp.disponible) horasLibres.push(hora);
   }
 
@@ -352,7 +352,7 @@ if (datos.accion === 'DISPONIBILIDAD') {
       if (!esHorarioValido) return `Lo siento, nuestro horario es ${config.horario}. Elige una hora dentro de nuestro horario de apertura.`;
     }
 
-    const disponibilidad = await hayDisponibilidad(datos.fecha, datos.hora, datos.personas);
+    const disponibilidad = await hayDisponibilidad(datos.fecha, datos.hora, datos.personas, uid);
     if (!disponibilidad.disponible) {
       const enEspera = await obtenerListaEspera(uid, datos.fecha, datos.hora, datos.personas);
       const horaNum = parseInt(datos.hora.replace(':', ''));
@@ -367,7 +367,7 @@ if (datos.accion === 'DISPONIBILIDAD') {
         const horaFormateada = `${h.slice(0,2)}:${h.slice(2)}`;
         const horaInt = parseInt(h);
         if (horaInt < 1300 || (horaInt > 1600 && horaInt < 2000) || horaInt > 2330) continue;
-        const disp = await hayDisponibilidad(datos.fecha, horaFormateada, datos.personas);
+        const disp = await hayDisponibilidad(datos.fecha, horaFormateada, datos.personas, uid);
         if (disp.disponible) alternativas.push(horaFormateada);
         if (alternativas.length === 2) break;
       }
