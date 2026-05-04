@@ -1,475 +1,909 @@
-<!DOCTYPE html>
-<html lang="es" data-theme="light">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel — <%= usuario.restaurante %></title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <style>
-    :root {
-      --bg: #f5f6fa; --bg2: #ffffff; --bg3: #eef0f6; --border: #e2e5f0;
-      --text: #1a1d2e; --text2: #6b7280; --text3: #9ca3af;
-      --accent: #4F46E5; --accent-light: #EEF2FF; --accent-hover: #4338CA;
-      --sidebar: #1a1d2e; --sidebar-text: #94a3b8; --sidebar-active: #4F46E5;
-      --sidebar-active-bg: rgba(79,70,229,0.15); --shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-    [data-theme="dark"] {
-      --bg: #0d0d14; --bg2: #111118; --bg3: #16161f; --border: #1e1e2a;
-      --text: #e2e2e2; --text2: #6b7280; --text3: #444;
-      --accent: #7C6FFF; --accent-light: #1e1a3a; --accent-hover: #6a5ce8;
-      --sidebar: #0d0d14; --sidebar-text: #6b7280; --sidebar-active: #7C6FFF;
-      --sidebar-active-bg: rgba(124,111,255,0.12); --shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; transition: background .2s, color .2s; }
-    .btn-editar { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; transition: all .15s; }
-    .btn-editar:hover { background: var(--accent-light); color: var(--accent); }
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-    .modal-overlay.active { display: flex; }
-    .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 100%; max-width: 440px; }
-    .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
-    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
-    .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
-    .btn-modal-cancel { padding: 9px 18px; background: var(--bg3); color: var(--text2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; }
-    .btn-modal-save { padding: 9px 18px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; }
-    .sidebar { width: 220px; background: var(--sidebar); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; padding: 20px 0; position: fixed; height: 100vh; z-index: 100; }
-    .sidebar-logo { padding: 0 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .sidebar-logo h2 { color: #fff; font-size: 16px; font-weight: 700; }
-    .sidebar-logo p { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sidebar-menu { padding: 16px 8px; flex: 1; }
-    .menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--sidebar-text); font-size: 13px; cursor: pointer; margin-bottom: 2px; text-decoration: none; transition: all .15s; }
-    .menu-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
-    .menu-item.active { background: var(--sidebar-active-bg); color: var(--sidebar-active); }
-    .menu-icon { font-size: 15px; width: 20px; text-align: center; }
-    .sidebar-footer { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.06); }
-    .avatar { display: flex; align-items: center; gap: 10px; }
-    .avatar-circle { width: 32px; height: 32px; background: var(--sidebar-active-bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--sidebar-active); font-weight: bold; font-size: 13px; flex-shrink: 0; }
-    .avatar-name { font-size: 12px; color: rgba(255,255,255,0.7); }
-    .avatar-email { font-size: 11px; color: rgba(255,255,255,0.3); }
-    .logout { color: rgba(255,255,255,0.3); font-size: 11px; text-decoration: none; display: block; margin-top: 10px; }
-    .logout:hover { color: #f87171; }
-    .main { margin-left: 220px; flex: 1; padding: 28px; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-    .page-header h1 { font-size: 22px; font-weight: 600; }
-    .page-header p { color: var(--text2); font-size: 13px; margin-top: 3px; }
-    .header-actions { display: flex; gap: 10px; align-items: center; }
-    .btn-export { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; color: var(--text2); font-size: 13px; cursor: pointer; text-decoration: none; transition: all .15s; box-shadow: var(--shadow); }
-    .btn-export:hover { border-color: var(--accent); color: var(--accent); }
-    .theme-toggle { width: 36px; height: 36px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: var(--shadow); transition: all .15s; }
-    .theme-toggle:hover { border-color: var(--accent); }
-    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
-    .stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
-    .stat-icon { font-size: 20px; margin-bottom: 10px; }
-    .stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-    .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
-    .stat-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); }
-    .card h3 { font-size: 13px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; font-weight: 500; }
-    .proximas { display: flex; flex-direction: column; gap: 8px; }
-    .reserva-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--bg3); border-radius: 8px; }
-    .reserva-hora { font-size: 13px; font-weight: 600; color: var(--accent); min-width: 44px; }
-    .reserva-nombre { font-size: 13px; color: var(--text); flex: 1; font-weight: 500; }
-    .reserva-personas { font-size: 12px; color: var(--text3); }
-    .empty-small { text-align: center; padding: 24px; color: var(--text3); font-size: 13px; }
-    .tabla-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; box-shadow: var(--shadow); }
-    .tabla-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
-    .tabla-header h3 { font-size: 14px; font-weight: 600; }
-    .tabla-controles { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .buscador { display: flex; align-items: center; gap: 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; }
-    .buscador input { background: none; border: none; outline: none; color: var(--text); font-size: 13px; width: 180px; }
-    .buscador input::placeholder { color: var(--text3); }
-    .filtro-fecha input { padding: 7px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); outline: none; }
-    .btn-filtro { padding: 7px 14px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; }
-    .btn-filtro:hover { background: var(--accent-hover); }
-    .btn-clear { padding: 7px 12px; background: var(--bg3); color: var(--text2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: var(--bg3); color: var(--text2); padding: 10px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
-    td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: var(--bg3); }
-    .nombre-td { color: var(--text); font-weight: 500; }
-    .hora-pill { background: var(--accent-light); color: var(--accent); padding: 3px 10px; border-radius: 20px; font-size: 12px; display: inline-block; font-weight: 500; }
-    .estado-pill { padding: 3px 10px; border-radius: 20px; font-size: 11px; display: inline-block; font-weight: 500; }
-    .estado-confirmada { background: #dcfce7; color: #16a34a; }
-    .estado-pendiente { background: #fef9c3; color: #ca8a04; }
-    .estado-cancelada { background: #fee2e2; color: #dc2626; }
-    [data-theme="dark"] .estado-confirmada { background: #0a2a1a; color: #4ade80; }
-    [data-theme="dark"] .estado-pendiente { background: #2a2010; color: #fbbf24; }
-    [data-theme="dark"] .estado-cancelada { background: #2a1015; color: #f87171; }
-    .canal-pill { padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
-    .canal-llamada { background: #ede9fe; color: #7c3aed; }
-    .canal-whatsapp { background: #dcfce7; color: #16a34a; }
-    .canal-manual { background: var(--bg3); color: var(--text2); }
-    [data-theme="dark"] .canal-llamada { background: #1e1a3a; color: #a78bfa; }
-    [data-theme="dark"] .canal-whatsapp { background: #0a2a15; color: #4ade80; }
-    .btn-cancelar { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; transition: all .15s; }
-    .btn-cancelar:hover { background: #fee2e2; color: #dc2626; }
-    [data-theme="dark"] .btn-cancelar:hover { background: #2a1015; color: #f87171; }
-    .empty { text-align: center; padding: 48px; color: var(--text3); font-size: 14px; }
-    .form-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); }
-    .form-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
-    .form-grid { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-    .campo { display: flex; flex-direction: column; gap: 5px; }
-    .campo label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
-    .campo input, .campo select { padding: 9px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); outline: none; transition: border .15s; }
-    .campo input:focus, .campo select:focus { border-color: var(--accent); }
-    .btn-add { padding: 9px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; height: 38px; }
-    .btn-add:hover { background: var(--accent-hover); }
-    .error-msg { background: #fee2e2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; }
-    [data-theme="dark"] .error-msg { background: #1a0a0a; border-color: #3a1515; color: #f87171; }
-    .espera-pill { background: #fef9c3; color: #ca8a04; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
-    [data-theme="dark"] .espera-pill { background: #2a2010; color: #fbbf24; }
-  </style>
-</head>
-<body>
-  <div class="sidebar">
-    <div class="sidebar-logo">
-      <h2>ReservasBot</h2>
-      <p><%= usuario.restaurante %></p>
-    </div>
-    <div class="sidebar-menu">
-      <% if (usuario.rol === 'admin') { %>
-        <a href="/admin" class="menu-item"><span class="menu-icon">🔧</span> Admin</a>
-      <% } %>
-      <a href="/panel" class="menu-item active"><span class="menu-icon">📅</span> Reservas</a>
-      <a href="/clientes" class="menu-item"><span class="menu-icon">👥</span> Clientes</a>
-      <a href="/configuracion" class="menu-item"><span class="menu-icon">⚙️</span> Configuración</a>
-    </div>
-    <div class="sidebar-footer">
-      <div class="avatar">
-        <div class="avatar-circle"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
-        <div style="flex:1;min-width:0;">
-          <div class="avatar-name"><%= usuario.nombre %></div>
-          <div class="avatar-email"><%= usuario.email %></div>
-        </div>
-      </div>
-      <a href="/logout" class="logout">Cerrar sesión →</a>
-    </div>
-  </div>
+require('dotenv').config();
+const express = require('express');
+const app = express();
+app.use(express.urlencoded({ extended: false }));
 
-  <div class="main">
-    <div class="page-header">
-      <div>
-        <h1>Panel de Reservas</h1>
-        <p>Hoy: <%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
-      </div>
-      <div class="header-actions">
-        <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙</button>
-        <a href="/exportar-reservas" class="btn-export">⬇ Exportar CSV</a>
-      </div>
-    </div>
+const bcrypt = require('bcrypt');
+const session = require('express-session');
+const cron = require('node-cron');
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
+const { ElevenLabsClient } = require('elevenlabs');
+const elevenlabs = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
+const ELEVENLABS_ENABLED = process.env.ELEVENLABS_ENABLED === 'true';
+const ELEVENLABS_VOICE_ID = 'uQw4jpKzMLrZuo0RLPS9';
 
-    <div class="stats">
-      <div class="stat">
-        <div class="stat-icon">📅</div>
-        <div class="stat-label">Reservas hoy</div>
-        <div class="stat-value"><%= reservasHoy.length %></div>
-        <div class="stat-sub">confirmadas</div>
-      </div>
-      <div class="stat">
-        <div class="stat-icon">👥</div>
-        <div class="stat-label">Personas hoy</div>
-        <div class="stat-value"><%= reservasHoy.reduce((a, r) => a + (r.personas || 0), 0) %></div>
-        <div class="stat-sub">comensales</div>
-      </div>
-      <div class="stat">
-        <div class="stat-icon">📆</div>
-        <div class="stat-label">Esta semana</div>
-        <div class="stat-value"><%= reservas.filter(r => { const d = new Date(r.fecha); const hoy = new Date(); const diff = (d - hoy) / (1000*60*60*24); return diff >= 0 && diff <= 7; }).length %></div>
-        <div class="stat-sub">próximas reservas</div>
-      </div>
-      <div class="stat">
-        <div class="stat-icon">📊</div>
-        <div class="stat-label">Total historial</div>
-        <div class="stat-value"><%= reservas.length %></div>
-        <div class="stat-sub">todas las reservas</div>
-      </div>
-    </div>
+const OpenAI = require('openai');
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    <div class="grid-2">
-      <div class="card">
-        <h3>Reservas últimos 7 días</h3>
-        <canvas id="grafico" height="120"></canvas>
-      </div>
-      <div class="card">
-        <h3>Próximas reservas hoy</h3>
-        <div class="proximas">
-          <% const proximas = reservasHoy.slice().sort((a,b) => a.hora > b.hora ? 1 : -1); %>
-          <% if (proximas.length === 0) { %>
-            <div class="empty-small">No hay reservas para hoy</div>
-          <% } else { %>
-            <% proximas.slice(0, 5).forEach(r => { %>
-              <div class="reserva-item">
-                <span class="reserva-hora"><%= r.hora %></span>
-                <span class="reserva-nombre"><%= r.nombre %></span>
-                <span class="reserva-personas"><%= r.personas %> pers.</span>
-              </div>
-            <% }) %>
-            <% if (proximas.length > 5) { %>
-              <div style="text-align:center;font-size:12px;color:var(--text3);margin-top:8px;">+<%= proximas.length - 5 %> más</div>
-            <% } %>
-          <% } %>
-        </div>
-      </div>
-    </div>
+const { Pool } = require('pg');
+const db = new Pool({
+  connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
-    <!-- LISTA DE ESPERA -->
-    <div class="tabla-card">
-      <div class="tabla-header">
-        <h3>Lista de espera <span class="espera-pill"><%= listaEspera.length %> personas</span></h3>
-      </div>
-      <% if (listaEspera.length === 0) { %>
-        <div class="empty">No hay nadie en lista de espera</div>
-      <% } else { %>
-        <table>
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Teléfono</th>
-              <th>Fecha</th>
-              <th>Hora</th>
-              <th>Personas</th>
-              <th>Apuntado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <% listaEspera.forEach(l => { %>
-              <tr>
-                <td class="nombre-td"><%= l.nombre %></td>
-                <td><%= l.telefono %></td>
-                <td><%= l.fecha %></td>
-                <td><span class="hora-pill"><%= l.hora %></span></td>
-                <td><%= l.personas %> pers.</td>
-                <td><%= new Date(l.creada_en).toLocaleDateString('es-ES') %></td>
-                <td>
-                  <form method="POST" action="/espera/eliminar/<%= l.id %>" style="display:inline;">
-                    <button class="btn-cancelar" type="submit" onclick="return confirm('¿Eliminar de lista de espera?')">✕</button>
-                  </form>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      <% } %>
-    </div>
+const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-    <!-- TODAS LAS RESERVAS -->
-    <div class="tabla-card">
-      <div class="tabla-header">
-        <h3>Todas las reservas</h3>
-        <div class="tabla-controles">
-          <div class="buscador">
-            <span style="color:var(--text3);">🔍</span>
-            <input type="text" id="buscador" placeholder="Buscar por nombre..." oninput="filtrarTabla()">
-          </div>
-          <div class="filtro-fecha" style="display:flex;gap:8px;">
-            <input type="date" id="filtroFecha" value="<%= fechaFiltro || '' %>">
-            <button class="btn-filtro" onclick="filtrar()">Filtrar</button>
-            <button class="btn-clear" onclick="limpiar()">✕ Limpiar</button>
-          </div>
-        </div>
-      </div>
-      <table id="tablaReservas">
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Fecha</th>
-            <th>Hora</th>
-            <th>Personas</th>
-            <th>Canal</th>
-            <th>Estado</th>
-            <th>Notas</th>
-            <th>Recibida</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <% const listaReservas = fechaFiltro ? reservasFiltradas : reservas; %>
-          <% if (listaReservas.length === 0) { %>
-            <tr><td colspan="8" class="empty">No hay reservas todavía</td></tr>
-          <% } else { %>
-            <% listaReservas.forEach(r => { %>
-              <tr>
-                <td class="nombre-td"><%= r.nombre %></td>
-                <td><%= r.fecha %></td>
-                <td><span class="hora-pill"><%= r.hora %></span></td>
-                <td><%= r.personas %> pers.</td>
-                <td>
-                  <% if (r.canal === 'whatsapp') { %>
-                    <span class="canal-pill canal-whatsapp">WhatsApp</span>
-                  <% } else if (r.canal === 'manual') { %>
-                    <span class="canal-pill canal-manual">Presencial</span>
-                  <% } else { %>
-                    <span class="canal-pill canal-llamada">Llamada</span>
-                  <% } %>
-                </td>
-                <td><span class="estado-pill estado-<%= r.estado || 'confirmada' %>"><%= r.estado || 'confirmada' %></span></td>
-                <td><% if (r.notas) { %><span style="color:var(--accent);font-size:12px;">⚠️ <%= r.notas %></span><% } else { %><span style="color:var(--text3);font-size:12px;">—</span><% } %></td>
-                <td><%= new Date(r.creada_en).toLocaleDateString('es-ES') %></td>
-                <td>
-                  <button class="btn-editar" onclick="abrirEditar('<%= r.id %>', '<%= r.nombre %>', '<%= r.fecha %>', '<%= r.hora %>', '<%= r.personas %>')" type="button">✏️</button>
-                  <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('¿Cancelar reserva de <%= r.nombre %>?')" style="display:inline;">
-                    <button class="btn-cancelar" type="submit">✕</button>
-                  </form>
-                </td>
-              </tr>
-            <% }) %>
-          <% } %>
-        </tbody>
-      </table>
-    </div>
+const conversaciones = {};
+const conversacionesWhatsapp = {};
 
-    <div class="form-card">
-      <h3>Añadir reserva manual</h3>
-      <% if (error === 'fecha') { %><div class="error-msg">La fecha y hora ya han pasado.</div><% } %>
-      <% if (error === 'cupo') { %><div class="error-msg">No hay mesas disponibles para esa fecha, hora y número de personas.</div><% } %>
-      <% if (error === 'telefono') { %><div class="error-msg">El teléfono es obligatorio.</div><% } %>
-      <form method="POST" action="/nueva-reserva" class="form-grid">
-        <div class="campo">
-          <label>Nombre</label>
-          <input name="nombre" required placeholder="Nombre cliente" style="width:160px;">
-        </div>
-        <div class="campo">
-          <label>Teléfono</label>
-          <div style="display:flex;gap:6px;">
-            <select name="prefijo">
-              <option value="+34">🇪🇸 +34</option>
-              <option value="+1">🇺🇸 +1</option>
-              <option value="+44">🇬🇧 +44</option>
-              <option value="+33">🇫🇷 +33</option>
-            </select>
-            <input name="telefono" required placeholder="600000000" pattern="[0-9]{9}" style="width:120px;">
-          </div>
-        </div>
-        <div class="campo">
-          <label>Fecha</label>
-          <input name="fecha" type="date" required>
-        </div>
-        <div class="campo">
-          <label>Hora</label>
-          <input name="hora" type="time" required>
-        </div>
-        <div class="campo">
-          <label>Personas</label>
-          <input name="personas" type="number" min="1" max="20" required placeholder="2" style="width:70px;">
-        </div>
-        <div class="campo">
-          <label>Notas</label>
-          <input name="notas" placeholder="Alergias, vegano, cumpleaños..." style="width:200px;">
-        </div>
-        <button type="submit" class="btn-add">+ Añadir</button>
-      </form>
-    </div>
-  </div>
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'reservasbot_secret_key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax' }
+}));
+const { setupMediaStreamWebSocket } = require('./streaming');
 
-  <div class="modal-overlay" id="modalEditar">
-    <div class="modal">
-      <h3>Editar reserva</h3>
-      <form method="POST" id="formEditar">
-        <div class="modal-grid">
-          <div class="campo">
-            <label>Nombre</label>
-            <input type="text" name="nombre" id="editNombre" required>
-          </div>
-          <div class="campo">
-            <label>Personas</label>
-            <input type="number" name="personas" id="editPersonas" min="1" max="20" required>
-          </div>
-          <div class="campo">
-            <label>Fecha</label>
-            <input type="date" name="fecha" id="editFecha" required>
-          </div>
-          <div class="campo">
-            <label>Hora</label>
-            <input type="time" name="hora" id="editHora" required>
-          </div>
-        </div>
-        <div class="modal-btns">
-          <button type="button" class="btn-modal-cancel" onclick="cerrarEditar()">Cancelar</button>
-          <button type="submit" class="btn-modal-save">Guardar cambios</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <script>
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    document.getElementById('themeBtn').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
-
-    function toggleTheme() {
-      const current = document.documentElement.getAttribute('data-theme');
-      const next = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('theme', next);
-      document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
-      if (window.chartInstance) window.chartInstance.destroy();
-      renderChart();
-    }
-
-    function filtrar() {
-      const fecha = document.getElementById('filtroFecha').value;
-      if (fecha) window.location.href = '/panel?fecha=' + fecha;
-    }
-    function limpiar() { window.location.href = '/panel'; }
-    function filtrarTabla() {
-      const texto = document.getElementById('buscador').value.toLowerCase();
-      document.querySelectorAll('#tablaReservas tbody tr').forEach(fila => {
-        const nombre = fila.cells[0]?.textContent.toLowerCase() || '';
-        fila.style.display = nombre.includes(texto) ? '' : 'none';
-      });
-    }
-    function abrirEditar(id, nombre, fecha, hora, personas) {
-      document.getElementById('editNombre').value = nombre;
-      document.getElementById('editFecha').value = fecha;
-      document.getElementById('editHora').value = hora;
-      document.getElementById('editPersonas').value = personas;
-      document.getElementById('formEditar').action = '/editar-reserva/' + id;
-      document.getElementById('modalEditar').classList.add('active');
-    }
-    function cerrarEditar() {
-      document.getElementById('modalEditar').classList.remove('active');
-    }
-
-    function renderChart() {
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      const reservas = <%- JSON.stringify(reservas.map(r => ({ fecha: r.fecha }))) %>;
-      const labels = [], datos = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const fecha = d.toISOString().split('T')[0];
-        labels.push(d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }));
-        datos.push(reservas.filter(r => r.fecha === fecha).length);
+app.get('/audio', async (req, res) => {
+  try {
+    const texto = req.query.texto;
+    if (!texto) return res.status(400).send('Sin texto');
+    const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
+      text: texto,
+      model_id: 'eleven_turbo_v2_5',
+      voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+    });
+    res.setHeader('Content-Type', 'audio/mpeg');
+    if (response.pipe) {
+      response.pipe(res);
+    } else if (response[Symbol.asyncIterator]) {
+      for await (const chunk of response) {
+        res.write(chunk);
       }
-      const accent = isDark ? '#7C6FFF' : '#4F46E5';
-      const gridColor = isDark ? '#1e1e2a' : '#e2e5f0';
-      const tickColor = isDark ? '#6b7280' : '#9ca3af';
-      window.chartInstance = new Chart(document.getElementById('grafico'), {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            data: datos,
-            backgroundColor: accent + '33',
-            borderColor: accent,
-            borderWidth: 1,
-            borderRadius: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 } } },
-            y: { grid: { color: gridColor }, ticks: { color: tickColor, stepSize: 1, font: { size: 11 } } }
-          }
-        }
+      res.end();
+    } else {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      res.send(buffer);
+    }
+  } catch (err) {
+    console.error('Error ElevenLabs:', err.message);
+    res.status(500).send('Error generando audio');
+  }
+});
+
+async function enviarWhatsApp(telefono, mensaje) {
+  try {
+    const to = telefono.startsWith('whatsapp:') ? telefono : `whatsapp:${telefono}`;
+    const promesa = twilioClient.messages.create({
+      from: process.env.TWILIO_WHATSAPP_FROM,
+      to: to,
+      body: mensaje
+    }).catch(err => {
+      console.error('Error enviando WhatsApp (ignorado):', err.message);
+    });
+    const timeout = new Promise((resolve) => setTimeout(resolve, 2000));
+    await Promise.race([promesa, timeout]);
+    console.log('WhatsApp procesado a:', to);
+  } catch (err) {
+    console.error('Error enviando WhatsApp (ignorado):', err.message);
+  }
+}
+
+async function enviarEmailRestaurante(usuarioId, datos) {
+  try {
+    const usuario = await db.query('SELECT * FROM usuarios WHERE id = $1', [usuarioId]);
+    if (!usuario.rows.length) return;
+    const email = usuario.rows[0].email;
+    const restaurante = usuario.rows[0].restaurante;
+    await resend.emails.send({
+      from: 'ReservasBot <onboarding@resend.dev>',
+      to: email,
+      subject: `${datos.canal?.includes('CANCELACION') ? '❌ Cancelación' : datos.canal?.includes('MODIFICACION') ? '✏️ Modificación' : '✅ Nueva reserva'} — ${datos.nombre}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #f9f9f9; border-radius: 12px;">
+          <h2 style="color: #4F46E5;">${datos.canal?.includes('CANCELACION') ? 'Reserva cancelada' : datos.canal?.includes('MODIFICACION') ? 'Reserva modificada' : 'Nueva reserva'} en ${restaurante}</h2>
+          <div style="background: white; border-radius: 8px; padding: 20px; margin-top: 16px;">
+            <p style="margin: 8px 0;"><strong>Nombre:</strong> ${datos.nombre}</p>
+            <p style="margin: 8px 0;"><strong>Fecha:</strong> ${datos.fecha}</p>
+            <p style="margin: 8px 0;"><strong>Hora:</strong> ${datos.hora}</p>
+            <p style="margin: 8px 0;"><strong>Personas:</strong> ${datos.personas}</p>
+            <p style="margin: 8px 0;"><strong>Canal:</strong> ${datos.canal || 'Bot'}</p>
+            ${datos.notas ? `<p style="margin: 8px 0;"><strong>⚠️ Notas:</strong> ${datos.notas}</p>` : ''}
+          </div>
+          <p style="color: #888; font-size: 12px; margin-top: 16px;">ReservasBot — Panel: https://reservas-bot-production.up.railway.app/panel</p>
+        </div>
+      `
+    });
+    console.log('Email enviado a:', email);
+  } catch (err) {
+    console.error('Error enviando email:', err.message);
+  }
+}
+
+async function obtenerOCrearCliente(telefono, nombre = null) {
+  const cliente = await db.query('SELECT * FROM clientes WHERE telefono = $1', [telefono]);
+  if (cliente.rows.length > 0) {
+    await db.query('UPDATE clientes SET ultima_visita = NOW() WHERE telefono = $1', [telefono]);
+    return cliente.rows[0];
+  } else {
+    const nuevo = await db.query('INSERT INTO clientes (telefono, nombre) VALUES ($1, $2) RETURNING *', [telefono, nombre]);
+    return nuevo.rows[0];
+  }
+}
+
+async function obtenerContextoCliente(telefono) {
+  const cliente = await db.query('SELECT * FROM clientes WHERE telefono = $1', [telefono]);
+  const reservas = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 ORDER BY creada_en DESC LIMIT 5', [telefono]);
+  return {
+    cliente: cliente.rows.length > 0 ? cliente.rows[0] : null,
+    reservas: reservas.rows
+  };
+}
+
+async function obtenerUsuarioPorDefecto() {
+  const usuario = await db.query('SELECT id FROM usuarios LIMIT 1');
+  return usuario.rows.length > 0 ? usuario.rows[0].id : null;
+}
+
+async function obtenerUsuarioPorNumero(numero) {
+  if (!numero) return await obtenerUsuarioPorDefecto();
+  const usuario = await db.query('SELECT id FROM usuarios WHERE numero_twilio = $1', [numero]);
+  if (usuario.rows.length > 0) return usuario.rows[0].id;
+  return await obtenerUsuarioPorDefecto();
+}
+
+async function hayDisponibilidad(fecha, hora, personas) {
+  if (personas > 4) return { disponible: false, motivo: 'No tenemos mesas para mas de 4 personas.' };
+  const capacidadNecesaria = personas <= 2 ? 2 : 4;
+  const mesasAdecuadas = await db.query('SELECT id FROM mesas WHERE capacidad = $1', [capacidadNecesaria]);
+  const [horaH, horaM] = hora.split(':').map(Number);
+  const horaInicio = `${String(horaH - 1).padStart(2, '0')}:${String(horaM).padStart(2, '0')}`;
+  const horaFin = `${String(horaH + 1).padStart(2, '0')}:${String(horaM).padStart(2, '0')}`;
+  const reservasOcupadas = await db.query(
+    `SELECT COUNT(*) FROM reservas WHERE fecha = $1 AND hora >= $2 AND hora <= $3 AND personas > $4`,
+    [fecha, horaInicio, horaFin, capacidadNecesaria === 2 ? 0 : 2]
+  );
+  const totalMesas = mesasAdecuadas.rows.length;
+  const ocupadas = parseInt(reservasOcupadas.rows[0].count);
+  if (ocupadas >= totalMesas) return { disponible: false, motivo: `No quedan mesas disponibles para ${personas} personas en ese horario.` };
+  return { disponible: true };
+}
+
+async function obtenerListaEspera(usuarioId, fecha, hora, personas) {
+  const lista = await db.query(
+    'SELECT COUNT(*) FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND hora = $3 AND personas <= $4',
+    [usuarioId, fecha, hora, personas <= 2 ? 2 : 4]
+  );
+  return parseInt(lista.rows[0].count);
+}
+
+async function avisarListaEspera(usuarioId, fecha, hora, personas) {
+  const enEspera = await db.query(
+    'SELECT * FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND personas <= $3 ORDER BY creada_en ASC LIMIT 1',
+    [usuarioId, fecha, personas <= 2 ? 2 : 4]
+  );
+  if (enEspera.rows.length === 0) return;
+  const cliente = enEspera.rows[0];
+  await enviarWhatsApp(
+    cliente.telefono,
+    `Hola ${cliente.nombre}, hay un hueco disponible en el restaurante para el ${fecha} a las ${hora} para ${cliente.personas} personas. Responde SI para confirmar tu reserva o NO para cancelar tu espera.`
+  );
+  await db.query('DELETE FROM lista_espera WHERE id = $1', [cliente.id]);
+}
+
+async function extraerDatosReserva(mensajes) {
+  const respuesta = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    max_tokens: 150,
+    messages: [
+      ...mensajes,
+      { role: 'user', content: `Analiza la conversacion y extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas (alergias, preferencias alimentarias, ocasiones especiales o cualquier nota relevante para el restaurante), nueva_fecha, nueva_hora, nuevas_personas.
+        
+
+IMPORTANTE: Si el ultimo mensaje del asistente contiene "ACCION:CONSULTAR" la accion es CONSULTAR. Si contiene "ACCION:NUEVA" la accion es NUEVA. Si contiene "ACCION:CANCELAR" la accion es CANCELAR. Si contiene "ACCION:MODIFICAR" la accion es MODIFICAR. Si contiene "ACCION:ESPERA" la accion es ESPERA. Si contiene "ACCION:DISPONIBILIDAD" la accion es DISPONIBILIDAD.
+
+La fecha debe estar en formato YYYY-MM-DD usando como referencia que hoy es ${new Date().toISOString().split('T')[0]}. La hora en formato HH:MM. Si algun dato no aplica o falta pon null. Responde SOLO con el JSON, sin texto adicional, sin comillas de codigo.` }
+    ]
+  });
+  try {
+    const texto = respuesta.choices[0].message.content.replace(/```json|```/g, '').trim();
+    console.log('JSON extraido:', texto);
+    return JSON.parse(texto);
+  } catch (e) {
+    console.log('Error parseando JSON:', e.message);
+    return null;
+  }
+}
+
+async function obtenerConfigRestaurante(usuarioId) {
+  const config = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
+  return config.rows.length > 0 ? config.rows[0] : null;
+}
+
+async function procesarAccion(datos, canal, contexto, telefonoCliente = null, usuarioId = null, config = null) {
+  if (!datos) return 'Disculpa, no he podido entender los datos. Puedes repetirmelos?';
+  const telefonoParaWhatsapp = telefonoCliente || canal;
+  const uid = usuarioId || await obtenerUsuarioPorDefecto();
+
+  if (datos.accion === 'CONSULTAR') {
+    const reservas = await db.query(
+      'SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha >= $2 ORDER BY fecha ASC, hora ASC',
+      [telefonoParaWhatsapp, new Date().toISOString().split('T')[0]]
+    );
+    if (reservas.rows.length === 0) return 'No tienes reservas proximas.';
+    const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} - ${r.fecha} a las ${r.hora} para ${r.personas} personas`).join('\n');
+    return `Tus reservas proximas son: ${lista}`;
+  }
+
+  if (datos.accion === 'CANCELAR') {
+    let reserva;
+    if (datos.fecha) {
+      reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha = $2 LIMIT 1', [telefonoParaWhatsapp, datos.fecha]);
+    } else if (datos.nombre) {
+      reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1', [telefonoParaWhatsapp, datos.nombre]);
+    }
+    if (!reserva || reserva.rows.length === 0) return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre?';
+
+    const fechaReserva = new Date(`${reserva.rows[0].fecha}T${reserva.rows[0].hora}`);
+    const horasRestantes = (fechaReserva - new Date()) / (1000 * 60 * 60);
+    if (horasRestantes < 2) return 'Lo siento, no es posible cancelar con menos de 2 horas de antelacion.';
+
+    await db.query('DELETE FROM reservas WHERE id = $1', [reserva.rows[0].id]);
+    await avisarListaEspera(uid, reserva.rows[0].fecha, reserva.rows[0].hora, reserva.rows[0].personas);
+    await enviarEmailRestaurante(uid, {
+      nombre: reserva.rows[0].nombre,
+      fecha: reserva.rows[0].fecha,
+      hora: reserva.rows[0].hora,
+      personas: reserva.rows[0].personas,
+      canal: '❌ CANCELACION por cliente'
+    });
+    return `Reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a las ${reserva.rows[0].hora} cancelada correctamente.`;
+  }
+
+  if (datos.accion === 'MODIFICAR') {
+    let reserva;
+    if (datos.fecha) {
+      reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha = $2 LIMIT 1', [telefonoParaWhatsapp, datos.fecha]);
+    } else if (datos.nombre) {
+      reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1', [telefonoParaWhatsapp, datos.nombre]);
+    }
+    if (!reserva || reserva.rows.length === 0) return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre?';
+    const nuevaFecha = datos.nueva_fecha || reserva.rows[0].fecha;
+    const nuevaHora = datos.nueva_hora || reserva.rows[0].hora;
+    const nuevasPersonas = datos.nuevas_personas || reserva.rows[0].personas;
+    const fechaReserva = new Date(`${nuevaFecha}T${nuevaHora}`);
+    if (fechaReserva <= new Date()) return 'La nueva fecha y hora ya han pasado. Puedes indicarme otra?';
+    const disponibilidad = await hayDisponibilidad(nuevaFecha, nuevaHora, nuevasPersonas);
+    if (!disponibilidad.disponible) return `Lo siento, ${disponibilidad.motivo} Te gustaria elegir otra hora o fecha?`;
+    await db.query('UPDATE reservas SET fecha = $1, hora = $2, personas = $3 WHERE id = $4', [nuevaFecha, nuevaHora, nuevasPersonas, reserva.rows[0].id]);
+    await avisarListaEspera(uid, reserva.rows[0].fecha, reserva.rows[0].hora, reserva.rows[0].personas);
+    await enviarEmailRestaurante(uid, {
+      nombre: reserva.rows[0].nombre,
+      fecha: nuevaFecha,
+      hora: nuevaHora,
+      personas: nuevasPersonas,
+      canal: `✏️ MODIFICACION por cliente (antes: ${reserva.rows[0].fecha} ${reserva.rows[0].hora})`
+    });
+    return `Reserva modificada correctamente. Nueva fecha: ${nuevaFecha} a las ${nuevaHora} para ${nuevasPersonas} personas.`;
+  }
+
+  if (datos.accion === 'DISPONIBILIDAD') {
+    const fecha = datos.fecha || new Date().toISOString().split('T')[0];
+    const personas = datos.personas || 2;
+    const horasFiltro = datos.hora;
+    
+    const horasMediodía = ['13:00','13:30','14:00','14:30','15:00','15:30'];
+    const horasNoche = ['20:00','20:30','21:00','21:30','22:00','22:30','23:00'];
+    
+    let horasAComprobar;
+    if (horasFiltro) {
+      const horaNum = parseInt(horasFiltro.replace(':', ''));
+      horasAComprobar = horaNum >= 2000 ? horasNoche : horasMediodía;
+    } else {
+      horasAComprobar = [...horasMediodía, ...horasNoche];
+    }
+
+    const horasLibres = [];
+    for (const hora of horasAComprobar) {
+      const disp = await hayDisponibilidad(fecha, hora, personas);
+      if (disp.disponible) horasLibres.push(hora);
+    }
+
+    if (horasLibres.length === 0) return `Lo siento, no tenemos mesas disponibles para ${personas} personas el ${fecha}.`;
+    
+    const libresMediaodia = horasLibres.filter(h => parseInt(h.replace(':', '')) < 1600);
+    const libresNoche = horasLibres.filter(h => parseInt(h.replace(':', '')) >= 2000);
+    
+    let respuesta = `Para ${personas} personas el ${fecha} tenemos disponibilidad`;
+    if (libresMediaodia.length > 0) respuesta += ` al mediodia: ${libresMediaodia.join(', ')}`;
+    if (libresMediaodia.length > 0 && libresNoche.length > 0) respuesta += ` y`;
+    if (libresNoche.length > 0) respuesta += ` por la noche: ${libresNoche.join(', ')}`;
+    respuesta += `. Quieres reservar alguna de estas horas?`;
+    return respuesta;
+  }
+
+  if (datos.accion === 'ESPERA') {
+    if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas para apuntarte a la lista de espera.';
+    await db.query(
+      'INSERT INTO lista_espera (usuario_id, telefono, nombre, fecha, hora, personas) VALUES ($1, $2, $3, $4, $5, $6)',
+      [uid, telefonoParaWhatsapp, datos.nombre, datos.fecha, datos.hora, datos.personas]
+    );
+    const enEspera = await obtenerListaEspera(uid, datos.fecha, datos.hora, datos.personas);
+    return `Perfecto ${datos.nombre}, te he apuntado en la lista de espera para el ${datos.fecha} a las ${datos.hora}. Eres el numero ${enEspera} en la lista. Te avisaremos por WhatsApp si hay una cancelacion.`;
+  }
+
+  if (datos.accion === 'NUEVA') {
+    if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas para hacer la reserva.';
+    const fechaReserva = new Date(`${datos.fecha}T${datos.hora}`);
+    if (fechaReserva <= new Date()) return 'Lo siento, esa fecha y hora ya han pasado. Para que otra fecha te gustaria reservar?';
+
+    if (uid) {
+      const fechaObj = new Date(datos.fecha);
+      const diaSemana = fechaObj.getDay();
+
+      const diaCerrado = await db.query(`
+       SELECT * FROM dias_cerrados WHERE usuario_id = $1 AND (
+        (tipo = 'fecha' AND fecha = $2) OR
+        (tipo = 'semana' AND dia_semana = $3) OR
+        (tipo = 'rango' AND fecha <= $2 AND fecha_fin >= $2)
+     )`, [uid, datos.fecha, diaSemana]
+      );
+      if (diaCerrado.rows.length > 0) {
+        const motivo = diaCerrado.rows[0].motivo || 'ese dia estamos cerrados';
+        return `Lo siento, ${motivo}. No podemos aceptar reservas para esa fecha. Elige otro dia.`;
+      }
+    }
+
+    if (config?.horario) {
+      const horaReserva = parseInt(datos.hora.replace(':', ''));
+      const esHorarioValido = (horaReserva >= 1300 && horaReserva <= 1600) || (horaReserva >= 2000 && horaReserva <= 2330);
+      if (!esHorarioValido) return `Lo siento, nuestro horario es ${config.horario}. Elige una hora dentro de nuestro horario de apertura.`;
+    }
+
+    const disponibilidad = await hayDisponibilidad(datos.fecha, datos.hora, datos.personas);
+    if (!disponibilidad.disponible) {
+      const enEspera = await obtenerListaEspera(uid, datos.fecha, datos.hora, datos.personas);
+      const horaNum = parseInt(datos.hora.replace(':', ''));
+      const alternativas = [];
+      const horasProbar = [
+        String(horaNum - 100).padStart(4, '0'),
+        String(horaNum + 100).padStart(4, '0'),
+        String(horaNum - 200).padStart(4, '0'),
+        String(horaNum + 200).padStart(4, '0')
+      ];
+      for (const h of horasProbar) {
+        const horaFormateada = `${h.slice(0,2)}:${h.slice(2)}`;
+        const horaInt = parseInt(h);
+        if (horaInt < 1300 || (horaInt > 1600 && horaInt < 2000) || horaInt > 2330) continue;
+        const disp = await hayDisponibilidad(datos.fecha, horaFormateada, datos.personas);
+        if (disp.disponible) alternativas.push(horaFormateada);
+        if (alternativas.length === 2) break;
+      }
+      const msgEspera = enEspera > 0
+        ? `Hay ${enEspera} persona${enEspera > 1 ? 's' : ''} en lista de espera para ese horario.`
+        : 'Serias el primero en la lista de espera para ese horario.';
+
+      if (alternativas.length > 0) {
+        return `Lo siento, no hay mesas a las ${datos.hora}. Tengo sitio a las ${alternativas.join(' o a las ')}. O si prefieres, puedo apuntarte a la lista de espera — ${msgEspera} Que prefieres, horario alternativo o lista de espera?`;
+      }
+      return `Lo siento, no hay mesas disponibles el ${datos.fecha}. ${msgEspera} Te apunto en la lista de espera y te aviso si hay una cancelacion?`;
+    }
+
+    await db.query(
+      'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal, notas) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      [canal, datos.nombre, datos.fecha, datos.hora, datos.personas, telefonoParaWhatsapp, uid, telefonoCliente && telefonoCliente.includes('whatsapp') ? 'whatsapp' : 'llamada', datos.notas || null]
+    );
+    await obtenerOCrearCliente(telefonoParaWhatsapp, datos.nombre);
+    await enviarEmailRestaurante(uid, { nombre: datos.nombre, fecha: datos.fecha, hora: datos.hora, personas: datos.personas, canal: telefonoCliente?.includes('whatsapp') ? 'whatsapp' : 'llamada' });
+    const fechaFormateada = new Date(datos.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    return `Perfecto ${datos.nombre}, tu reserva esta confirmada para el ${fechaFormateada} a las ${datos.hora} para ${datos.personas} personas. Te esperamos!`;
+  }
+
+  return 'No he entendido lo que necesitas. Quieres hacer, consultar, cancelar o modificar una reserva?';
+}
+
+const SYSTEM_PROMPT = (hoy, contexto, config = null) => {
+  const nombre = config?.restaurante || 'Restaurante El Ejemplo';
+  const direccion = config?.direccion || 'Calle Mayor 1, Madrid';
+  const horario = config?.horario || 'Lunes a domingo de 13:00 a 16:00 y de 20:00 a 23:30';
+  const telefono = config?.telefono || '910 000 000';
+  const menu = config?.menu || 'Entrantes desde 8 euros, carnes desde 18 euros, pescados desde 16 euros, postres desde 5 euros.';
+  const especialidad = config?.especialidad || 'Cocido madrileno los jueves';
+  const aparcamiento = config?.aparcamiento || 'Parking publico a 200 metros';
+
+  let prompt = `Eres Laura, una asistente de reservas amable y natural de ${nombre}. Hoy es ${hoy}.
+
+PERSONALIDAD:
+- Habla de forma natural y cercana, como una recepcionista real
+- Respuestas cortas y directas, maximo 2 frases
+- Usa fechas en formato humano: "el viernes 2 de abril" nunca "2026-04-02"
+- Nunca repitas datos que el cliente ya dio
+- Si algo no esta claro, pregunta antes de actuar
+- NUNCA uses la frase "un momento por favor" salvo cuando vayas a procesar una accion con ACCION:XXXX
+
+INFO DEL RESTAURANTE:
+Nombre: ${nombre} | Direccion: ${direccion} | Horario: ${horario} | Tel: ${telefono} | Menu: ${menu} | Especialidad: ${especialidad} | Parking: ${aparcamiento}
+
+REGLAS IMPORTANTES:
+- Solo hablas de temas del restaurante (reservas, menu, especialidades, horarios, ubicacion, aparcamiento, disponibilidad). Si preguntan algo completamente ajeno di: "Solo puedo ayudarte con temas del restaurante."
+- Cuando te pregunten por el menu, platos, precios, especialidades o recomendaciones SIEMPRE responde con detalle usando la informacion que tienes.
+- Para MODIFICAR una reserva, primero pregunta QUE quiere cambiar (fecha, hora o personas) antes de confirmar nada. Nunca modifiques sin confirmacion explicita del cliente.
+- Para CANCELAR, identifica primero que reserva quiere cancelar y pide confirmacion antes de procesar.
+- Para NUEVA reserva sigue SIEMPRE este orden exacto:
+  1. Si no sabes el nombre preguntalo aunque conozcas al cliente
+  2. Recoge nombre, fecha, hora y personas (pregunta los que falten uno a uno)
+  3. Pregunta: "Tienes alguna alergia, preferencia alimentaria o es alguna ocasion especial?"
+  4. Espera la respuesta del cliente aunque diga que no
+  5. Resume TODOS los datos incluyendo notas si las hay y pregunta "Es correcto?"
+  6. Espera que el cliente diga SI explicitamente antes de procesar
+  7. Solo cuando confirme di EXACTAMENTE: "un momento por favor ACCION:NUEVA"
+
+ACCIONES DISPONIBLES — usar SOLO cuando el cliente haya confirmado:
+- Nueva reserva confirmada: "un momento por favor ACCION:NUEVA"
+- Cancelacion confirmada: "un momento por favor ACCION:CANCELAR"
+- Modificacion confirmada: "un momento por favor ACCION:MODIFICAR"
+- Ver reservas del cliente: "un momento por favor ACCION:CONSULTAR"
+- Lista de espera confirmada: "un momento por favor ACCION:ESPERA"
+- Consultar disponibilidad: "un momento por favor ACCION:DISPONIBILIDAD"
+
+ERRORES A EVITAR:
+- No proceses ninguna accion sin confirmacion explicita del cliente
+- No uses "un momento por favor" para nada que no sea una ACCION
+- No confirmes una reserva si el cliente no ha dicho SI claramente
+- No asumas el nombre del cliente aunque lo conozcas, preguntalo siempre`;
+
+  if (contexto?.cliente?.nombre) {
+    prompt += ` El cliente se llama ${contexto.cliente.nombre}, saludale por su nombre.`;
+  }
+  if (contexto?.reservas?.length > 0) {
+    const reservasTexto = contexto.reservas.map(r => `${r.nombre} - ${r.fecha} a las ${r.hora} para ${r.personas} personas`).join(', ');
+    prompt += ` Sus reservas recientes: ${reservasTexto}.`;
+  }
+
+  return prompt;
+};
+
+app.set('view engine', 'ejs');
+
+function requireLogin(req, res, next) {
+  if (!req.session.usuario) return res.redirect('/login');
+  next();
+}
+
+function requireAdmin(req, res, next) {
+  if (!req.session.usuario || req.session.usuario.rol !== 'admin') return res.redirect('/panel');
+  next();
+}
+
+app.get('/', (req, res) => res.render('landing'));
+app.get('/legal', (req, res) => res.render('legal'));
+
+app.get('/login', (req, res) => res.render('login', { error: null }));
+
+app.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  const usuario = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+  if (usuario.rows.length === 0) return res.render('login', { error: 'Email o contrasena incorrectos.' });
+  const valido = await bcrypt.compare(password, usuario.rows[0].password);
+  if (!valido) return res.render('login', { error: 'Email o contrasena incorrectos.' });
+  req.session.usuario = usuario.rows[0];
+  if (usuario.rows[0].rol === 'admin') {
+    res.redirect('/admin');
+  } else {
+    res.redirect('/panel');
+  }
+});
+
+app.get('/registro', (req, res) => res.render('registro', { error: null }));
+
+app.post('/registro', async (req, res) => {
+  const { nombre, restaurante, email, password } = req.body;
+  const existe = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+  if (existe.rows.length > 0) return res.render('registro', { error: 'Ya existe una cuenta con ese email.' });
+  const hash = await bcrypt.hash(password, 10);
+  await db.query('INSERT INTO usuarios (nombre, email, password, restaurante) VALUES ($1, $2, $3, $4)', [nombre, email, hash, restaurante]);
+  res.redirect('/login');
+});
+
+app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
+
+app.post('/llamada', async (req, res) => {
+  try {
+    const callSid = req.body.CallSid;
+    const telefono = req.body.From || callSid;
+    const numeroTwilio = req.body.To || null;
+    console.log('Llamada recibida de:', telefono);
+
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Connect>
+    <Stream url="wss://reservas-bot-production.up.railway.app/media-stream">
+      <Parameter name="callSid" value="${callSid}"/>
+      <Parameter name="to" value="${numeroTwilio || ''}"/>
+      <Parameter name="from" value="${telefono || ''}"/>
+    </Stream>
+  </Connect>
+</Response>`;
+    res.type('text/xml');
+    res.send(twiml);
+  } catch (err) {
+    console.error('Error en /llamada:', err);
+    res.type('text/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say language="es-ES">Lo sentimos, ha ocurrido un error.</Say></Response>`);
+  }
+});
+
+app.post('/responder', async (req, res) => {
+  try {
+    const callSid = req.body.CallSid;
+    const telefono = req.body.From || callSid;
+    const numeroTwilio = req.body.To || null;
+    const textoCliente = req.body.SpeechResult || '';
+    console.log('Cliente dijo:', textoCliente);
+    const hoy = new Date().toISOString().split('T')[0];
+    const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
+    const contexto = await obtenerContextoCliente(telefono);
+    const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
+    if (!conversaciones[callSid]) {
+      conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
+    }
+    conversaciones[callSid].push({ role: 'user', content: textoCliente });
+    const respuestaIA = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 150,
+      messages: conversaciones[callSid]
+    });
+    let mensaje = respuestaIA.choices[0].message.content;
+    conversaciones[callSid].push({ role: 'assistant', content: mensaje });
+    console.log('Mensaje completo:', mensaje);
+    if (mensaje.toLowerCase().includes('un momento por favor')) {
+      const datos = await extraerDatosReserva(conversaciones[callSid]);
+      try {
+        mensaje = await procesarAccion(datos, callSid, contexto, telefono, usuarioId, config);
+      } catch (err) {
+        console.error('Error en procesarAccion:', err.message);
+        mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
+      }
+      console.log('Respuesta final:', mensaje);
+      if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('procesada') || mensaje.includes('lista de espera')) {
+        const nuevoContexto = await obtenerContextoCliente(telefono);
+        conversaciones[callSid] = [
+          { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
+          { role: 'assistant', content: mensaje }
+        ];
+      }
+    }
+    const audioUrlResp = `https://reservas-bot-production.up.railway.app/audio?texto=${encodeURIComponent(mensaje)}`;
+    const twiml = ELEVENLABS_ENABLED
+      ? `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
+    <Play>${audioUrlResp}</Play>
+  </Gather>
+</Response>`
+      : `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
+    <Say language="es-ES">${mensaje}</Say>
+  </Gather>
+</Response>`;
+    res.type('text/xml');
+    res.send(twiml);
+  } catch (err) {
+    console.error('Error en /responder:', err);
+    res.type('text/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say language="es-ES">Lo sentimos, ha ocurrido un error. Por favor intentelo de nuevo.</Say></Response>`);
+  }
+});
+
+app.post('/whatsapp', async (req, res) => {
+  try {
+    const from = req.body.From;
+    const mensaje = req.body.Body;
+    const numeroTwilio = req.body.To || null;
+    console.log('WhatsApp de:', from, '→', mensaje);
+    const hoy = new Date().toISOString().split('T')[0];
+    const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
+    const contexto = await obtenerContextoCliente(from);
+    const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
+    if (!conversacionesWhatsapp[from]) {
+      conversacionesWhatsapp[from] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
+    }
+    conversacionesWhatsapp[from].push({ role: 'user', content: mensaje });
+    const respuestaIA = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 150,
+      messages: conversacionesWhatsapp[from]
+    });
+    let respuesta = respuestaIA.choices[0].message.content;
+    console.log('Bot responde:', respuesta);
+    conversacionesWhatsapp[from].push({ role: 'assistant', content: respuesta });
+    if (respuesta.toLowerCase().includes('un momento por favor')) {
+      const datos = await extraerDatosReserva(conversacionesWhatsapp[from]);
+      try {
+        respuesta = await procesarAccion(datos, from, contexto, from, usuarioId, config);
+      } catch (err) {
+        console.error('Error en procesarAccion WhatsApp:', err.message);
+        respuesta = 'Tu reserva ha sido procesada. Te esperamos!';
+      }
+      if (respuesta.includes('confirmada') || respuesta.includes('cancelada') || respuesta.includes('modificada') || respuesta.includes('procesada') || respuesta.includes('lista de espera')) {
+        const nuevoContexto = await obtenerContextoCliente(from);
+        conversacionesWhatsapp[from] = [
+          { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
+          { role: 'assistant', content: respuesta }
+        ];
+      }
+    }
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>${respuesta}</Message>
+</Response>`;
+    res.type('text/xml');
+    res.send(twiml);
+  } catch (err) {
+    console.error('ERROR en whatsapp:', err);
+    res.type('text/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Message>Error interno.</Message></Response>`);
+  }
+});
+
+app.get('/panel', requireLogin, async (req, res) => {
+  const fechaFiltro = req.query.fecha || null;
+  const error = req.query.error || null;
+  const hoy = new Date().toISOString().split('T')[0];
+  const usuarioId = req.session.usuario.id;
+  const todas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY creada_en DESC', [usuarioId]);
+  const hoyQuery = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 AND fecha = $2 ORDER BY hora ASC', [usuarioId, hoy]);
+  let filtradas = [];
+  if (fechaFiltro) {
+    const filtroQuery = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 AND fecha = $2 ORDER BY hora ASC', [usuarioId, fechaFiltro]);
+    filtradas = filtroQuery.rows;
+  }
+  const espera = await db.query('SELECT * FROM lista_espera WHERE usuario_id = $1 ORDER BY creada_en ASC', [usuarioId]);
+  res.render('reservas', {
+    reservas: todas.rows,
+    reservasHoy: hoyQuery.rows,
+    reservasFiltradas: filtradas,
+    listaEspera: espera.rows,
+    fechaFiltro,
+    error,
+    usuario: req.session.usuario
+  });
+});
+
+app.get('/api/reservas', requireLogin, async (req, res) => {
+  const resultado = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY creada_en DESC', [req.session.usuario.id]);
+  res.json(resultado.rows);
+});
+
+app.post('/cancelar/:id', requireLogin, async (req, res) => {
+  await db.query('DELETE FROM reservas WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
+  res.redirect('/panel');
+});
+
+app.post('/editar-reserva/:id', requireLogin, async (req, res) => {
+  const { nombre, fecha, hora, personas } = req.body;
+  const usuarioId = req.session.usuario.id;
+  const ahora = new Date();
+  const fechaHoraReserva = new Date(`${fecha}T${hora}`);
+  if (fechaHoraReserva <= ahora) return res.redirect('/panel?error=fecha');
+  const disponibilidad = await hayDisponibilidad(fecha, hora, parseInt(personas));
+  if (!disponibilidad.disponible) return res.redirect('/panel?error=cupo');
+  await db.query(
+    'UPDATE reservas SET nombre=$1, fecha=$2, hora=$3, personas=$4 WHERE id=$5 AND usuario_id=$6',
+    [nombre, fecha, hora, parseInt(personas), req.params.id, usuarioId]
+  );
+  res.redirect('/panel');
+});
+
+app.post('/nueva-reserva', requireLogin, async (req, res) => {
+  const { nombre, fecha, hora, personas, telefono, prefijo, notas } = req.body;
+  const telefonoCompleto = telefono ? `${prefijo || '+34'}${telefono.replace(/\s/g, '')}` : null;
+  const ahora = new Date();
+  const fechaHoraReserva = new Date(`${fecha}T${hora}`);
+  if (fechaHoraReserva <= ahora) return res.redirect('/panel?error=fecha');
+  const disponibilidad = await hayDisponibilidad(fecha, hora, parseInt(personas));
+  if (!disponibilidad.disponible) return res.redirect('/panel?error=cupo');
+  if (!telefonoCompleto) return res.redirect('/panel?error=telefono');
+  await db.query(
+    'INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal, notas) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+    ['manual', nombre, fecha, hora, parseInt(personas), telefonoCompleto, req.session.usuario.id, 'manual', notas || null]
+  );
+  await obtenerOCrearCliente(telefonoCompleto, nombre);
+  await enviarEmailRestaurante(req.session.usuario.id, { nombre, fecha, hora, personas, canal: 'manual', notas });
+  res.redirect('/panel');
+});
+
+app.get('/clientes', requireLogin, async (req, res) => {
+  const usuarioId = req.session.usuario.id;
+  const clientes = await db.query(`
+    SELECT c.*, COUNT(r.id) as total_reservas,
+    MODE() WITHIN GROUP (ORDER BY r.canal) as canal_frecuente
+    FROM clientes c
+    INNER JOIN reservas r ON r.telefono_cliente = c.telefono
+    WHERE r.usuario_id = $1
+    GROUP BY c.id
+    ORDER BY total_reservas DESC, c.ultima_visita DESC
+  `, [usuarioId]);
+  res.render('clientes', { clientes: clientes.rows, usuario: req.session.usuario });
+});
+
+app.get('/clientes/:id', requireLogin, async (req, res) => {
+  const usuarioId = req.session.usuario.id;
+  const clienteId = req.params.id;
+  const cliente = await db.query('SELECT * FROM clientes WHERE id = $1', [clienteId]);
+  if (cliente.rows.length === 0) return res.redirect('/clientes');
+  const reservas = await db.query(
+    'SELECT * FROM reservas WHERE telefono_cliente = $1 AND usuario_id = $2 ORDER BY creada_en DESC',
+    [cliente.rows[0].telefono, usuarioId]
+  );
+  res.render('cliente-detalle', { cliente: cliente.rows[0], reservas: reservas.rows, usuario: req.session.usuario });
+});
+
+app.get('/configuracion', requireLogin, async (req, res) => {
+  const usuarioId = req.session.usuario.id;
+  const config = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
+  const mesas = await db.query('SELECT * FROM mesas ORDER BY numero ASC');
+  const diasCerrados = await db.query('SELECT * FROM dias_cerrados WHERE usuario_id = $1 ORDER BY fecha ASC', [usuarioId]);
+  res.render('configuracion', {
+    config: config.rows.length > 0 ? config.rows[0] : {},
+    mesas: mesas.rows,
+    diasCerrados: diasCerrados.rows,
+    usuario: req.session.usuario,
+    exito: req.query.exito || null
+  });
+});
+
+app.post('/configuracion', requireLogin, async (req, res) => {
+  const usuarioId = req.session.usuario.id;
+  const { restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad } = req.body;
+  const existe = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
+  if (existe.rows.length > 0) {
+    await db.query(
+      'UPDATE configuracion SET restaurante=$1, telefono=$2, direccion=$3, horario=$4, aparcamiento=$5, menu=$6, especialidad=$7 WHERE usuario_id=$8',
+      [restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, usuarioId]
+    );
+  } else {
+    await db.query(
+      'INSERT INTO configuracion (usuario_id, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+      [usuarioId, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad]
+    );
+  }
+  await db.query('UPDATE usuarios SET restaurante = $1 WHERE id = $2', [restaurante, usuarioId]);
+  req.session.usuario.restaurante = restaurante;
+  res.redirect('/configuracion?exito=1');
+});
+
+app.post('/mesas/añadir', requireLogin, async (req, res) => {
+  const { numero, capacidad } = req.body;
+  await db.query('INSERT INTO mesas (numero, capacidad) VALUES ($1, $2)', [parseInt(numero), parseInt(capacidad)]);
+  res.redirect('/configuracion');
+});
+
+app.post('/mesas/eliminar/:id', requireLogin, async (req, res) => {
+  await db.query('DELETE FROM mesas WHERE id = $1', [req.params.id]);
+  res.redirect('/configuracion');
+});
+
+app.post('/dias-cerrados/anadir', requireLogin, async (req, res) => {
+  const { fecha, fecha_fin, motivo, tipo, dia_semana } = req.body;
+  await db.query(
+    'INSERT INTO dias_cerrados (usuario_id, fecha, fecha_fin, motivo, tipo, dia_semana) VALUES ($1, $2, $3, $4, $5, $6)',
+    [req.session.usuario.id, fecha || null, fecha_fin || null, motivo || null, tipo || 'fecha', dia_semana || null]
+  );
+  res.redirect('/configuracion');
+});
+
+app.post('/dias-cerrados/eliminar/:id', requireLogin, async (req, res) => {
+  await db.query('DELETE FROM dias_cerrados WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
+  res.redirect('/configuracion');
+});
+
+app.get('/exportar-reservas', requireLogin, async (req, res) => {
+  const usuarioId = req.session.usuario.id;
+  const reservas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY fecha ASC, hora ASC', [usuarioId]);
+  const csv = [
+    'Nombre,Fecha,Hora,Personas,Canal,Estado,Recibida',
+    ...reservas.rows.map(r => `${r.nombre},${r.fecha},${r.hora},${r.personas},${r.canal || ''},${r.estado || 'confirmada'},${new Date(r.creada_en).toLocaleDateString('es-ES')}`)
+  ].join('\n');
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=reservas.csv');
+  res.send(csv);
+});
+
+app.get('/admin', requireAdmin, async (req, res) => {
+  const restaurantes = await db.query(`
+    SELECT u.*, COUNT(r.id) as total_reservas
+    FROM usuarios u
+    LEFT JOIN reservas r ON r.usuario_id = u.id
+    WHERE u.rol != 'admin' OR u.rol IS NULL
+    GROUP BY u.id
+    ORDER BY u.creado_en DESC
+  `);
+  const totalReservas = await db.query('SELECT COUNT(*) FROM reservas');
+  const totalClientes = await db.query('SELECT COUNT(*) FROM clientes');
+  const hoy = new Date().toISOString().split('T')[0];
+  const reservasHoy = await db.query('SELECT COUNT(*) FROM reservas WHERE fecha = $1', [hoy]);
+  res.render('admin', {
+    restaurantes: restaurantes.rows,
+    totalReservas: totalReservas.rows[0].count,
+    totalClientes: totalClientes.rows[0].count,
+    reservasHoy: reservasHoy.rows[0].count,
+    usuario: req.session.usuario
+  });
+});
+
+app.post('/admin/restaurante/:id/eliminar', requireAdmin, async (req, res) => {
+  await db.query('DELETE FROM reservas WHERE usuario_id = $1', [req.params.id]);
+  await db.query('DELETE FROM configuracion WHERE usuario_id = $1', [req.params.id]);
+  await db.query('DELETE FROM dias_cerrados WHERE usuario_id = $1', [req.params.id]);
+  await db.query('DELETE FROM usuarios WHERE id = $1', [req.params.id]);
+  res.redirect('/admin');
+});
+
+app.get('/test-recordatorios', requireLogin, async (req, res) => {
+  const manana = new Date();
+  manana.setDate(manana.getDate() + 1);
+  const fechaManana = manana.toISOString().split('T')[0];
+  const reservas = await db.query(
+    'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
+    [fechaManana]
+  );
+  for (const reserva of reservas.rows) {
+    if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
+      await enviarWhatsApp(
+        reserva.telefono_cliente,
+        `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas. Si necesitas cancelar o modificar respondenos a este mensaje.`
+      );
+    }
+  }
+  res.send(`Recordatorios enviados para ${reservas.rows.length} reservas del ${fechaManana}`);
+});
+
+cron.schedule('0 10 * * *', async () => {
+  console.log('Ejecutando recordatorios...');
+  try {
+    const manana = new Date();
+    manana.setDate(manana.getDate() + 1);
+    const fechaManana = manana.toISOString().split('T')[0];
+    const reservas = await db.query(
+      'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
+      [fechaManana]
+    );
+    for (const reserva of reservas.rows) {
+      if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
+        await enviarWhatsApp(
+          reserva.telefono_cliente,
+          `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas.`
+        );
+      }
+      await enviarEmailRestaurante(reserva.usuario_id, {
+        nombre: reserva.nombre,
+        fecha: reserva.fecha,
+        hora: reserva.hora,
+        personas: reserva.personas,
+        canal: 'Recordatorio automatico'
       });
     }
-    renderChart();
-  </script>
-</body>
-</html>
+    console.log('Recordatorios completados.');
+  } catch (err) {
+    console.error('Error en recordatorios:', err.message);
+  }
+});
+
+app.post('/borrar-reservas-pasadas', requireLogin, async (req, res) => {
+  const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+  const resultado = await db.query(
+    'DELETE FROM reservas WHERE usuario_id = $1 AND fecha < $2',
+    [req.session.usuario.id, hoy]
+  );
+  console.log(`Reservas pasadas eliminadas: ${resultado.rowCount}`);
+  res.redirect('/panel');
+});
+
+app.post('/espera/eliminar/:id', requireLogin, async (req, res) => {
+  await db.query('DELETE FROM lista_espera WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
+  res.redirect('/panel');
+});
+
+const PORT = process.env.PORT || 3000;
+const server = require('http').createServer(app);
+const { WebSocketServer } = require('ws');
+const wss = new WebSocketServer({ server, path: '/media-stream' });
+
+setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerContextoCliente, obtenerUsuarioPorNumero, obtenerConfigRestaurante, SYSTEM_PROMPT);
+
+server.listen(PORT, () => {
+  console.log('Servidor escuchando en puerto', PORT);
+});

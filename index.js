@@ -277,40 +277,42 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
     });
     return `Reserva modificada correctamente. Nueva fecha: ${nuevaFecha} a las ${nuevaHora} para ${nuevasPersonas} personas.`;
   }
-if (datos.accion === 'DISPONIBILIDAD') {
-  const fecha = datos.fecha || new Date().toISOString().split('T')[0];
-  const personas = datos.personas || 2;
-  const horasFiltro = datos.hora;
-  
-  const horasMediodía = ['13:00','13:30','14:00','14:30','15:00','15:30'];
-  const horasNoche = ['20:00','20:30','21:00','21:30','22:00','22:30','23:00'];
-  
-  let horasAComprobar;
-  if (horasFiltro) {
-    const horaNum = parseInt(horasFiltro.replace(':', ''));
-    horasAComprobar = horaNum >= 2000 ? horasNoche : horasMediodía;
-  } else {
-    horasAComprobar = [...horasMediodía, ...horasNoche];
+
+  if (datos.accion === 'DISPONIBILIDAD') {
+    const fecha = datos.fecha || new Date().toISOString().split('T')[0];
+    const personas = datos.personas || 2;
+    const horasFiltro = datos.hora;
+    
+    const horasMediodía = ['13:00','13:30','14:00','14:30','15:00','15:30'];
+    const horasNoche = ['20:00','20:30','21:00','21:30','22:00','22:30','23:00'];
+    
+    let horasAComprobar;
+    if (horasFiltro) {
+      const horaNum = parseInt(horasFiltro.replace(':', ''));
+      horasAComprobar = horaNum >= 2000 ? horasNoche : horasMediodía;
+    } else {
+      horasAComprobar = [...horasMediodía, ...horasNoche];
+    }
+
+    const horasLibres = [];
+    for (const hora of horasAComprobar) {
+      const disp = await hayDisponibilidad(fecha, hora, personas);
+      if (disp.disponible) horasLibres.push(hora);
+    }
+
+    if (horasLibres.length === 0) return `Lo siento, no tenemos mesas disponibles para ${personas} personas el ${fecha}.`;
+    
+    const libresMediaodia = horasLibres.filter(h => parseInt(h.replace(':', '')) < 1600);
+    const libresNoche = horasLibres.filter(h => parseInt(h.replace(':', '')) >= 2000);
+    
+    let respuesta = `Para ${personas} personas el ${fecha} tenemos disponibilidad`;
+    if (libresMediaodia.length > 0) respuesta += ` al mediodia: ${libresMediaodia.join(', ')}`;
+    if (libresMediaodia.length > 0 && libresNoche.length > 0) respuesta += ` y`;
+    if (libresNoche.length > 0) respuesta += ` por la noche: ${libresNoche.join(', ')}`;
+    respuesta += `. Quieres reservar alguna de estas horas?`;
+    return respuesta;
   }
 
-  const horasLibres = [];
-  for (const hora of horasAComprobar) {
-    const disp = await hayDisponibilidad(fecha, hora, personas);
-    if (disp.disponible) horasLibres.push(hora);
-  }
-
-  if (horasLibres.length === 0) return `Lo siento, no tenemos mesas disponibles para ${personas} personas el ${fecha}.`;
-  
-  const libresMediaodia = horasLibres.filter(h => parseInt(h.replace(':', '')) < 1600);
-  const libresNoche = horasLibres.filter(h => parseInt(h.replace(':', '')) >= 2000);
-  
-  let respuesta = `Para ${personas} personas el ${fecha} tenemos disponibilidad`;
-  if (libresMediaodia.length > 0) respuesta += ` al mediodia: ${libresMediaodia.join(', ')}`;
-  if (libresMediaodia.length > 0 && libresNoche.length > 0) respuesta += ` y`;
-  if (libresNoche.length > 0) respuesta += ` por la noche: ${libresNoche.join(', ')}`;
-  respuesta += `. Quieres reservar alguna de estas horas?`;
-  return respuesta;
-}
   if (datos.accion === 'ESPERA') {
     if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas para apuntarte a la lista de espera.';
     await db.query(
@@ -336,11 +338,11 @@ if (datos.accion === 'DISPONIBILIDAD') {
         (tipo = 'semana' AND dia_semana = $3) OR
         (tipo = 'rango' AND fecha <= $2 AND fecha_fin >= $2)
      )`, [uid, datos.fecha, diaSemana]
-    );
-    if (diaCerrado.rows.length > 0) {
-       const motivo = diaCerrado.rows[0].motivo || 'ese dia estamos cerrados';
-       return `Lo siento, ${motivo}. No podemos aceptar reservas para esa fecha. Elige otro dia.`;
-    }
+      );
+      if (diaCerrado.rows.length > 0) {
+        const motivo = diaCerrado.rows[0].motivo || 'ese dia estamos cerrados';
+        return `Lo siento, ${motivo}. No podemos aceptar reservas para esa fecha. Elige otro dia.`;
+      }
     }
 
     if (config?.horario) {
@@ -400,7 +402,7 @@ const SYSTEM_PROMPT = (hoy, contexto, config = null) => {
   const especialidad = config?.especialidad || 'Cocido madrileno los jueves';
   const aparcamiento = config?.aparcamiento || 'Parking publico a 200 metros';
 
-let prompt = `Eres Laura, una asistente de reservas amable y natural de ${nombre}. Hoy es ${hoy}.
+  let prompt = `Eres Laura, una asistente de reservas amable y natural de ${nombre}. Hoy es ${hoy}.
 
 PERSONALIDAD:
 - Habla de forma natural y cercana, como una recepcionista real
@@ -879,10 +881,22 @@ cron.schedule('0 10 * * *', async () => {
     console.error('Error en recordatorios:', err.message);
   }
 });
+
+app.post('/borrar-reservas-pasadas', requireLogin, async (req, res) => {
+  const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+  const resultado = await db.query(
+    'DELETE FROM reservas WHERE usuario_id = $1 AND fecha < $2',
+    [req.session.usuario.id, hoy]
+  );
+  console.log(`Reservas pasadas eliminadas: ${resultado.rowCount}`);
+  res.redirect('/panel');
+});
+
 app.post('/espera/eliminar/:id', requireLogin, async (req, res) => {
   await db.query('DELETE FROM lista_espera WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
   res.redirect('/panel');
 });
+
 const PORT = process.env.PORT || 3000;
 const server = require('http').createServer(app);
 const { WebSocketServer } = require('ws');
