@@ -143,25 +143,110 @@ async function obtenerUsuarioPorNumero(numero) {
   return await obtenerUsuarioPorDefecto();
 }
 
-async function hayDisponibilidad(fecha, hora, personas, uid = null) {
-  if (personas > 4) return { disponible: false, motivo: 'No tenemos mesas para mas de 4 personas.' };
-  const capacidadNecesaria = personas <= 2 ? 2 : 4;
-  const mesasAdecuadas = await db.query(
-    'SELECT id FROM mesas WHERE capacidad = $1 AND usuario_id = $2',
-    [capacidadNecesaria, uid]
-  );
-  const [horaH, horaM] = hora.split(':').map(Number);
-  const horaInicio = `${String(horaH - 1).padStart(2, '0')}:${String(horaM).padStart(2, '0')}`;
-  const horaFin = `${String(horaH + 1).padStart(2, '0')}:${String(horaM).padStart(2, '0')}`;
-  const reservasOcupadas = await db.query(
-    `SELECT COUNT(*) FROM reservas WHERE fecha = $1 AND hora >= $2 AND hora <= $3 AND personas > $4 AND usuario_id = $5`,
-    [fecha, horaInicio, horaFin, capacidadNecesaria === 2 ? 0 : 2, uid]
-  );
-  const totalMesas = mesasAdecuadas.rows.length;
-  const ocupadas = parseInt(reservasOcupadas.rows[0].count);
-  if (ocupadas >= totalMesas) return { disponible: false, motivo: `No quedan mesas disponibles para ${personas} personas en ese horario.` };
-  return { disponible: true };
+// ============================================================
+// Disponibilidad de mesas
+// ------------------------------------------------------------
+// Simula la asignación real de mesas a reservas que solapan en
+// el tiempo, usando una estrategia best-fit (la mesa más pequeña
+// que acomode al grupo). Esto permite:
+//   - Aprovechar al máximo el aforo del restaurante
+//   - Reservar mesas grandes para grupos que las necesiten
+//   - Hacer overflow a mesas mayores si no hay opción ideal
+//   - Bloquear cada mesa durante DURACION_SERVICIO_MIN minutos
+//   - Aislar disponibilidad por restaurante (usuario_id)
+// ============================================================
+
+const DURACION_SERVICIO_MIN = 90; // tiempo que una mesa queda ocupada
+
+function horaAMinutos(hora) {
+  const [h, m] = hora.split(':').map(Number);
+  return h * 60 + m;
 }
+
+function minutosAHora(min) {
+  const seguro = Math.max(0, Math.min(min, 23 * 60 + 59));
+  return `${String(Math.floor(seguro / 60)).padStart(2, '0')}:${String(seguro % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Comprueba si hay mesa disponible para una reserva.
+ *
+ * @param {string} fecha           Fecha en formato YYYY-MM-DD
+ * @param {string} hora            Hora en formato HH:MM
+ * @param {number} personas        Tamaño del grupo
+ * @param {number} uid             ID del restaurante
+ * @param {number} [excluirId]     ID de reserva a ignorar (al modificar)
+ * @returns {Promise<{disponible: boolean, motivo?: string, mesaId?: number}>}
+ */
+async function hayDisponibilidad(fecha, hora, personas, uid = null, excluirId = null) {
+  if (!uid) return { disponible: false, motivo: 'Usuario no identificado.' };
+  if (!personas || personas < 1) return { disponible: false, motivo: 'Numero de personas invalido.' };
+
+  // 1. Cargar mesas del restaurante (orden ascendente para best-fit).
+  const { rows: mesas } = await db.query(
+    'SELECT id, numero, capacidad FROM mesas WHERE usuario_id = $1 ORDER BY capacidad ASC, numero ASC',
+    [uid]
+  );
+
+  if (mesas.length === 0) {
+    return { disponible: false, motivo: 'El restaurante no tiene mesas configuradas.' };
+  }
+
+  const capacidadMaxima = mesas.reduce((max, m) => Math.max(max, m.capacidad), 0);
+  if (personas > capacidadMaxima) {
+    return { disponible: false, motivo: `No tenemos mesas para mas de ${capacidadMaxima} personas.` };
+  }
+
+  // 2. Calcular la ventana temporal en la que otra reserva ocuparia la misma mesa.
+  //    Dos reservas solapan si la diferencia entre sus horas de inicio < DURACION.
+  const minSolicitados = horaAMinutos(hora);
+  const ventanaInicio = minutosAHora(minSolicitados - DURACION_SERVICIO_MIN + 1);
+  const ventanaFin = minutosAHora(minSolicitados + DURACION_SERVICIO_MIN - 1);
+
+  // 3. Reservas existentes que podrian competir por una mesa en ese momento.
+  const params = [uid, fecha, ventanaInicio, ventanaFin];
+  let sql = `
+    SELECT id, hora, personas
+    FROM reservas
+    WHERE usuario_id = $1
+      AND fecha = $2
+      AND hora >= $3
+      AND hora <= $4
+  `;
+  if (excluirId) {
+    sql += ' AND id <> $5';
+    params.push(excluirId);
+  }
+  sql += ' ORDER BY hora ASC, id ASC';
+
+  const { rows: reservasSolapadas } = await db.query(sql, params);
+
+  // 4. Simular la asignacion best-fit de mesas a las reservas que ya existen.
+  //    A cada reserva confirmada se le da la mesa libre mas pequena que la acomode.
+  const mesasOcupadas = new Set();
+
+  for (const r of reservasSolapadas) {
+    const minR = horaAMinutos(r.hora);
+    if (Math.abs(minR - minSolicitados) >= DURACION_SERVICIO_MIN) continue; // no solapa realmente
+
+    const mesa = mesas.find(m => !mesasOcupadas.has(m.id) && m.capacidad >= r.personas);
+    if (mesa) mesasOcupadas.add(mesa.id);
+    // Si no encuentra mesa, la reserva existente quedaria sin asignar; la ignoramos
+    // porque ya esta confirmada en BD y no afecta a la decision actual.
+  }
+
+  // 5. Asignar la mejor mesa libre al grupo solicitado.
+  const mesaParaNuevaReserva = mesas.find(m => !mesasOcupadas.has(m.id) && m.capacidad >= personas);
+
+  if (mesaParaNuevaReserva) {
+    return { disponible: true, mesaId: mesaParaNuevaReserva.id };
+  }
+
+  return {
+    disponible: false,
+    motivo: `No quedan mesas disponibles para ${personas} personas en ese horario.`
+  };
+}S
 
 async function obtenerListaEspera(usuarioId, fecha, hora, personas) {
   const lista = await db.query(
