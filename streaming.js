@@ -11,7 +11,7 @@ async function textToSpeechStream(text) {
     const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
       text,
       model_id: 'eleven_turbo_v2_5',
-     voice_settings: { stability: 0.8, similarity_boost: 0.85, style: 0, use_speaker_boost: true },
+      voice_settings: { stability: 0.8, similarity_boost: 0.85, style: 0, use_speaker_boost: true },
       output_format: 'ulaw_8000'
     });
 
@@ -36,6 +36,12 @@ async function textToSpeechStream(text) {
   }
 }
 
+// FIX: helper timezone Madrid
+function fechaHoyMadrid() {
+  const ahora = new Date();
+  return ahora.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+}
+
 function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerContextoCliente, obtenerUsuarioPorNumero, obtenerConfigRestaurante, SYSTEM_PROMPT) {
   wss.on('connection', (ws) => {
     console.log('Media Stream WebSocket conectado');
@@ -49,19 +55,36 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
     let config = null;
     let transcripcionBuffer = '';
     let procesando = false;
+    let botHablando = false; // FIX: flag para no procesar audio del bot
+
+    async function enviarAudio(audioBase64) {
+      if (!audioBase64 || ws.readyState !== WebSocket.OPEN) return;
+
+      // FIX: limpiar audio anterior antes de enviar el nuevo
+      ws.send(JSON.stringify({ event: 'clear', streamSid }));
+
+      botHablando = true;
+      ws.send(JSON.stringify({
+        event: 'media',
+        streamSid,
+        media: { payload: audioBase64 }
+      }));
+      ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: 'fin' } }));
+    }
 
     async function iniciarDeepgram() {
       deepgramLive = deepgramClient.listen.live({
-      model: 'nova-2',
-      language: 'es',
-      smart_format: true,
-      encoding: 'mulaw',
-      sample_rate: 8000,
-      channels: 1,
-      interim_results: true,
-      utterance_end_ms: 1000,
-       vad_events: true
-    });
+        model: 'nova-2',
+        language: 'es',
+        smart_format: true,
+        numerals: true,        // FIX: transcribe números correctamente
+        encoding: 'mulaw',
+        sample_rate: 8000,
+        channels: 1,
+        interim_results: true,
+        utterance_end_ms: 1000,
+        vad_events: true
+      });
 
       deepgramLive.on(LiveTranscriptionEvents.Open, () => {
         console.log('Deepgram conectado');
@@ -71,6 +94,9 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
         const transcript = data.channel?.alternatives?.[0]?.transcript;
         if (!transcript) return;
 
+        // FIX: ignorar transcripciones mientras el bot habla
+        if (botHablando) return;
+
         if (data.is_final) {
           transcripcionBuffer += ' ' + transcript;
           transcripcionBuffer = transcripcionBuffer.trim();
@@ -79,7 +105,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
       });
 
       deepgramLive.on(LiveTranscriptionEvents.UtteranceEnd, async () => {
-        if (!transcripcionBuffer || procesando) return;
+        if (!transcripcionBuffer || procesando || botHablando) return; // FIX: también chequear botHablando
         const textoCliente = transcripcionBuffer.trim();
         transcripcionBuffer = '';
         procesando = true;
@@ -100,37 +126,29 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
           console.log('Respuesta IA:', mensaje);
 
           if (mensaje.toLowerCase().includes('un momento por favor')) {
-  try {
-    const datos = await extraerDatosReservaLocal(conversacion, openai);
-    console.log('Datos extraidos:', JSON.stringify(datos));
-    const contexto = await obtenerContextoCliente(telefonoCliente || callSid);
-    mensaje = await procesarAccion(datos, callSid, contexto, telefonoCliente || callSid, usuarioId, config);
-    console.log('Respuesta procesarAccion:', mensaje);
-    
-    if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('lista de espera')) {
-      const nuevoContexto = await obtenerContextoCliente(telefonoCliente || callSid);
-      const ahora = new Date();
-      const hoy = ahora.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
-      conversacion = [
-        { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
-        { role: 'assistant', content: mensaje }
-      ];
-    }
-  } catch (err) {
-    console.error('Error procesarAccion:', err.message);
-    mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
-  }
-}
+            try {
+              const datos = await extraerDatosReservaLocal(conversacion, openai);
+              console.log('Datos extraidos:', JSON.stringify(datos));
+              const contexto = await obtenerContextoCliente(telefonoCliente || callSid);
+              mensaje = await procesarAccion(datos, callSid, contexto, telefonoCliente || callSid, usuarioId, config);
+              console.log('Respuesta procesarAccion:', mensaje);
+
+              if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('lista de espera')) {
+                const nuevoContexto = await obtenerContextoCliente(telefonoCliente || callSid);
+                const hoy = fechaHoyMadrid(); // FIX: timezone Madrid
+                conversacion = [
+                  { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
+                  { role: 'assistant', content: mensaje }
+                ];
+              }
+            } catch (err) {
+              console.error('Error procesarAccion:', err.message);
+              mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
+            }
+          }
 
           const audioBase64 = await textToSpeechStream(mensaje);
-          if (audioBase64 && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-              event: 'media',
-              streamSid,
-              media: { payload: audioBase64 }
-            }));
-            ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: 'fin' } }));
-          }
+          await enviarAudio(audioBase64); // FIX: usar enviarAudio con clear
         } catch (err) {
           console.error('Error procesando:', err.message);
         } finally {
@@ -138,17 +156,21 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
         }
       });
 
+      // FIX: cuando Twilio confirma que terminó de reproducir, desactivar botHablando
+      // Esto se maneja en el evento 'mark' que llega de vuelta por ws.on('message')
+
       deepgramLive.on(LiveTranscriptionEvents.Error, (err) => {
         console.error('Error Deepgram:', err);
       });
     }
 
     async function extraerDatosReservaLocal(mensajes, openai) {
+      const hoy = fechaHoyMadrid(); // FIX: timezone Madrid
       const respuesta = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           ...mensajes,
-          { role: 'user', content: `Extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas, nueva_fecha, nueva_hora, nuevas_personas. La fecha en formato YYYY-MM-DD, hoy es ${new Date().toISOString().split('T')[0]}. La hora en HH:MM. Si falta un dato pon null. Solo JSON sin texto adicional.` }
+          { role: 'user', content: `Extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas, nueva_fecha, nueva_hora, nuevas_personas. La fecha en formato YYYY-MM-DD, hoy es ${hoy}. La hora en HH:MM. Si falta un dato pon null. Solo JSON sin texto adicional.` }
         ]
       });
       const texto = respuesta.choices[0].message.content.replace(/```json|```/g, '').trim();
@@ -167,13 +189,15 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
           case 'start':
             streamSid = data.start.streamSid;
             callSid = data.start.callSid;
-            telefonoCliente = data.start.customParameters?.from || callSid;
-            console.log('Stream iniciado:', streamSid, callSid);
+            // FIX: teléfono cliente — limpiar formato y fallback a callSid
+            const fromRaw = data.start.customParameters?.from || data.start.customParameters?.From || null;
+            telefonoCliente = fromRaw ? fromRaw.replace('whatsapp:', '') : callSid;
+            console.log('Stream iniciado:', streamSid, callSid, 'tel:', telefonoCliente);
 
-            usuarioId = await obtenerUsuarioPorNumero(data.start.customParameters?.to || null);
+            usuarioId = await obtenerUsuarioPorNumero(data.start.customParameters?.to || data.start.customParameters?.To || null);
             config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
 
-            const hoy = new Date().toISOString().split('T')[0];
+            const hoy = fechaHoyMadrid(); // FIX: timezone Madrid
             conversacion = [{ role: 'system', content: SYSTEM_PROMPT(hoy, { cliente: null, reservas: [] }, config) }];
 
             await iniciarDeepgram();
@@ -182,19 +206,22 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
             conversacion.push({ role: 'assistant', content: saludoTexto });
 
             const saludoAudio = await textToSpeechStream(saludoTexto);
-            if (saludoAudio && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({
-                event: 'media',
-                streamSid,
-                media: { payload: saludoAudio }
-              }));
-            }
+            await enviarAudio(saludoAudio); // FIX: usar enviarAudio con flag
             break;
 
           case 'media':
             if (deepgramLive && deepgramLive.getReadyState() === 1) {
               const audioBuffer = Buffer.from(data.media.payload, 'base64');
               deepgramLive.send(audioBuffer);
+            }
+            break;
+
+          case 'mark':
+            // FIX: Twilio confirma que terminó de reproducir → bot ya no habla
+            if (data.mark?.name === 'fin') {
+              botHablando = false;
+              transcripcionBuffer = ''; // limpiar cualquier basura que se haya colado
+              console.log('Bot terminó de hablar');
             }
             break;
 
