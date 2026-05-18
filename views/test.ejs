@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Panel de Pruebas — ReservasBot</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+  header { background: #1e293b; padding: 16px 24px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { margin: 0; font-size: 18px; }
+  header .badge { background: #f59e0b; color: #1a1a1a; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+  header .actions a, header .actions button { background: #334155; color: #e2e8f0; border: none; padding: 8px 12px; border-radius: 6px; text-decoration: none; cursor: pointer; font-size: 13px; margin-left: 6px; }
+  header .actions button.danger { background: #dc2626; }
+  .layout { display: grid; grid-template-columns: 1fr 1fr 380px; gap: 12px; padding: 12px; height: calc(100vh - 64px); }
+  .panel { background: #1e293b; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #334155; }
+  .panel h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
+  .chat { flex: 1; overflow-y: auto; background: #0f172a; border-radius: 8px; padding: 12px; margin-bottom: 10px; font-size: 13px; }
+  .msg { margin-bottom: 8px; padding: 8px 12px; border-radius: 12px; max-width: 85%; word-wrap: break-word; line-height: 1.4; }
+  .msg.user { background: #2563eb; margin-left: auto; }
+  .msg.bot { background: #334155; }
+  .msg.system { background: #422006; color: #fbbf24; font-size: 11px; font-style: italic; }
+  .controls { display: flex; gap: 6px; }
+  .controls input[type="text"] { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 13px; }
+  .controls button { padding: 8px 14px; background: #16a34a; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 13px; }
+  .controls button:hover { background: #15803d; }
+  .llm-control { background: #1e293b; border: 1px dashed #f59e0b; border-radius: 6px; padding: 10px; margin-bottom: 10px; font-size: 12px; }
+  .llm-control label { display: block; color: #fbbf24; font-weight: bold; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; }
+  .llm-control textarea { width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 12px; font-family: monospace; resize: vertical; }
+  .llm-control button { margin-top: 4px; padding: 4px 10px; background: #f59e0b; color: #1a1a1a; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
+  .llm-presets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .llm-presets button { background: #475569; color: #e2e8f0; font-weight: normal; }
+  .state-table { font-size: 11px; width: 100%; border-collapse: collapse; }
+  .state-table th { text-align: left; color: #94a3b8; padding: 4px; border-bottom: 1px solid #334155; }
+  .state-table td { padding: 4px; border-bottom: 1px solid #1e293b; font-family: monospace; }
+  .state-section { margin-bottom: 16px; }
+  .state-section h3 { font-size: 12px; color: #94a3b8; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .empty { color: #64748b; font-style: italic; font-size: 11px; padding: 4px; }
+  .pill { display: inline-block; background: #334155; padding: 1px 6px; border-radius: 10px; font-size: 10px; margin-left: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🧪 ReservasBot — Panel de Pruebas <span class="badge">TEST MODE</span></h1>
+  </div>
+  <div class="actions">
+    <a href="/test/login" target="_blank">Abrir panel admin →</a>
+    <button onclick="resetAll()" class="danger">Reset BD</button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- WhatsApp simulator -->
+  <div class="panel">
+    <h2>💬 Simulador WhatsApp</h2>
+    <div class="llm-control">
+      <label>Próxima respuesta de Laura (LLM stub)</label>
+      <textarea id="wa-llm-reply" rows="2" placeholder="Lo que Laura debe responder al próximo mensaje. Incluí 'un momento por favor ACCION:NUEVA' para disparar la acción."></textarea>
+      <label style="margin-top:6px">JSON de extracción (cuando dispare ACCION:*)</label>
+      <textarea id="wa-llm-json" rows="2" placeholder='{"accion":"NUEVA","nombre":"Juan","fecha":"2026-06-15","hora":"21:00","personas":2}'></textarea>
+      <button onclick="queueLlm('wa')">Encolar para próximo turno</button>
+      <div class="llm-presets">
+        <button onclick="presetAsk('wa','nombre')">→ pide nombre</button>
+        <button onclick="presetAsk('wa','fecha')">→ pide fecha</button>
+        <button onclick="presetAsk('wa','hora')">→ pide hora</button>
+        <button onclick="presetAsk('wa','personas')">→ pide personas</button>
+        <button onclick="presetConfirm('wa')">→ confirma + ACCION:NUEVA</button>
+      </div>
+    </div>
+    <div class="chat" id="chat-wa"></div>
+    <div class="controls">
+      <input type="text" id="input-wa" placeholder="Escribí como cliente WhatsApp..." onkeydown="if(event.key==='Enter')sendWa()">
+      <button onclick="sendWa()">Enviar</button>
+    </div>
+  </div>
+
+  <!-- Voice simulator -->
+  <div class="panel">
+    <h2>📞 Simulador Llamada (texto)</h2>
+    <div class="llm-control">
+      <label>Próxima respuesta de Laura (LLM stub)</label>
+      <textarea id="vz-llm-reply" rows="2"></textarea>
+      <label style="margin-top:6px">JSON de extracción</label>
+      <textarea id="vz-llm-json" rows="2"></textarea>
+      <button onclick="queueLlm('vz')">Encolar para próximo turno</button>
+      <div class="llm-presets">
+        <button onclick="presetAsk('vz','nombre')">→ pide nombre</button>
+        <button onclick="presetAsk('vz','fecha')">→ pide fecha</button>
+        <button onclick="presetAsk('vz','hora')">→ pide hora</button>
+        <button onclick="presetAsk('vz','personas')">→ pide personas</button>
+        <button onclick="presetConfirm('vz')">→ confirma + ACCION:NUEVA</button>
+      </div>
+    </div>
+    <div class="chat" id="chat-vz"></div>
+    <div class="controls">
+      <input type="text" id="input-vz" placeholder="Escribí lo que diría el cliente al teléfono..." onkeydown="if(event.key==='Enter')sendVz()">
+      <button onclick="sendVz()">Enviar</button>
+    </div>
+  </div>
+
+  <!-- State -->
+  <div class="panel">
+    <h2>📊 Estado BD</h2>
+    <div id="state" style="overflow-y:auto; flex:1;"></div>
+  </div>
+
+</div>
+
+<script>
+const CALL_SID = 'TEST-CALL-' + Date.now();
+const TEL_VZ = '+34611111111';
+const TEL_WA = 'whatsapp:+34622222222';
+const TWILIO_TO = '+34910000000';
+
+function addMsg(panel, who, text, system=false) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + (system ? 'system' : who);
+  div.textContent = text;
+  document.getElementById('chat-' + panel).appendChild(div);
+  document.getElementById('chat-' + panel).scrollTop = 99999;
+}
+
+async function queueLlm(panel) {
+  const reply = document.getElementById(panel + '-llm-reply').value;
+  const jsonRaw = document.getElementById(panel + '-llm-json').value.trim();
+  let json = undefined;
+  if (jsonRaw) {
+    try { json = JSON.parse(jsonRaw); } catch (e) { alert('JSON inválido: ' + e.message); return; }
+  }
+  const r = await fetch('/test/llm-next', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reply: reply || undefined, json })
+  });
+  const data = await r.json();
+  addMsg(panel, 'bot', `[encolado: chat=${data.queueChatSize}, json=${data.queueJsonSize}]`, true);
+  document.getElementById(panel + '-llm-reply').value = '';
+  document.getElementById(panel + '-llm-json').value = '';
+}
+
+function presetAsk(panel, campo) {
+  const map = {
+    nombre: 'Perfecto. ¿A nombre de quién hago la reserva?',
+    fecha: '¿Para qué día querés la reserva?',
+    hora: '¿A qué hora? Tenemos mediodía de 1 a 3 y noche de 8 a 11.',
+    personas: '¿Para cuántas personas?'
+  };
+  document.getElementById(panel + '-llm-reply').value = map[campo];
+}
+
+function presetConfirm(panel) {
+  document.getElementById(panel + '-llm-reply').value = 'un momento por favor ACCION:NUEVA';
+  document.getElementById(panel + '-llm-json').value = JSON.stringify({
+    accion: 'NUEVA', nombre: 'Juan Prueba', fecha: '2026-06-15', hora: '21:00', personas: 2, notas: null
+  }, null, 2);
+}
+
+async function sendWa() {
+  const input = document.getElementById('input-wa');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addMsg('wa', 'user', text);
+
+  const form = new URLSearchParams();
+  form.set('From', TEL_WA);
+  form.set('To', 'whatsapp:' + TWILIO_TO);
+  form.set('Body', text);
+
+  const r = await fetch('/whatsapp', { method: 'POST', body: form });
+  const xml = await r.text();
+  const m = xml.match(/<Message>([\s\S]*?)<\/Message>/);
+  addMsg('wa', 'bot', m ? decodeEntities(m[1]) : '(sin respuesta)');
+  refreshState();
+}
+
+async function sendVz() {
+  const input = document.getElementById('input-vz');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addMsg('vz', 'user', text);
+
+  const form = new URLSearchParams();
+  form.set('CallSid', CALL_SID);
+  form.set('From', TEL_VZ);
+  form.set('To', TWILIO_TO);
+  form.set('SpeechResult', text);
+
+  const r = await fetch('/responder', { method: 'POST', body: form });
+  const xml = await r.text();
+  const m = xml.match(/<Say[^>]*>([\s\S]*?)<\/Say>/);
+  addMsg('vz', 'bot', m ? decodeEntities(m[1]) : '(sin respuesta)');
+  refreshState();
+}
+
+function decodeEntities(s) {
+  return s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+}
+
+async function resetAll() {
+  if (!confirm('Borrar todas las reservas, clientes y lista de espera de la BD en memoria?')) return;
+  await fetch('/test/reset', { method: 'POST' });
+  document.getElementById('chat-wa').innerHTML = '';
+  document.getElementById('chat-vz').innerHTML = '';
+  refreshState();
+}
+
+async function refreshState() {
+  const r = await fetch('/test/estado');
+  const data = await r.json();
+  const el = document.getElementById('state');
+  el.innerHTML = `
+    <div class="state-section">
+      <h3>Mesas <span class="pill">${data.mesas.length}</span></h3>
+      ${renderTable(data.mesas, ['numero','capacidad'])}
+    </div>
+    <div class="state-section">
+      <h3>Reservas <span class="pill">${data.reservas.length}</span></h3>
+      ${renderTable(data.reservas, ['nombre','fecha','hora','personas','canal'])}
+    </div>
+    <div class="state-section">
+      <h3>Lista de espera <span class="pill">${data.lista_espera.length}</span></h3>
+      ${renderTable(data.lista_espera, ['nombre','fecha','hora','personas'])}
+    </div>
+    <div class="state-section">
+      <h3>Clientes <span class="pill">${data.clientes.length}</span></h3>
+      ${renderTable(data.clientes, ['nombre','telefono'])}
+    </div>
+    <div class="state-section">
+      <h3>Cola LLM stub</h3>
+      <div style="font-size:11px;color:#94a3b8">chat: ${data.llm_queues.chat} · json: ${data.llm_queues.json}</div>
+    </div>
+  `;
+}
+
+function renderTable(rows, cols) {
+  if (!rows.length) return '<div class="empty">— vacío —</div>';
+  return `<table class="state-table">
+    <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r => `<tr>${cols.map(c => `<td>${escapeHtml(String(r[c] ?? ''))}</td>`).join('')}</tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+refreshState();
+setInterval(refreshState, 3000);
+</script>
+
+</body>
+</html>

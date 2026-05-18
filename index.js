@@ -2,38 +2,83 @@ require('dotenv').config();
 const express = require('express');
 const app = express();
 app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
 
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const cron = require('node-cron');
+
+const TEST_MODE = process.env.TEST_MODE === 'true';
+const stubs = TEST_MODE ? require('./test/stubs') : null;
+if (TEST_MODE) console.log('⚠️  TEST_MODE activo — APIs externas mockeadas, no se cobra nada.');
+
 const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = stubs?.resend || new Resend(process.env.RESEND_API_KEY);
 const { ElevenLabsClient } = require('elevenlabs');
-const elevenlabs = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
+const elevenlabs = stubs?.elevenlabs || new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
 const ELEVENLABS_ENABLED = process.env.ELEVENLABS_ENABLED === 'true';
 const ELEVENLABS_VOICE_ID = 'uQw4jpKzMLrZuo0RLPS9';
 
 const OpenAI = require('openai');
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = stubs?.openai || new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const { Pool } = require('pg');
-const db = new Pool({
-  connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+let db;
+if (stubs?.db) {
+  db = stubs.db;
+} else {
+  const { Pool } = require('pg');
+  db = new Pool({
+    connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+  });
+}
 
-const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+const twilioLib = require('twilio');
+const twilioClient = stubs?.twilioClient || twilioLib(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 const conversaciones = {};
 const conversacionesWhatsapp = {};
 
+const SESSION_SECRET = process.env.SESSION_SECRET || (TEST_MODE ? 'test-only-secret-do-not-use-in-prod' : null);
+if (!SESSION_SECRET) {
+  throw new Error('SESSION_SECRET es obligatorio. Definilo en el entorno o usá TEST_MODE=true para pruebas.');
+}
+const IS_PROD = process.env.NODE_ENV === 'production';
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'reservasbot_secret_key',
+  secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax' }
+  cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax', secure: IS_PROD }
 }));
-const { setupMediaStreamWebSocket } = require('./streaming');
+
+function xmlEscape(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function verificarTwilio(req, res, next) {
+  if (TEST_MODE) return next();
+  const signature = req.header('X-Twilio-Signature');
+  const proto = req.header('x-forwarded-proto') || req.protocol || 'https';
+  const url = `${proto}://${req.header('host')}${req.originalUrl}`;
+  const valido = twilioLib.validateRequest(
+    process.env.TWILIO_AUTH_TOKEN || '',
+    signature || '',
+    url,
+    req.body || {}
+  );
+  if (!valido) {
+    console.warn('Firma Twilio inválida en', req.originalUrl);
+    return res.status(403).type('text/xml').send('<Response/>');
+  }
+  next();
+}
+
+const setupMediaStreamWebSocket = TEST_MODE ? null : require('./streaming').setupMediaStreamWebSocket;
 
 app.get('/audio', async (req, res) => {
   try {
@@ -248,10 +293,17 @@ async function hayDisponibilidad(fecha, hora, personas, uid = null, excluirId = 
   };
 }
 
+function bucketPersonas(p) {
+  if (p <= 2) return 2;
+  if (p <= 4) return 4;
+  if (p <= 6) return 6;
+  return Math.ceil(p / 2) * 2;
+}
+
 async function obtenerListaEspera(usuarioId, fecha, hora, personas) {
   const lista = await db.query(
     'SELECT COUNT(*) FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND hora = $3 AND personas <= $4',
-    [usuarioId, fecha, hora, personas <= 2 ? 2 : 4]
+    [usuarioId, fecha, hora, bucketPersonas(personas)]
   );
   return parseInt(lista.rows[0].count);
 }
@@ -259,7 +311,7 @@ async function obtenerListaEspera(usuarioId, fecha, hora, personas) {
 async function avisarListaEspera(usuarioId, fecha, hora, personas) {
   const enEspera = await db.query(
     'SELECT * FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND personas <= $3 ORDER BY creada_en ASC LIMIT 1',
-    [usuarioId, fecha, personas <= 2 ? 2 : 4]
+    [usuarioId, fecha, bucketPersonas(personas)]
   );
   if (enEspera.rows.length === 0) return;
   const cliente = enEspera.rows[0];
@@ -694,7 +746,10 @@ app.post('/registro', async (req, res) => {
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
 
-app.post('/llamada', async (req, res) => {
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://reservas-bot-production.up.railway.app';
+const PUBLIC_WSS_URL = PUBLIC_BASE_URL.replace(/^https?:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
+
+app.post('/llamada', verificarTwilio, async (req, res) => {
   try {
     const callSid = req.body.CallSid;
     const telefono = req.body.From || callSid;
@@ -704,10 +759,10 @@ app.post('/llamada', async (req, res) => {
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <Stream url="wss://reservas-bot-production.up.railway.app/media-stream">
-      <Parameter name="callSid" value="${callSid}"/>
-      <Parameter name="to" value="${numeroTwilio || ''}"/>
-      <Parameter name="from" value="${telefono || ''}"/>
+    <Stream url="${xmlEscape(PUBLIC_WSS_URL)}/media-stream">
+      <Parameter name="callSid" value="${xmlEscape(callSid)}"/>
+      <Parameter name="to" value="${xmlEscape(numeroTwilio || '')}"/>
+      <Parameter name="from" value="${xmlEscape(telefono || '')}"/>
     </Stream>
   </Connect>
 </Response>`;
@@ -720,7 +775,7 @@ app.post('/llamada', async (req, res) => {
   }
 });
 
-app.post('/responder', async (req, res) => {
+app.post('/responder', verificarTwilio, async (req, res) => {
   try {
     const callSid = req.body.CallSid;
     const telefono = req.body.From || callSid;
@@ -760,18 +815,18 @@ app.post('/responder', async (req, res) => {
         ];
       }
     }
-    const audioUrlResp = `https://reservas-bot-production.up.railway.app/audio?texto=${encodeURIComponent(mensaje)}`;
+    const audioUrlResp = `${PUBLIC_BASE_URL}/audio?texto=${encodeURIComponent(mensaje)}`;
     const twiml = ELEVENLABS_ENABLED
       ? `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
-    <Play>${audioUrlResp}</Play>
+    <Play>${xmlEscape(audioUrlResp)}</Play>
   </Gather>
 </Response>`
       : `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
-    <Say language="es-ES">${mensaje}</Say>
+    <Say language="es-ES">${xmlEscape(mensaje)}</Say>
   </Gather>
 </Response>`;
     res.type('text/xml');
@@ -783,7 +838,7 @@ app.post('/responder', async (req, res) => {
   }
 });
 
-app.post('/whatsapp', async (req, res) => {
+app.post('/whatsapp', verificarTwilio, async (req, res) => {
   try {
     const from = req.body.From;
     const mensaje = req.body.Body;
@@ -823,7 +878,7 @@ app.post('/whatsapp', async (req, res) => {
     }
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Message>${respuesta}</Message>
+  <Message>${xmlEscape(respuesta)}</Message>
 </Response>`;
     res.type('text/xml');
     res.send(twiml);
@@ -913,7 +968,9 @@ app.get('/clientes', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
   const clientes = await db.query(`
     SELECT c.*, COUNT(r.id) as total_reservas,
-    MODE() WITHIN GROUP (ORDER BY r.canal) as canal_frecuente
+      (SELECT r2.canal FROM reservas r2
+        WHERE r2.telefono_cliente = c.telefono AND r2.usuario_id = $1
+        GROUP BY r2.canal ORDER BY COUNT(*) DESC LIMIT 1) as canal_frecuente
     FROM clientes c
     INNER JOIN reservas r ON r.telefono_cliente = c.telefono
     WHERE r.usuario_id = $1
@@ -938,7 +995,7 @@ app.get('/clientes/:id', requireLogin, async (req, res) => {
 app.get('/configuracion', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
   const config = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
-  const mesas = await db.query('SELECT * FROM mesas ORDER BY numero ASC');
+  const mesas = await db.query('SELECT * FROM mesas WHERE usuario_id = $1 ORDER BY numero ASC', [usuarioId]);
   const diasCerrados = await db.query('SELECT * FROM dias_cerrados WHERE usuario_id = $1 ORDER BY fecha ASC', [usuarioId]);
   res.render('configuracion', {
     config: config.rows.length > 0 ? config.rows[0] : {},
@@ -976,7 +1033,7 @@ app.post('/mesas/añadir', requireLogin, async (req, res) => {
 });
 
 app.post('/mesas/eliminar/:id', requireLogin, async (req, res) => {
-  await db.query('DELETE FROM mesas WHERE id = $1', [req.params.id]);
+  await db.query('DELETE FROM mesas WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
   res.redirect('/configuracion');
 });
 
@@ -997,9 +1054,13 @@ app.post('/dias-cerrados/eliminar/:id', requireLogin, async (req, res) => {
 app.get('/exportar-reservas', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
   const reservas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY fecha ASC, hora ASC', [usuarioId]);
+  const csvCell = (v) => {
+    const s = String(v ?? '');
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
   const csv = [
     'Nombre,Fecha,Hora,Personas,Canal,Estado,Recibida',
-    ...reservas.rows.map(r => `${r.nombre},${r.fecha},${r.hora},${r.personas},${r.canal || ''},${r.estado || 'confirmada'},${new Date(r.creada_en).toLocaleDateString('es-ES')}`)
+    ...reservas.rows.map(r => [r.nombre, r.fecha, r.hora, r.personas, r.canal || '', r.estado || 'confirmada', new Date(r.creada_en).toLocaleDateString('es-ES')].map(csvCell).join(','))
   ].join('\n');
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename=reservas.csv');
@@ -1030,6 +1091,8 @@ app.get('/admin', requireAdmin, async (req, res) => {
 
 app.post('/admin/restaurante/:id/eliminar', requireAdmin, async (req, res) => {
   await db.query('DELETE FROM reservas WHERE usuario_id = $1', [req.params.id]);
+  await db.query('DELETE FROM lista_espera WHERE usuario_id = $1', [req.params.id]);
+  await db.query('DELETE FROM mesas WHERE usuario_id = $1', [req.params.id]);
   await db.query('DELETE FROM configuracion WHERE usuario_id = $1', [req.params.id]);
   await db.query('DELETE FROM dias_cerrados WHERE usuario_id = $1', [req.params.id]);
   await db.query('DELETE FROM usuarios WHERE id = $1', [req.params.id]);
@@ -1040,9 +1103,10 @@ app.get('/test-recordatorios', requireLogin, async (req, res) => {
   const manana = new Date();
   manana.setDate(manana.getDate() + 1);
   const fechaManana = manana.toISOString().split('T')[0];
+  const usuarioId = req.session.usuario.id;
   const reservas = await db.query(
-    'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
-    [fechaManana]
+    'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1 AND r.usuario_id = $2',
+    [fechaManana, usuarioId]
   );
   for (const reserva of reservas.rows) {
     if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
@@ -1094,13 +1158,96 @@ app.post('/espera/eliminar/:id', requireLogin, async (req, res) => {
   await db.query('DELETE FROM lista_espera WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
   res.redirect('/panel');
 });
+// ============================================================
+// MODO TEST — rutas de simulación (solo activas con TEST_MODE)
+// ============================================================
+if (TEST_MODE) {
+  app.get('/test', async (req, res) => {
+    res.render('test', {});
+  });
+
+  // Encolar la próxima respuesta del LLM stub (chat completion).
+  app.post('/test/llm-next', (req, res) => {
+    const { reply, json } = req.body || {};
+    if (typeof reply === 'string') stubs.queueChatReply(reply);
+    if (json !== undefined) stubs.queueExtractJson(json);
+    res.json({ ok: true, queueChatSize: stubs.peekChatQueue(), queueJsonSize: stubs.peekJsonQueue() });
+  });
+
+  // Reset del estado: vacía conversaciones + re-seed BD.
+  app.post('/test/reset', async (req, res) => {
+    for (const k of Object.keys(conversaciones)) delete conversaciones[k];
+    for (const k of Object.keys(conversacionesWhatsapp)) delete conversacionesWhatsapp[k];
+    stubs.clearQueues();
+    await stubs.resetDb(db);
+    res.json({ ok: true });
+  });
+
+  // Snapshot del estado de la BD para el panel.
+  app.get('/test/estado', async (req, res) => {
+    const usuarioId = (await db.query('SELECT id FROM usuarios WHERE email = $1', ['test@test.com'])).rows[0]?.id;
+    const reservas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY fecha, hora', [usuarioId]);
+    const mesas = await db.query('SELECT * FROM mesas WHERE usuario_id = $1 ORDER BY numero', [usuarioId]);
+    const espera = await db.query('SELECT * FROM lista_espera WHERE usuario_id = $1 ORDER BY creada_en', [usuarioId]);
+    const clientes = await db.query('SELECT * FROM clientes ORDER BY ultima_visita DESC LIMIT 20');
+    res.json({
+      usuarioId,
+      reservas: reservas.rows,
+      mesas: mesas.rows,
+      lista_espera: espera.rows,
+      clientes: clientes.rows,
+      llm_queues: { chat: stubs.peekChatQueue(), json: stubs.peekJsonQueue() }
+    });
+  });
+
+  // Disparar procesarAccion sin pasar por el LLM (útil para testear lógica de negocio).
+  app.post('/test/accion-directa', async (req, res) => {
+    const { datos, telefono = '+34600000000' } = req.body || {};
+    const usuarioId = (await db.query('SELECT id FROM usuarios WHERE email = $1', ['test@test.com'])).rows[0]?.id;
+    const config = await obtenerConfigRestaurante(usuarioId);
+    const contexto = await obtenerContextoCliente(telefono);
+    try {
+      const respuesta = await procesarAccion(datos, telefono, contexto, telefono, usuarioId, config);
+      res.json({ ok: true, respuesta });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  // Login automático opcional para acceder al panel /panel sin formulario.
+  app.get('/test/login', async (req, res) => {
+    const u = await db.query('SELECT * FROM usuarios WHERE email = $1', ['test@test.com']);
+    if (u.rows.length) {
+      req.session.usuario = u.rows[0];
+      return res.redirect('/panel');
+    }
+    res.status(404).send('Usuario test no encontrado');
+  });
+}
+
 const PORT = process.env.PORT || 3000;
 const server = require('http').createServer(app);
-const { WebSocketServer } = require('ws');
-const wss = new WebSocketServer({ server, path: '/media-stream' });
 
-setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerContextoCliente, obtenerUsuarioPorNumero, obtenerConfigRestaurante, SYSTEM_PROMPT);
+if (!TEST_MODE) {
+  const { WebSocketServer } = require('ws');
+  const wss = new WebSocketServer({ server, path: '/media-stream' });
+  setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerContextoCliente, obtenerUsuarioPorNumero, obtenerConfigRestaurante, SYSTEM_PROMPT);
+}
 
-server.listen(PORT, () => {
-  console.log('Servidor escuchando en puerto', PORT);
+async function bootstrap() {
+  if (TEST_MODE && stubs?.initDb) {
+    await stubs.initDb(db);
+    console.log('✅ Base de datos en memoria inicializada con datos de prueba.');
+  }
+  server.listen(PORT, () => {
+    console.log('Servidor escuchando en puerto', PORT);
+    if (TEST_MODE) {
+      console.log(`\n🧪 Panel de pruebas: http://localhost:${PORT}/test`);
+      console.log(`   Login: test@test.com / test\n`);
+    }
+  });
+}
+bootstrap().catch(err => {
+  console.error('Error al arrancar:', err);
+  process.exit(1);
 });
