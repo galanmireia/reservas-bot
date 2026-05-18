@@ -2,46 +2,35 @@ require('dotenv').config();
 const express = require('express');
 const app = express();
 app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
 
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const cron = require('node-cron');
-
-const TEST_MODE = process.env.TEST_MODE === 'true';
-const stubs = TEST_MODE ? require('./test/stubs') : null;
-if (TEST_MODE) console.log('⚠️  TEST_MODE activo — APIs externas mockeadas, no se cobra nada.');
-
 const { Resend } = require('resend');
-const resend = stubs?.resend || new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY);
 const { ElevenLabsClient } = require('elevenlabs');
-const elevenlabs = stubs?.elevenlabs || new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
+const elevenlabs = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
 const ELEVENLABS_ENABLED = process.env.ELEVENLABS_ENABLED === 'true';
 const ELEVENLABS_VOICE_ID = 'uQw4jpKzMLrZuo0RLPS9';
 
 const OpenAI = require('openai');
-const openai = stubs?.openai || new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-let db;
-if (stubs?.db) {
-  db = stubs.db;
-} else {
-  const { Pool } = require('pg');
-  db = new Pool({
-    connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-  });
-}
+const { Pool } = require('pg');
+const db = new Pool({
+  connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
 const twilioLib = require('twilio');
-const twilioClient = stubs?.twilioClient || twilioLib(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+const twilioClient = twilioLib(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 const conversaciones = {};
 const conversacionesWhatsapp = {};
 
-const SESSION_SECRET = process.env.SESSION_SECRET || (TEST_MODE ? 'test-only-secret-do-not-use-in-prod' : null);
+const SESSION_SECRET = process.env.SESSION_SECRET;
 if (!SESSION_SECRET) {
-  throw new Error('SESSION_SECRET es obligatorio. Definilo en el entorno o usá TEST_MODE=true para pruebas.');
+  throw new Error('SESSION_SECRET es obligatorio. Definilo en el entorno.');
 }
 const IS_PROD = process.env.NODE_ENV === 'production';
 app.use(session({
@@ -61,7 +50,6 @@ function xmlEscape(s) {
 }
 
 function verificarTwilio(req, res, next) {
-  if (TEST_MODE) return next();
   const signature = req.header('X-Twilio-Signature');
   const proto = req.header('x-forwarded-proto') || req.protocol || 'https';
   const url = `${proto}://${req.header('host')}${req.originalUrl}`;
@@ -78,7 +66,7 @@ function verificarTwilio(req, res, next) {
   next();
 }
 
-const setupMediaStreamWebSocket = TEST_MODE ? null : require('./streaming').setupMediaStreamWebSocket;
+const { setupMediaStreamWebSocket } = require('./streaming');
 
 app.get('/audio', async (req, res) => {
   try {
@@ -1158,96 +1146,13 @@ app.post('/espera/eliminar/:id', requireLogin, async (req, res) => {
   await db.query('DELETE FROM lista_espera WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
   res.redirect('/panel');
 });
-// ============================================================
-// MODO TEST — rutas de simulación (solo activas con TEST_MODE)
-// ============================================================
-if (TEST_MODE) {
-  app.get('/test', async (req, res) => {
-    res.render('test', {});
-  });
-
-  // Encolar la próxima respuesta del LLM stub (chat completion).
-  app.post('/test/llm-next', (req, res) => {
-    const { reply, json } = req.body || {};
-    if (typeof reply === 'string') stubs.queueChatReply(reply);
-    if (json !== undefined) stubs.queueExtractJson(json);
-    res.json({ ok: true, queueChatSize: stubs.peekChatQueue(), queueJsonSize: stubs.peekJsonQueue() });
-  });
-
-  // Reset del estado: vacía conversaciones + re-seed BD.
-  app.post('/test/reset', async (req, res) => {
-    for (const k of Object.keys(conversaciones)) delete conversaciones[k];
-    for (const k of Object.keys(conversacionesWhatsapp)) delete conversacionesWhatsapp[k];
-    stubs.clearQueues();
-    await stubs.resetDb(db);
-    res.json({ ok: true });
-  });
-
-  // Snapshot del estado de la BD para el panel.
-  app.get('/test/estado', async (req, res) => {
-    const usuarioId = (await db.query('SELECT id FROM usuarios WHERE email = $1', ['test@test.com'])).rows[0]?.id;
-    const reservas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY fecha, hora', [usuarioId]);
-    const mesas = await db.query('SELECT * FROM mesas WHERE usuario_id = $1 ORDER BY numero', [usuarioId]);
-    const espera = await db.query('SELECT * FROM lista_espera WHERE usuario_id = $1 ORDER BY creada_en', [usuarioId]);
-    const clientes = await db.query('SELECT * FROM clientes ORDER BY ultima_visita DESC LIMIT 20');
-    res.json({
-      usuarioId,
-      reservas: reservas.rows,
-      mesas: mesas.rows,
-      lista_espera: espera.rows,
-      clientes: clientes.rows,
-      llm_queues: { chat: stubs.peekChatQueue(), json: stubs.peekJsonQueue() }
-    });
-  });
-
-  // Disparar procesarAccion sin pasar por el LLM (útil para testear lógica de negocio).
-  app.post('/test/accion-directa', async (req, res) => {
-    const { datos, telefono = '+34600000000' } = req.body || {};
-    const usuarioId = (await db.query('SELECT id FROM usuarios WHERE email = $1', ['test@test.com'])).rows[0]?.id;
-    const config = await obtenerConfigRestaurante(usuarioId);
-    const contexto = await obtenerContextoCliente(telefono);
-    try {
-      const respuesta = await procesarAccion(datos, telefono, contexto, telefono, usuarioId, config);
-      res.json({ ok: true, respuesta });
-    } catch (err) {
-      res.status(500).json({ ok: false, error: err.message });
-    }
-  });
-
-  // Login automático opcional para acceder al panel /panel sin formulario.
-  app.get('/test/login', async (req, res) => {
-    const u = await db.query('SELECT * FROM usuarios WHERE email = $1', ['test@test.com']);
-    if (u.rows.length) {
-      req.session.usuario = u.rows[0];
-      return res.redirect('/panel');
-    }
-    res.status(404).send('Usuario test no encontrado');
-  });
-}
-
 const PORT = process.env.PORT || 3000;
 const server = require('http').createServer(app);
+const { WebSocketServer } = require('ws');
+const wss = new WebSocketServer({ server, path: '/media-stream' });
 
-if (!TEST_MODE) {
-  const { WebSocketServer } = require('ws');
-  const wss = new WebSocketServer({ server, path: '/media-stream' });
-  setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerContextoCliente, obtenerUsuarioPorNumero, obtenerConfigRestaurante, SYSTEM_PROMPT);
-}
+setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerContextoCliente, obtenerUsuarioPorNumero, obtenerConfigRestaurante, SYSTEM_PROMPT);
 
-async function bootstrap() {
-  if (TEST_MODE && stubs?.initDb) {
-    await stubs.initDb(db);
-    console.log('✅ Base de datos en memoria inicializada con datos de prueba.');
-  }
-  server.listen(PORT, () => {
-    console.log('Servidor escuchando en puerto', PORT);
-    if (TEST_MODE) {
-      console.log(`\n🧪 Panel de pruebas: http://localhost:${PORT}/test`);
-      console.log(`   Login: test@test.com / test\n`);
-    }
-  });
-}
-bootstrap().catch(err => {
-  console.error('Error al arrancar:', err);
-  process.exit(1);
+server.listen(PORT, () => {
+  console.log('Servidor escuchando en puerto', PORT);
 });
