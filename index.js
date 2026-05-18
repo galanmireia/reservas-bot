@@ -33,6 +33,9 @@ if (!SESSION_SECRET) {
   throw new Error('SESSION_SECRET es obligatorio. Definilo en el entorno.');
 }
 const IS_PROD = process.env.NODE_ENV === 'production';
+// Detrás del proxy de Railway/Heroku: confiar en X-Forwarded-Proto
+// para que express-session detecte HTTPS y mande la cookie secure.
+if (IS_PROD) app.set('trust proxy', 1);
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
