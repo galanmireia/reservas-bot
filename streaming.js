@@ -173,8 +173,13 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
           { role: 'user', content: `Extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas, nueva_fecha, nueva_hora, nuevas_personas. La fecha en formato YYYY-MM-DD, hoy es ${hoy}. La hora en HH:MM. Si falta un dato pon null. Solo JSON sin texto adicional.` }
         ]
       });
-      const texto = respuesta.choices[0].message.content.replace(/```json|```/g, '').trim();
-      return JSON.parse(texto);
+      try {
+        const texto = respuesta.choices[0].message.content.replace(/```json|```/g, '').trim();
+        return JSON.parse(texto);
+      } catch (e) {
+        console.log('Error parseando JSON en streaming:', e.message);
+        return null;
+      }
     }
 
     ws.on('message', async (message) => {

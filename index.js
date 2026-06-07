@@ -26,6 +26,8 @@ const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.e
 
 const conversaciones = {};
 const conversacionesWhatsapp = {};
+const conversacionesTs = {};
+const conversacionesWhatsappTs = {};
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'reservasbot_secret_key',
@@ -34,6 +36,24 @@ app.use(session({
   cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax' }
 }));
 const { setupMediaStreamWebSocket } = require('./streaming');
+
+if (!process.env.SESSION_SECRET) {
+  console.warn('ADVERTENCIA: SESSION_SECRET no configurado. Usar clave por defecto es inseguro en producción.');
+}
+const BASE_URL = process.env.BASE_URL || 'https://reservas-bot-production.up.railway.app';
+
+function escapeXml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function fechaHoyMadrid() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+}
 
 app.get('/audio', async (req, res) => {
   try {
@@ -101,7 +121,7 @@ async function enviarEmailRestaurante(usuarioId, datos) {
             <p style="margin: 8px 0;"><strong>Canal:</strong> ${datos.canal || 'Bot'}</p>
             ${datos.notas ? `<p style="margin: 8px 0;"><strong>⚠️ Notas:</strong> ${datos.notas}</p>` : ''}
           </div>
-          <p style="color: #888; font-size: 12px; margin-top: 16px;">ReservasBot — Panel: https://reservas-bot-production.up.railway.app/panel</p>
+          <p style="color: #888; font-size: 12px; margin-top: 16px;">ReservasBot — Panel: ${BASE_URL}/panel</p>
         </div>
       `
     });
@@ -258,8 +278,8 @@ async function obtenerListaEspera(usuarioId, fecha, hora, personas) {
 
 async function avisarListaEspera(usuarioId, fecha, hora, personas) {
   const enEspera = await db.query(
-    'SELECT * FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND personas <= $3 ORDER BY creada_en ASC LIMIT 1',
-    [usuarioId, fecha, personas <= 2 ? 2 : 4]
+    'SELECT * FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND hora = $3 AND personas <= $4 ORDER BY creada_en ASC LIMIT 1',
+    [usuarioId, fecha, hora, personas <= 2 ? 2 : 4]
   );
   if (enEspera.rows.length === 0) return;
   const cliente = enEspera.rows[0];
@@ -281,7 +301,7 @@ async function extraerDatosReserva(mensajes) {
 
 IMPORTANTE: Si el ultimo mensaje del asistente contiene "ACCION:CONSULTAR" la accion es CONSULTAR. Si contiene "ACCION:NUEVA" la accion es NUEVA. Si contiene "ACCION:CANCELAR" la accion es CANCELAR. Si contiene "ACCION:MODIFICAR" la accion es MODIFICAR. Si contiene "ACCION:ESPERA" la accion es ESPERA. Si contiene "ACCION:DISPONIBILIDAD" la accion es DISPONIBILIDAD.
 
-La fecha debe estar en formato YYYY-MM-DD usando como referencia que hoy es ${new Date().toISOString().split('T')[0]}. La hora en formato HH:MM. Si algun dato no aplica o falta pon null. Responde SOLO con el JSON, sin texto adicional, sin comillas de codigo.` }
+La fecha debe estar en formato YYYY-MM-DD usando como referencia que hoy es ${fechaHoyMadrid()}. La hora en formato HH:MM. Si algun dato no aplica o falta pon null. Responde SOLO con el JSON, sin texto adicional, sin comillas de codigo.` }
     ]
   });
   try {
@@ -307,7 +327,7 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
   if (datos.accion === 'CONSULTAR') {
     const reservas = await db.query(
       'SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha >= $2 ORDER BY fecha ASC, hora ASC',
-      [telefonoParaWhatsapp, new Date().toISOString().split('T')[0]]
+      [telefonoParaWhatsapp, fechaHoyMadrid()]
     );
     if (reservas.rows.length === 0) return 'No tienes reservas proximas.';
     const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} - ${r.fecha} a las ${r.hora} para ${r.personas} personas`).join('\n');
@@ -415,7 +435,7 @@ if (datos.accion === 'DISPONIBILIDAD') {
     if (fechaReserva <= new Date()) return 'Lo siento, esa fecha y hora ya han pasado. Para que otra fecha te gustaria reservar?';
 
     if (uid) {
-      const fechaObj = new Date(datos.fecha);
+      const fechaObj = new Date(datos.fecha + 'T12:00:00');
       const diaSemana = fechaObj.getDay();
 
       const diaCerrado = await db.query(`
@@ -704,10 +724,10 @@ app.post('/llamada', async (req, res) => {
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <Stream url="wss://reservas-bot-production.up.railway.app/media-stream">
-      <Parameter name="callSid" value="${callSid}"/>
-      <Parameter name="to" value="${numeroTwilio || ''}"/>
-      <Parameter name="from" value="${telefono || ''}"/>
+    <Stream url="${BASE_URL.replace(/^https?:\/\//, 'wss://')}/media-stream">
+      <Parameter name="callSid" value="${escapeXml(callSid)}"/>
+      <Parameter name="to" value="${escapeXml(numeroTwilio || '')}"/>
+      <Parameter name="from" value="${escapeXml(telefono || '')}"/>
     </Stream>
   </Connect>
 </Response>`;
@@ -727,7 +747,7 @@ app.post('/responder', async (req, res) => {
     const numeroTwilio = req.body.To || null;
     const textoCliente = req.body.SpeechResult || '';
     console.log('Cliente dijo:', textoCliente);
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = fechaHoyMadrid();
     const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
     const contexto = await obtenerContextoCliente(telefono);
     const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
@@ -735,6 +755,7 @@ app.post('/responder', async (req, res) => {
       conversaciones[callSid] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
     }
     conversaciones[callSid].push({ role: 'user', content: textoCliente });
+    conversacionesTs[callSid] = Date.now();
     const respuestaIA = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       max_tokens: 150,
@@ -758,20 +779,21 @@ app.post('/responder', async (req, res) => {
           { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
           { role: 'assistant', content: mensaje }
         ];
+        conversacionesTs[callSid] = Date.now();
       }
     }
-    const audioUrlResp = `https://reservas-bot-production.up.railway.app/audio?texto=${encodeURIComponent(mensaje)}`;
+    const audioUrlResp = `${BASE_URL}/audio?texto=${encodeURIComponent(mensaje)}`;
     const twiml = ELEVENLABS_ENABLED
       ? `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
-    <Play>${audioUrlResp}</Play>
+    <Play>${escapeXml(audioUrlResp)}</Play>
   </Gather>
 </Response>`
       : `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" language="es-ES" action="/responder" method="POST" timeout="5">
-    <Say language="es-ES">${mensaje}</Say>
+    <Say language="es-ES">${escapeXml(mensaje)}</Say>
   </Gather>
 </Response>`;
     res.type('text/xml');
@@ -789,7 +811,7 @@ app.post('/whatsapp', async (req, res) => {
     const mensaje = req.body.Body;
     const numeroTwilio = req.body.To || null;
     console.log('WhatsApp de:', from, '→', mensaje);
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = fechaHoyMadrid();
     const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
     const contexto = await obtenerContextoCliente(from);
     const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
@@ -797,6 +819,7 @@ app.post('/whatsapp', async (req, res) => {
       conversacionesWhatsapp[from] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
     }
     conversacionesWhatsapp[from].push({ role: 'user', content: mensaje });
+    conversacionesWhatsappTs[from] = Date.now();
     const respuestaIA = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       max_tokens: 150,
@@ -819,11 +842,12 @@ app.post('/whatsapp', async (req, res) => {
           { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
           { role: 'assistant', content: respuesta }
         ];
+        conversacionesWhatsappTs[from] = Date.now();
       }
     }
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Message>${respuesta}</Message>
+  <Message>${escapeXml(respuesta)}</Message>
 </Response>`;
     res.type('text/xml');
     res.send(twiml);
@@ -837,7 +861,7 @@ app.post('/whatsapp', async (req, res) => {
 app.get('/panel', requireLogin, async (req, res) => {
   const fechaFiltro = req.query.fecha || null;
   const error = req.query.error || null;
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = fechaHoyMadrid();
   const usuarioId = req.session.usuario.id;
   const todas = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY creada_en DESC', [usuarioId]);
   const hoyQuery = await db.query('SELECT * FROM reservas WHERE usuario_id = $1 AND fecha = $2 ORDER BY hora ASC', [usuarioId, hoy]);
@@ -928,6 +952,11 @@ app.get('/clientes/:id', requireLogin, async (req, res) => {
   const clienteId = req.params.id;
   const cliente = await db.query('SELECT * FROM clientes WHERE id = $1', [clienteId]);
   if (cliente.rows.length === 0) return res.redirect('/clientes');
+  const perteneceAlUsuario = await db.query(
+    'SELECT 1 FROM reservas WHERE telefono_cliente = $1 AND usuario_id = $2 LIMIT 1',
+    [cliente.rows[0].telefono, usuarioId]
+  );
+  if (perteneceAlUsuario.rows.length === 0) return res.redirect('/clientes');
   const reservas = await db.query(
     'SELECT * FROM reservas WHERE telefono_cliente = $1 AND usuario_id = $2 ORDER BY creada_en DESC',
     [cliente.rows[0].telefono, usuarioId]
@@ -938,7 +967,7 @@ app.get('/clientes/:id', requireLogin, async (req, res) => {
 app.get('/configuracion', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
   const config = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
-  const mesas = await db.query('SELECT * FROM mesas ORDER BY numero ASC');
+  const mesas = await db.query('SELECT * FROM mesas WHERE usuario_id = $1 ORDER BY numero ASC', [usuarioId]);
   const diasCerrados = await db.query('SELECT * FROM dias_cerrados WHERE usuario_id = $1 ORDER BY fecha ASC', [usuarioId]);
   res.render('configuracion', {
     config: config.rows.length > 0 ? config.rows[0] : {},
@@ -976,7 +1005,7 @@ app.post('/mesas/añadir', requireLogin, async (req, res) => {
 });
 
 app.post('/mesas/eliminar/:id', requireLogin, async (req, res) => {
-  await db.query('DELETE FROM mesas WHERE id = $1', [req.params.id]);
+  await db.query('DELETE FROM mesas WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
   res.redirect('/configuracion');
 });
 
@@ -1017,7 +1046,7 @@ app.get('/admin', requireAdmin, async (req, res) => {
   `);
   const totalReservas = await db.query('SELECT COUNT(*) FROM reservas');
   const totalClientes = await db.query('SELECT COUNT(*) FROM clientes');
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = fechaHoyMadrid();
   const reservasHoy = await db.query('SELECT COUNT(*) FROM reservas WHERE fecha = $1', [hoy]);
   res.render('admin', {
     restaurantes: restaurantes.rows,
@@ -1039,7 +1068,7 @@ app.post('/admin/restaurante/:id/eliminar', requireAdmin, async (req, res) => {
 app.get('/test-recordatorios', requireLogin, async (req, res) => {
   const manana = new Date();
   manana.setDate(manana.getDate() + 1);
-  const fechaManana = manana.toISOString().split('T')[0];
+  const fechaManana = manana.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
   const reservas = await db.query(
     'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
     [fechaManana]
@@ -1060,7 +1089,7 @@ cron.schedule('0 10 * * *', async () => {
   try {
     const manana = new Date();
     manana.setDate(manana.getDate() + 1);
-    const fechaManana = manana.toISOString().split('T')[0];
+    const fechaManana = manana.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
     const reservas = await db.query(
       'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
       [fechaManana]
@@ -1085,6 +1114,22 @@ cron.schedule('0 10 * * *', async () => {
     console.error('Error en recordatorios:', err.message);
   }
 });
+cron.schedule('0 * * * *', () => {
+  const limite = Date.now() - 3 * 60 * 60 * 1000;
+  for (const key of Object.keys(conversaciones)) {
+    if ((conversacionesTs[key] || 0) < limite) {
+      delete conversaciones[key];
+      delete conversacionesTs[key];
+    }
+  }
+  for (const key of Object.keys(conversacionesWhatsapp)) {
+    if ((conversacionesWhatsappTs[key] || 0) < limite) {
+      delete conversacionesWhatsapp[key];
+      delete conversacionesWhatsappTs[key];
+    }
+  }
+});
+
 app.post('/borrar-reservas-pasadas', requireLogin, async (req, res) => {
   const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
   await db.query('DELETE FROM reservas WHERE usuario_id = $1 AND fecha < $2', [req.session.usuario.id, hoy]);
