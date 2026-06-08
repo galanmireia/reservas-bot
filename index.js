@@ -837,9 +837,10 @@ app.post('/whatsapp', async (req, res) => {
     console.log('WhatsApp de:', from, '→', mensaje);
 
     // --- Detección de SI/NO de lista de espera ---
+    const fromNormalizado = from.replace('whatsapp:', '');
     const notificado = await db.query(
-      "SELECT * FROM lista_espera WHERE telefono = $1 AND estado = 'notificado' ORDER BY notificado_en DESC LIMIT 1",
-      [from]
+      "SELECT * FROM lista_espera WHERE (telefono = $1 OR telefono = $2) AND estado = 'notificado' ORDER BY notificado_en DESC LIMIT 1",
+      [from, fromNormalizado]
     );
     if (notificado.rows.length > 0) {
       const entrada = notificado.rows[0];
