@@ -34,11 +34,10 @@ async function textToSpeechStream(text) {
   }
 }
 
-// Envía audio a Twilio en streaming real: empieza a reproducir mientras ElevenLabs genera
+// Genera audio con ElevenLabs y lo envía a Twilio como un único bloque
 async function enviarAudioStreaming(text, ws, streamSid, setBotHablando) {
   if (!text || ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify({ event: 'clear', streamSid }));
-  setBotHablando(true);
+
   try {
     const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
       text,
@@ -46,28 +45,30 @@ async function enviarAudioStreaming(text, ws, streamSid, setBotHablando) {
       voice_settings: { stability: 0.85, similarity_boost: 0.9, style: 0, use_speaker_boost: true },
       output_format: 'ulaw_8000'
     });
+
+    const chunks = [];
     if (response[Symbol.asyncIterator]) {
-      for await (const chunk of response) {
-        if (ws.readyState !== WebSocket.OPEN) break;
-        ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: Buffer.from(chunk).toString('base64') } }));
-      }
+      for await (const chunk of response) chunks.push(Buffer.from(chunk));
     } else if (response.pipe) {
       await new Promise((resolve, reject) => {
-        response.on('data', chunk => {
-          if (ws.readyState === WebSocket.OPEN)
-            ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: Buffer.from(chunk).toString('base64') } }));
-        });
+        response.on('data', c => chunks.push(c));
         response.on('end', resolve);
         response.on('error', reject);
       });
     } else {
-      const buf = Buffer.from(await response.arrayBuffer());
-      ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: buf.toString('base64') } }));
+      chunks.push(Buffer.from(await response.arrayBuffer()));
     }
+
+    if (chunks.length === 0 || ws.readyState !== WebSocket.OPEN) return;
+
+    const audioBase64 = Buffer.concat(chunks).toString('base64');
+    ws.send(JSON.stringify({ event: 'clear', streamSid }));
+    setBotHablando(true);
+    ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: audioBase64 } }));
+    ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: 'fin' } }));
   } catch (err) {
-    console.error('Error ElevenLabs streaming:', err.message);
+    console.error('Error ElevenLabs:', err.message);
   }
-  ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: 'fin' } }));
 }
 
 function fechaHoyMadrid() {
