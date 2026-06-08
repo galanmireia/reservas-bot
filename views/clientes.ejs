@@ -4,112 +4,120 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clientes — <%= usuario.restaurante %></title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: #09090b; color: #e4e4e7; display: flex; min-height: 100vh; }
-
-    /* SIDEBAR */
-    .sidebar { width: 240px; background: #0c0c0f; border-right: 1px solid #18181b; display: flex; flex-direction: column; padding: 0; position: fixed; height: 100vh; z-index: 100; }
-    .sidebar-logo { padding: 24px 20px 20px; border-bottom: 1px solid #18181b; }
-    .sidebar-logo .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-    .sidebar-logo .brand-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #7c3aed, #4f46e5); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
-    .sidebar-logo .brand-name { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
-    .sidebar-logo .brand-rest { font-size: 11px; color: #52525b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 42px; }
-    .sidebar-menu { padding: 12px 10px; flex: 1; }
-    .sidebar-section { font-size: 10px; font-weight: 600; color: #3f3f46; text-transform: uppercase; letter-spacing: 1px; padding: 8px 10px 4px; margin-top: 8px; }
-    .menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: #71717a; font-size: 13px; font-weight: 500; cursor: pointer; margin-bottom: 1px; text-decoration: none; transition: all .15s; position: relative; }
-    .menu-item:hover { background: #18181b; color: #d4d4d8; }
-    .menu-item.active { background: rgba(124,58,237,.12); color: #a78bfa; }
-    .menu-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 20px; background: linear-gradient(180deg, #7c3aed, #4f46e5); border-radius: 0 3px 3px 0; }
-    .menu-icon { font-size: 15px; width: 20px; text-align: center; }
-    .sidebar-footer { padding: 14px 16px; border-top: 1px solid #18181b; }
-    .avatar { display: flex; align-items: center; gap: 10px; }
-    .avatar-circle { width: 34px; height: 34px; background: linear-gradient(135deg, #7c3aed33, #4f46e533); border: 1px solid #7c3aed44; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #a78bfa; font-weight: 700; font-size: 13px; flex-shrink: 0; }
-    .avatar-name { font-size: 12px; font-weight: 500; color: #d4d4d8; }
-    .avatar-email { font-size: 11px; color: #52525b; }
-    .logout { color: #52525b; font-size: 11px; text-decoration: none; display: flex; align-items: center; gap: 4px; margin-top: 12px; padding: 6px 0; transition: color .15s; }
-    .logout:hover { color: #f87171; }
-
-    /* MAIN */
-    .main { margin-left: 240px; flex: 1; padding: 32px; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
-    .page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: #fafafa; }
-    .page-header p { color: #52525b; font-size: 13px; margin-top: 4px; }
-
-    /* STATS */
-    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
-    .stat {
-      background: #0f0f12; border: 1px solid #1c1c22; border-radius: 12px; padding: 20px 22px;
-      transition: border-color .2s, transform .2s;
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:#030308; --glass:rgba(255,255,255,0.032); --glass-h:rgba(255,255,255,0.055);
+      --gb:rgba(255,255,255,0.07); --gbh:rgba(139,92,246,0.4);
+      --t:rgba(255,255,255,0.92); --t2:rgba(255,255,255,0.45); --t3:rgba(255,255,255,0.18);
+      --acc:#8b5cf6; --sw:230px; --r:18px;
     }
-    .stat:hover { border-color: #2a2a35; transform: translateY(-1px); }
-    .stat-label { font-size: 11px; font-weight: 600; color: #52525b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
-    .stat-value { font-size: 32px; font-weight: 700; color: #fafafa; letter-spacing: -1px; }
-    .stat-value.accent { background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .stat-sub { font-size: 12px; color: #3f3f46; margin-top: 4px; }
+    body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color:var(--t); display:flex; min-height:100vh; -webkit-font-smoothing:antialiased; }
 
-    /* TABLE */
-    .tabla-card { background: #0f0f12; border: 1px solid #1c1c22; border-radius: 12px; overflow: hidden; }
-    .tabla-header { padding: 18px 22px; border-bottom: 1px solid #1c1c22; display: flex; justify-content: space-between; align-items: center; }
-    .tabla-header h3 { font-size: 14px; font-weight: 600; color: #fafafa; }
-    .tabla-count { font-size: 12px; color: #52525b; background: #18181b; padding: 3px 10px; border-radius: 20px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { color: #52525b; padding: 10px 22px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; border-bottom: 1px solid #1c1c22; }
-    td { padding: 13px 22px; border-bottom: 1px solid #18181b; font-size: 13px; color: #71717a; cursor: pointer; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #18181b; }
-    .nombre-td { color: #d4d4d8; font-weight: 500; }
-    .badge { background: rgba(124,58,237,.15); color: #a78bfa; border: 1px solid rgba(124,58,237,.25); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-    .canal-pill { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-    .canal-llamada { background: rgba(124,58,237,.1); color: #a78bfa; border: 1px solid rgba(124,58,237,.2); }
-    .canal-whatsapp { background: rgba(22,163,74,.1); color: #4ade80; border: 1px solid rgba(22,163,74,.2); }
-    .canal-manual { background: #18181b; color: #71717a; border: 1px solid #27272a; }
-    .empty { text-align: center; padding: 60px; color: #3f3f46; font-size: 14px; }
+    .orb { position:fixed; border-radius:50%; filter:blur(120px); pointer-events:none; z-index:0; }
+    .orb-1 { width:700px; height:700px; background:radial-gradient(circle,rgba(124,58,237,0.1) 0%,transparent 70%); top:-200px; left:-150px; animation:d1 22s ease-in-out infinite; }
+    .orb-2 { width:500px; height:500px; background:radial-gradient(circle,rgba(79,70,229,0.08) 0%,transparent 70%); bottom:-100px; right:-100px; animation:d2 28s ease-in-out infinite; }
+    @keyframes d1{0%,100%{transform:translate(0,0)}50%{transform:translate(50px,40px)}}
+    @keyframes d2{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,-30px)}}
+
+    .sidebar { width:var(--sw); background:rgba(255,255,255,0.018); backdrop-filter:blur(60px); -webkit-backdrop-filter:blur(60px); border-right:1px solid var(--gb); display:flex; flex-direction:column; position:fixed; height:100vh; z-index:100; }
+    .sidebar-top { padding:28px 20px 20px; border-bottom:1px solid var(--gb); }
+    .brand { display:flex; align-items:center; gap:11px; margin-bottom:4px; }
+    .brand-mark { width:34px; height:34px; flex-shrink:0; background:linear-gradient(135deg,#8b5cf6,#6366f1); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 4px 16px rgba(139,92,246,0.4); }
+    .brand-name { font-size:15px; font-weight:700; letter-spacing:-0.4px; color:#fff; }
+    .brand-rest { font-size:11px; color:var(--t2); padding-left:45px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .sidebar-nav { padding:14px 12px; flex:1; display:flex; flex-direction:column; gap:2px; }
+    .nav-label { font-size:9px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--t3); padding:10px 10px 4px; margin-top:6px; }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:12px; color:var(--t2); font-size:13px; font-weight:500; text-decoration:none; transition:all 0.2s cubic-bezier(0.4,0,0.2,1); }
+    .nav-item:hover { background:var(--glass-h); color:var(--t); }
+    .nav-item.active { background:rgba(139,92,246,0.15); color:#c4b5fd; box-shadow:inset 0 0 0 1px rgba(139,92,246,0.25); }
+    .nav-icon { font-size:15px; width:20px; text-align:center; flex-shrink:0; }
+    .sidebar-foot { padding:16px 16px 20px; border-top:1px solid var(--gb); }
+    .user-row { display:flex; align-items:center; gap:10px; }
+    .user-avatar { width:32px; height:32px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,rgba(139,92,246,0.3),rgba(99,102,241,0.3)); border:1px solid rgba(139,92,246,0.3); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#c4b5fd; }
+    .user-name { font-size:12px; font-weight:600; color:var(--t); }
+    .user-email { font-size:11px; color:var(--t3); }
+    .sign-out { display:flex; align-items:center; gap:5px; margin-top:10px; font-size:11px; color:var(--t3); text-decoration:none; padding:5px 2px; transition:color 0.2s; }
+    .sign-out:hover { color:#fca5a5; }
+
+    .main { margin-left:var(--sw); flex:1; min-height:100vh; padding:36px 36px 60px; position:relative; z-index:1; }
+
+    .header { margin-bottom:36px; }
+    .header-eyebrow { font-size:11px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--t3); margin-bottom:6px; }
+    .header-title { font-size:28px; font-weight:800; letter-spacing:-0.8px; }
+    .header-sub { font-size:13px; color:var(--t2); margin-top:5px; }
+
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:28px; }
+    .stat { background:var(--glass); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid var(--gb); border-radius:var(--r); padding:24px 22px; transition:all 0.3s cubic-bezier(0.4,0,0.2,1); }
+    .stat:hover { background:var(--glass-h); border-color:var(--gbh); transform:translateY(-2px); box-shadow:0 20px 60px rgba(0,0,0,0.4),0 0 80px rgba(139,92,246,0.05); }
+    .stat-label { font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--t3); margin-bottom:12px; }
+    .stat-value { font-size:44px; font-weight:800; letter-spacing:-2px; line-height:1; color:var(--t); }
+    .stat-value.purple { background:linear-gradient(135deg,#c4b5fd,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .stat-sub { font-size:11px; color:var(--t3); margin-top:8px; font-weight:500; }
+
+    .tcard { background:var(--glass); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid var(--gb); border-radius:var(--r); overflow:hidden; }
+    .tcard-head { padding:20px 24px; border-bottom:1px solid var(--gb); display:flex; align-items:center; justify-content:space-between; }
+    .tcard-title { font-size:14px; font-weight:700; letter-spacing:-0.3px; color:var(--t); display:flex; align-items:center; gap:10px; }
+    .chip { font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; background:var(--glass); border:1px solid var(--gb); color:var(--t2); }
+    table { width:100%; border-collapse:collapse; }
+    thead th { padding:11px 24px; text-align:left; font-size:10px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; color:var(--t3); border-bottom:1px solid var(--gb); }
+    tbody td { padding:14px 24px; border-bottom:1px solid rgba(255,255,255,0.03); font-size:13px; color:var(--t2); cursor:pointer; }
+    tbody tr:last-child td { border-bottom:none; }
+    tbody tr:hover td { background:rgba(255,255,255,0.02); color:var(--t); }
+    .td-name { font-weight:600; color:var(--t); }
+    .badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; background:rgba(139,92,246,0.1); color:#c4b5fd; border:1px solid rgba(139,92,246,0.2); }
+    .pill-wa { background:rgba(74,222,128,0.08); color:#86efac; border:1px solid rgba(74,222,128,0.15); padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+    .pill-call { background:rgba(139,92,246,0.1); color:#c4b5fd; border:1px solid rgba(139,92,246,0.18); padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+    .pill-manual { background:rgba(255,255,255,0.04); color:var(--t3); border:1px solid var(--gb); padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+    .empty-state { text-align:center; padding:60px; color:var(--t3); font-size:13px; }
+
+    ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:10px}
   </style>
 </head>
 <body>
-  <div class="sidebar">
-    <div class="sidebar-logo">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <nav class="sidebar">
+    <div class="sidebar-top">
       <div class="brand">
-        <div class="brand-icon">🤖</div>
-        <div class="brand-name">ReservasBot</div>
+        <div class="brand-mark">🤖</div>
+        <span class="brand-name">ReservasBot</span>
       </div>
       <div class="brand-rest"><%= usuario.restaurante %></div>
     </div>
-    <div class="sidebar-menu">
+    <div class="sidebar-nav">
       <% if (usuario.rol === 'admin') { %>
-        <a href="/admin" class="menu-item"><span class="menu-icon">🔧</span> Admin</a>
+        <div class="nav-label">Sistema</div>
+        <a href="/admin" class="nav-item"><span class="nav-icon">⚡</span> Administración</a>
       <% } %>
-      <div class="sidebar-section">Gestión</div>
-      <a href="/panel" class="menu-item"><span class="menu-icon">📅</span> Reservas</a>
-      <a href="/clientes" class="menu-item active"><span class="menu-icon">👥</span> Clientes</a>
-      <a href="/configuracion" class="menu-item"><span class="menu-icon">⚙️</span> Configuración</a>
+      <div class="nav-label">Gestión</div>
+      <a href="/panel" class="nav-item"><span class="nav-icon">◼</span> Reservas</a>
+      <a href="/clientes" class="nav-item active"><span class="nav-icon">◻</span> Clientes</a>
+      <div class="nav-label">Ajustes</div>
+      <a href="/configuracion" class="nav-item"><span class="nav-icon">◈</span> Configuración</a>
     </div>
-    <div class="sidebar-footer">
-      <div class="avatar">
-        <div class="avatar-circle"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
-        <div style="flex:1;min-width:0;">
-          <div class="avatar-name"><%= usuario.nombre %></div>
-          <div class="avatar-email"><%= usuario.email %></div>
-        </div>
+    <div class="sidebar-foot">
+      <div class="user-row">
+        <div class="user-avatar"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
+        <div><div class="user-name"><%= usuario.nombre %></div><div class="user-email"><%= usuario.email %></div></div>
       </div>
-      <a href="/logout" class="logout">↩ Cerrar sesión</a>
+      <a href="/logout" class="sign-out">← Cerrar sesión</a>
     </div>
-  </div>
+  </nav>
 
-  <div class="main">
-    <div class="page-header">
-      <div>
-        <h1>Clientes</h1>
-        <p>Historial de clientes que han reservado en tu restaurante</p>
-      </div>
+  <main class="main">
+    <div class="header">
+      <div class="header-eyebrow">Base de datos</div>
+      <div class="header-title">Clientes</div>
+      <div class="header-sub">Historial completo de clientes que han reservado</div>
     </div>
 
     <div class="stats">
       <div class="stat">
         <div class="stat-label">Clientes totales</div>
-        <div class="stat-value accent"><%= clientes.length %></div>
+        <div class="stat-value purple"><%= clientes.length %></div>
         <div class="stat-sub">registrados</div>
       </div>
       <div class="stat">
@@ -119,39 +127,32 @@
       </div>
       <div class="stat">
         <div class="stat-label">Total reservas</div>
-        <div class="stat-value"><%= clientes.reduce((a, c) => a + parseInt(c.total_reservas), 0) %></div>
-        <div class="stat-sub">entre todos los clientes</div>
+        <div class="stat-value"><%= clientes.reduce((a,c) => a + parseInt(c.total_reservas), 0) %></div>
+        <div class="stat-sub">entre todos</div>
       </div>
     </div>
 
-    <div class="tabla-card">
-      <div class="tabla-header">
-        <h3>Todos los clientes</h3>
-        <span class="tabla-count"><%= clientes.length %> registros</span>
+    <div class="tcard">
+      <div class="tcard-head">
+        <div class="tcard-title">Todos los clientes <span class="chip"><%= clientes.length %></span></div>
       </div>
       <table>
-        <thead>
-          <tr><th>#</th><th>Nombre</th><th>Teléfono</th><th>Reservas</th><th>Última visita</th><th>Canal</th></tr>
-        </thead>
+        <thead><tr><th>#</th><th>Nombre</th><th>Teléfono</th><th>Reservas</th><th>Última visita</th><th>Canal</th></tr></thead>
         <tbody>
           <% if (clientes.length === 0) { %>
-            <tr><td colspan="6" class="empty">No hay clientes todavía</td></tr>
+            <tr><td colspan="6" class="empty-state">No hay clientes todavía</td></tr>
           <% } else { %>
             <% clientes.forEach((c, i) => { %>
               <tr onclick="window.location='/clientes/<%= c.id %>'">
                 <td><%= i + 1 %></td>
-                <td class="nombre-td"><%= c.nombre || 'Sin nombre' %></td>
+                <td class="td-name"><%= c.nombre || 'Sin nombre' %></td>
                 <td><%= c.telefono %></td>
                 <td><span class="badge"><%= c.total_reservas %></span></td>
                 <td><%= new Date(c.ultima_visita).toLocaleDateString('es-ES') %></td>
                 <td>
-                  <% if (c.canal_frecuente === 'whatsapp') { %>
-                    <span class="canal-pill canal-whatsapp">WhatsApp</span>
-                  <% } else if (c.canal_frecuente === 'manual') { %>
-                    <span class="canal-pill canal-manual">Presencial</span>
-                  <% } else { %>
-                    <span class="canal-pill canal-llamada">Llamada</span>
-                  <% } %>
+                  <% if (c.canal_frecuente === 'whatsapp') { %><span class="pill-wa">WhatsApp</span>
+                  <% } else if (c.canal_frecuente === 'manual') { %><span class="pill-manual">Presencial</span>
+                  <% } else { %><span class="pill-call">Llamada</span><% } %>
                 </td>
               </tr>
             <% }) %>
@@ -159,6 +160,6 @@
         </tbody>
       </table>
     </div>
-  </div>
+  </main>
 </body>
 </html>

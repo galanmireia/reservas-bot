@@ -4,166 +4,167 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Configuración — <%= usuario.restaurante %></title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: #09090b; color: #e4e4e7; display: flex; min-height: 100vh; }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root { --bg:#030308; --glass:rgba(255,255,255,0.032); --glass-h:rgba(255,255,255,0.055); --gb:rgba(255,255,255,0.07); --t:rgba(255,255,255,0.92); --t2:rgba(255,255,255,0.45); --t3:rgba(255,255,255,0.18); --sw:230px; --r:18px; }
+    body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color:var(--t); display:flex; min-height:100vh; -webkit-font-smoothing:antialiased; }
+    .orb { position:fixed; border-radius:50%; filter:blur(120px); pointer-events:none; z-index:0; }
+    .orb-1 { width:700px; height:700px; background:radial-gradient(circle,rgba(124,58,237,0.1) 0%,transparent 70%); top:-200px; left:-150px; animation:d1 22s ease-in-out infinite; }
+    .orb-2 { width:500px; height:500px; background:radial-gradient(circle,rgba(79,70,229,0.08) 0%,transparent 70%); bottom:-100px; right:-100px; animation:d2 28s ease-in-out infinite; }
+    @keyframes d1{0%,100%{transform:translate(0,0)}50%{transform:translate(50px,40px)}}
+    @keyframes d2{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,-30px)}}
 
-    .sidebar { width: 240px; background: #0c0c0f; border-right: 1px solid #18181b; display: flex; flex-direction: column; padding: 0; position: fixed; height: 100vh; z-index: 100; }
-    .sidebar-logo { padding: 24px 20px 20px; border-bottom: 1px solid #18181b; }
-    .sidebar-logo .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-    .sidebar-logo .brand-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #7c3aed, #4f46e5); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
-    .sidebar-logo .brand-name { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
-    .sidebar-logo .brand-rest { font-size: 11px; color: #52525b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 42px; }
-    .sidebar-menu { padding: 12px 10px; flex: 1; }
-    .sidebar-section { font-size: 10px; font-weight: 600; color: #3f3f46; text-transform: uppercase; letter-spacing: 1px; padding: 8px 10px 4px; margin-top: 8px; }
-    .menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: #71717a; font-size: 13px; font-weight: 500; cursor: pointer; margin-bottom: 1px; text-decoration: none; transition: all .15s; position: relative; }
-    .menu-item:hover { background: #18181b; color: #d4d4d8; }
-    .menu-item.active { background: rgba(124,58,237,.12); color: #a78bfa; }
-    .menu-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 20px; background: linear-gradient(180deg, #7c3aed, #4f46e5); border-radius: 0 3px 3px 0; }
-    .menu-icon { font-size: 15px; width: 20px; text-align: center; }
-    .sidebar-footer { padding: 14px 16px; border-top: 1px solid #18181b; }
-    .avatar { display: flex; align-items: center; gap: 10px; }
-    .avatar-circle { width: 34px; height: 34px; background: linear-gradient(135deg, #7c3aed33, #4f46e533); border: 1px solid #7c3aed44; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #a78bfa; font-weight: 700; font-size: 13px; flex-shrink: 0; }
-    .avatar-name { font-size: 12px; font-weight: 500; color: #d4d4d8; }
-    .avatar-email { font-size: 11px; color: #52525b; }
-    .logout { color: #52525b; font-size: 11px; text-decoration: none; display: flex; align-items: center; gap: 4px; margin-top: 12px; padding: 6px 0; transition: color .15s; }
-    .logout:hover { color: #f87171; }
+    .sidebar { width:var(--sw); background:rgba(255,255,255,0.018); backdrop-filter:blur(60px); -webkit-backdrop-filter:blur(60px); border-right:1px solid var(--gb); display:flex; flex-direction:column; position:fixed; height:100vh; z-index:100; }
+    .sidebar-top { padding:28px 20px 20px; border-bottom:1px solid var(--gb); }
+    .brand { display:flex; align-items:center; gap:11px; margin-bottom:4px; }
+    .brand-mark { width:34px; height:34px; flex-shrink:0; background:linear-gradient(135deg,#8b5cf6,#6366f1); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 4px 16px rgba(139,92,246,0.4); }
+    .brand-name { font-size:15px; font-weight:700; letter-spacing:-0.4px; color:#fff; }
+    .brand-rest { font-size:11px; color:var(--t2); padding-left:45px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .sidebar-nav { padding:14px 12px; flex:1; display:flex; flex-direction:column; gap:2px; }
+    .nav-label { font-size:9px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--t3); padding:10px 10px 4px; margin-top:6px; }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:12px; color:var(--t2); font-size:13px; font-weight:500; text-decoration:none; transition:all 0.2s; }
+    .nav-item:hover { background:var(--glass-h); color:var(--t); }
+    .nav-item.active { background:rgba(139,92,246,0.15); color:#c4b5fd; box-shadow:inset 0 0 0 1px rgba(139,92,246,0.25); }
+    .nav-icon { font-size:15px; width:20px; text-align:center; flex-shrink:0; }
+    .sidebar-foot { padding:16px 16px 20px; border-top:1px solid var(--gb); }
+    .user-row { display:flex; align-items:center; gap:10px; }
+    .user-avatar { width:32px; height:32px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,rgba(139,92,246,0.3),rgba(99,102,241,0.3)); border:1px solid rgba(139,92,246,0.3); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#c4b5fd; }
+    .user-name { font-size:12px; font-weight:600; color:var(--t); }
+    .user-email { font-size:11px; color:var(--t3); }
+    .sign-out { display:flex; align-items:center; gap:5px; margin-top:10px; font-size:11px; color:var(--t3); text-decoration:none; transition:color 0.2s; }
+    .sign-out:hover { color:#fca5a5; }
 
-    .main { margin-left: 240px; flex: 1; padding: 32px; max-width: calc(240px + 860px); }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
-    .page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: #fafafa; }
-    .page-header p { color: #52525b; font-size: 13px; margin-top: 4px; }
+    .main { margin-left:var(--sw); flex:1; padding:36px 36px 60px; position:relative; z-index:1; max-width:calc(var(--sw) + 820px); }
 
-    .exito { background: rgba(22,163,74,.08); border: 1px solid rgba(22,163,74,.25); color: #4ade80; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 13px; font-weight: 500; }
+    .header { margin-bottom:32px; }
+    .header-eyebrow { font-size:11px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--t3); margin-bottom:6px; }
+    .header-title { font-size:28px; font-weight:800; letter-spacing:-0.8px; }
+    .header-sub { font-size:13px; color:var(--t2); margin-top:5px; }
 
-    .seccion { background: #0f0f12; border: 1px solid #1c1c22; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
-    .seccion-title { font-size: 13px; font-weight: 600; color: #d4d4d8; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid #1c1c22; display: flex; align-items: center; gap: 8px; }
+    .ok-banner { background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.2); color:#86efac; padding:13px 18px; border-radius:14px; font-size:13px; font-weight:500; margin-bottom:24px; display:flex; align-items:center; gap:8px; }
 
-    .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .campo { margin-bottom: 16px; }
-    .campo label { display: block; font-size: 11px; font-weight: 600; color: #52525b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
-    .campo input, .campo textarea, .campo select {
-      width: 100%; padding: 10px 13px; background: #09090b; border: 1px solid #27272a;
-      border-radius: 8px; font-size: 13px; color: #e4e4e7; outline: none; font-family: Inter, sans-serif;
-      transition: border .15s;
-    }
-    .campo input:focus, .campo textarea:focus, .campo select:focus { border-color: #7c3aed; }
-    .campo input::placeholder, .campo textarea::placeholder { color: #3f3f46; }
-    .campo textarea { resize: vertical; min-height: 90px; }
-    .campo input[readonly] { opacity: 0.4; cursor: not-allowed; }
-    .campo select option { background: #0c0c0f; }
+    .section { background:var(--glass); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid var(--gb); border-radius:var(--r); padding:28px; margin-bottom:16px; }
+    .section-title { font-size:13px; font-weight:700; color:var(--t); margin-bottom:22px; padding-bottom:14px; border-bottom:1px solid var(--gb); display:flex; align-items:center; gap:8px; }
+    .section-title-tag { font-size:10px; font-weight:600; letter-spacing:0.8px; text-transform:uppercase; color:var(--t3); margin-left:auto; }
 
-    .btn-save {
-      padding: 10px 22px; background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white;
-      border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;
-      font-family: Inter, sans-serif; letter-spacing: -0.2px; transition: opacity .15s;
-    }
-    .btn-save:hover { opacity: .88; }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .field { display:flex; flex-direction:column; gap:7px; margin-bottom:16px; }
+    .field:last-child { margin-bottom:0; }
+    .field label { font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--t3); }
+    .field input, .field textarea, .field select { width:100%; padding:11px 14px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.07); border-radius:12px; font-size:13px; color:var(--t); outline:none; font-family:inherit; transition:border-color 0.2s; }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color:rgba(139,92,246,0.5); }
+    .field input::placeholder, .field textarea::placeholder { color:rgba(255,255,255,0.18); }
+    .field textarea { resize:vertical; min-height:90px; }
+    .field input[readonly] { opacity:0.35; cursor:not-allowed; }
+    .field select option { background:#0d0d1a; }
 
-    .mesas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom: 20px; }
-    .mesa-card {
-      background: #09090b; border: 1px solid #27272a; border-radius: 10px; padding: 16px 12px;
-      text-align: center; transition: border-color .15s;
-    }
-    .mesa-card:hover { border-color: #3f3f46; }
-    .mesa-num { font-size: 17px; font-weight: 700; background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .mesa-cap { font-size: 11px; color: #52525b; margin-top: 3px; }
-    .btn-del-mesa { margin-top: 10px; background: none; border: 1px solid #27272a; color: #3f3f46; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; width: 100%; font-family: Inter, sans-serif; transition: all .15s; }
-    .btn-del-mesa:hover { background: rgba(248,113,113,.08); color: #f87171; border-color: rgba(248,113,113,.3); }
+    .btn-save { padding:11px 24px; background:linear-gradient(135deg,#8b5cf6,#6366f1); border:none; border-radius:12px; color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; letter-spacing:-0.2px; box-shadow:0 4px 20px rgba(139,92,246,0.35); transition:all 0.2s; }
+    .btn-save:hover { box-shadow:0 6px 28px rgba(139,92,246,0.55); transform:translateY(-1px); }
 
-    .add-mesa { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
-    .add-mesa .campo { margin: 0; }
+    .mesas-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px; margin-bottom:22px; }
+    .mesa-card { background:rgba(0,0,0,0.25); border:1px solid var(--gb); border-radius:14px; padding:18px 12px; text-align:center; transition:border-color 0.2s; }
+    .mesa-card:hover { border-color:rgba(139,92,246,0.35); }
+    .mesa-num { font-size:20px; font-weight:800; letter-spacing:-0.5px; background:linear-gradient(135deg,#c4b5fd,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .mesa-cap { font-size:11px; color:var(--t3); margin-top:3px; font-weight:500; }
+    .btn-del-mesa { margin-top:10px; background:none; border:1px solid var(--gb); color:var(--t3); padding:5px 8px; border-radius:8px; cursor:pointer; font-size:11px; width:100%; font-family:inherit; transition:all 0.15s; }
+    .btn-del-mesa:hover { background:rgba(239,68,68,0.08); color:#fca5a5; border-color:rgba(239,68,68,0.25); }
 
-    .dia-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #09090b; border: 1px solid #27272a; border-radius: 8px; margin-bottom: 8px; }
-    .dia-item span { font-size: 13px; color: #d4d4d8; }
-    .dia-motivo { font-size: 12px; color: #52525b; margin-left: 8px; }
-    .btn-del-dia { background: none; border: none; color: #3f3f46; cursor: pointer; font-size: 14px; padding: 4px 6px; border-radius: 4px; transition: all .15s; }
-    .btn-del-dia:hover { color: #f87171; background: rgba(248,113,113,.08); }
+    .add-mesa { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+    .add-mesa .field { margin:0; }
+
+    .dia-row { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:rgba(0,0,0,0.2); border:1px solid var(--gb); border-radius:12px; margin-bottom:8px; }
+    .dia-text { font-size:13px; color:var(--t); }
+    .dia-motivo { font-size:12px; color:var(--t3); margin-left:8px; }
+    .btn-del-dia { background:none; border:none; color:var(--t3); cursor:pointer; font-size:15px; padding:4px 6px; border-radius:6px; transition:all 0.15s; }
+    .btn-del-dia:hover { color:#fca5a5; background:rgba(239,68,68,0.08); }
+
+    ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:10px}
   </style>
 </head>
 <body>
-  <div class="sidebar">
-    <div class="sidebar-logo">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <nav class="sidebar">
+    <div class="sidebar-top">
       <div class="brand">
-        <div class="brand-icon">🤖</div>
-        <div class="brand-name">ReservasBot</div>
+        <div class="brand-mark">🤖</div>
+        <span class="brand-name">ReservasBot</span>
       </div>
       <div class="brand-rest"><%= usuario.restaurante %></div>
     </div>
-    <div class="sidebar-menu">
+    <div class="sidebar-nav">
       <% if (usuario.rol === 'admin') { %>
-        <a href="/admin" class="menu-item"><span class="menu-icon">🔧</span> Admin</a>
+        <div class="nav-label">Sistema</div>
+        <a href="/admin" class="nav-item"><span class="nav-icon">⚡</span> Administración</a>
       <% } %>
-      <div class="sidebar-section">Gestión</div>
-      <a href="/panel" class="menu-item"><span class="menu-icon">📅</span> Reservas</a>
-      <a href="/clientes" class="menu-item"><span class="menu-icon">👥</span> Clientes</a>
-      <a href="/configuracion" class="menu-item active"><span class="menu-icon">⚙️</span> Configuración</a>
+      <div class="nav-label">Gestión</div>
+      <a href="/panel" class="nav-item"><span class="nav-icon">◼</span> Reservas</a>
+      <a href="/clientes" class="nav-item"><span class="nav-icon">◻</span> Clientes</a>
+      <div class="nav-label">Ajustes</div>
+      <a href="/configuracion" class="nav-item active"><span class="nav-icon">◈</span> Configuración</a>
     </div>
-    <div class="sidebar-footer">
-      <div class="avatar">
-        <div class="avatar-circle"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
-        <div style="flex:1;min-width:0;">
-          <div class="avatar-name"><%= usuario.nombre %></div>
-          <div class="avatar-email"><%= usuario.email %></div>
-        </div>
+    <div class="sidebar-foot">
+      <div class="user-row">
+        <div class="user-avatar"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
+        <div><div class="user-name"><%= usuario.nombre %></div><div class="user-email"><%= usuario.email %></div></div>
       </div>
-      <a href="/logout" class="logout">↩ Cerrar sesión</a>
+      <a href="/logout" class="sign-out">← Cerrar sesión</a>
     </div>
-  </div>
+  </nav>
 
-  <div class="main">
-    <div class="page-header">
-      <div>
-        <h1>Configuración</h1>
-        <p>Personaliza tu restaurante y el comportamiento del bot</p>
-      </div>
+  <main class="main">
+    <div class="header">
+      <div class="header-eyebrow">Ajustes</div>
+      <div class="header-title">Configuración</div>
+      <div class="header-sub">Personaliza tu restaurante y el comportamiento del bot</div>
     </div>
 
     <% if (exito) { %>
-      <div class="exito">✓ Configuración guardada correctamente.</div>
+      <div class="ok-banner">✓ Configuración guardada correctamente.</div>
     <% } %>
 
     <form method="POST" action="/configuracion">
-      <div class="seccion">
-        <div class="seccion-title">🏪 Información del restaurante</div>
-        <div class="fila">
-          <div class="campo">
+      <div class="section">
+        <div class="section-title">Información del restaurante <span class="section-title-tag">General</span></div>
+        <div class="grid-2">
+          <div class="field">
             <label>Nombre del restaurante</label>
             <input type="text" name="restaurante" value="<%= config.restaurante || usuario.restaurante %>" required>
           </div>
-          <div class="campo">
+          <div class="field">
             <label>Teléfono</label>
             <input type="text" name="telefono" value="<%= config.telefono || '' %>" placeholder="910 000 000">
           </div>
         </div>
-        <div class="campo">
+        <div class="field">
           <label>Dirección</label>
           <input type="text" name="direccion" value="<%= config.direccion || '' %>" placeholder="Calle Mayor 1, Madrid">
         </div>
-        <div class="fila">
-          <div class="campo">
+        <div class="grid-2">
+          <div class="field">
             <label>Horario</label>
             <input type="text" name="horario" value="<%= config.horario || '' %>" placeholder="Lun-Dom 13:00-16:00 y 20:00-23:30">
           </div>
-          <div class="campo">
+          <div class="field">
             <label>Aparcamiento</label>
             <input type="text" name="aparcamiento" value="<%= config.aparcamiento || '' %>" placeholder="Parking público a 200m">
           </div>
         </div>
-        <div class="campo">
+        <div class="field">
           <label>Número Twilio asignado</label>
           <input type="text" value="<%= usuario.numero_twilio || 'No asignado' %>" readonly>
         </div>
       </div>
 
-      <div class="seccion">
-        <div class="seccion-title">🍽️ Menú</div>
-        <div class="campo">
+      <div class="section">
+        <div class="section-title">Menú <span class="section-title-tag">Carta</span></div>
+        <div class="field">
           <label>Descripción del menú</label>
           <textarea name="menu"><%= config.menu || '' %></textarea>
         </div>
-        <div class="campo">
+        <div class="field">
           <label>Especialidad</label>
           <input type="text" name="especialidad" value="<%= config.especialidad || '' %>" placeholder="Cocido madrileño los jueves">
         </div>
@@ -172,12 +173,12 @@
       <button type="submit" class="btn-save">Guardar configuración</button>
     </form>
 
-    <div class="seccion" style="margin-top:20px;">
-      <div class="seccion-title">🪑 Mesas</div>
+    <div class="section" style="margin-top:16px;">
+      <div class="section-title">Mesas <span class="section-title-tag">Capacidad</span></div>
       <div class="mesas-grid">
         <% mesas.forEach(m => { %>
           <div class="mesa-card">
-            <div class="mesa-num">Mesa <%= m.numero %></div>
+            <div class="mesa-num"><%= m.numero %></div>
             <div class="mesa-cap"><%= m.capacidad %> personas</div>
             <form method="POST" action="/mesas/eliminar/<%= m.id %>" onsubmit="return confirm('¿Eliminar mesa <%= m.numero %>?')">
               <button type="submit" class="btn-del-mesa">Eliminar</button>
@@ -186,11 +187,11 @@
         <% }) %>
       </div>
       <form method="POST" action="/mesas/añadir" class="add-mesa">
-        <div class="campo">
+        <div class="field">
           <label>Número</label>
           <input type="number" name="numero" required min="1" placeholder="6" style="width:80px;">
         </div>
-        <div class="campo">
+        <div class="field">
           <label>Capacidad</label>
           <select name="capacidad" style="width:130px;">
             <option value="2">2 personas</option>
@@ -199,24 +200,20 @@
             <option value="8">8 personas</option>
           </select>
         </div>
-        <button type="submit" class="btn-save" style="height:38px;padding:0 16px;">+ Añadir mesa</button>
+        <button type="submit" class="btn-save" style="height:40px;padding:0 18px;align-self:flex-end;">+ Mesa</button>
       </form>
     </div>
 
-    <div class="seccion" style="margin-top:20px;">
-      <div class="seccion-title">🚫 Días cerrados</div>
+    <div class="section" style="margin-top:16px;">
+      <div class="section-title">Días cerrados <span class="section-title-tag">Calendario</span></div>
       <% if (diasCerrados.length > 0) { %>
-        <div style="margin-bottom:20px;">
+        <div style="margin-bottom:22px;">
           <% diasCerrados.forEach(d => { %>
-            <div class="dia-item">
-              <span>
-                <% if (d.tipo === 'semana') { %>
-                  📅 Todos los <%= ['Domingos','Lunes','Martes','Miércoles','Jueves','Viernes','Sábados'][d.dia_semana] %>
-                <% } else if (d.tipo === 'rango') { %>
-                  📅 Del <%= new Date(d.fecha).toLocaleDateString('es-ES') %> al <%= new Date(d.fecha_fin).toLocaleDateString('es-ES') %>
-                <% } else { %>
-                  📅 <%= new Date(d.fecha).toLocaleDateString('es-ES') %>
-                <% } %>
+            <div class="dia-row">
+              <span class="dia-text">
+                <% if (d.tipo === 'semana') { %>Todos los <%= ['Domingos','Lunes','Martes','Miércoles','Jueves','Viernes','Sábados'][d.dia_semana] %>
+                <% } else if (d.tipo === 'rango') { %>Del <%= new Date(d.fecha).toLocaleDateString('es-ES') %> al <%= new Date(d.fecha_fin).toLocaleDateString('es-ES') %>
+                <% } else { %><%= new Date(d.fecha).toLocaleDateString('es-ES') %><% } %>
                 <% if (d.motivo) { %><span class="dia-motivo"><%= d.motivo %></span><% } %>
               </span>
               <form method="POST" action="/dias-cerrados/eliminar/<%= d.id %>">
@@ -226,11 +223,11 @@
           <% }) %>
         </div>
       <% } else { %>
-        <p style="font-size:13px;color:#3f3f46;margin-bottom:20px;">No hay días cerrados configurados.</p>
+        <p style="font-size:13px;color:var(--t3);margin-bottom:22px;">No hay días cerrados configurados.</p>
       <% } %>
-      <form method="POST" action="/dias-cerrados/anadir" style="display:flex;flex-direction:column;gap:14px;">
+      <form method="POST" action="/dias-cerrados/anadir">
         <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
-          <div class="campo">
+          <div class="field">
             <label>Tipo</label>
             <select name="tipo" id="tipoCierre" onchange="actualizarFormCierre()" style="width:160px;">
               <option value="fecha">Día específico</option>
@@ -238,35 +235,32 @@
               <option value="rango">Rango de fechas</option>
             </select>
           </div>
-          <div class="campo" id="campoDia" style="display:none;">
+          <div class="field" id="campoDia" style="display:none;">
             <label>Día de la semana</label>
             <select name="dia_semana" style="width:140px;">
-              <option value="1">Lunes</option>
-              <option value="2">Martes</option>
-              <option value="3">Miércoles</option>
-              <option value="4">Jueves</option>
-              <option value="5">Viernes</option>
-              <option value="6">Sábado</option>
+              <option value="1">Lunes</option><option value="2">Martes</option>
+              <option value="3">Miércoles</option><option value="4">Jueves</option>
+              <option value="5">Viernes</option><option value="6">Sábado</option>
               <option value="0">Domingo</option>
             </select>
           </div>
-          <div class="campo" id="campoFecha">
+          <div class="field" id="campoFecha">
             <label>Fecha</label>
             <input type="date" name="fecha">
           </div>
-          <div class="campo" id="campoFechaFin" style="display:none;">
+          <div class="field" id="campoFechaFin" style="display:none;">
             <label>Fecha fin</label>
             <input type="date" name="fecha_fin">
           </div>
-          <div class="campo">
+          <div class="field">
             <label>Motivo (opcional)</label>
-            <input type="text" name="motivo" placeholder="Festivo, vacaciones..." style="width:180px;">
+            <input type="text" name="motivo" placeholder="Festivo, vacaciones…" style="width:180px;">
           </div>
-          <button type="submit" class="btn-save" style="height:38px;padding:0 16px;">+ Añadir</button>
+          <button type="submit" class="btn-save" style="height:40px;padding:0 18px;align-self:flex-end;">+ Añadir</button>
         </div>
       </form>
     </div>
-  </div>
+  </main>
 
   <script>
     function actualizarFormCierre() {

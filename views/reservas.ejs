@@ -3,376 +3,523 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel — <%= usuario.restaurante %></title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <title><%= usuario.restaurante %> — Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: #09090b; color: #e4e4e7; display: flex; min-height: 100vh; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #030308;
+      --glass: rgba(255,255,255,0.032);
+      --glass-hover: rgba(255,255,255,0.055);
+      --glass-border: rgba(255,255,255,0.07);
+      --glass-border-hover: rgba(124,58,237,0.4);
+      --text: rgba(255,255,255,0.92);
+      --text-2: rgba(255,255,255,0.45);
+      --text-3: rgba(255,255,255,0.18);
+      --accent: #8b5cf6;
+      --accent-2: #6366f1;
+      --accent-glow: rgba(139,92,246,0.25);
+      --radius: 18px;
+      --sidebar-w: 230px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      display: flex; min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── BACKGROUND ORBS ── */
+    .orb {
+      position: fixed; border-radius: 50%;
+      filter: blur(120px); pointer-events: none; z-index: 0;
+      will-change: transform;
+    }
+    .orb-1 {
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%);
+      top: -200px; left: -150px;
+      animation: drift1 22s ease-in-out infinite;
+    }
+    .orb-2 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(79,70,229,0.09) 0%, transparent 70%);
+      bottom: -150px; right: -100px;
+      animation: drift2 28s ease-in-out infinite;
+    }
+    .orb-3 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(167,139,250,0.07) 0%, transparent 70%);
+      top: 40%; left: 40%;
+      animation: drift3 18s ease-in-out infinite;
+    }
+    @keyframes drift1 { 0%,100%{transform:translate(0,0)} 33%{transform:translate(60px,40px)} 66%{transform:translate(-30px,60px)} }
+    @keyframes drift2 { 0%,100%{transform:translate(0,0)} 33%{transform:translate(-50px,-30px)} 66%{transform:translate(40px,-60px)} }
+    @keyframes drift3 { 0%,100%{transform:translate(-50%,-50%)} 50%{transform:translate(-40%,-60%)} }
 
     /* ── SIDEBAR ── */
     .sidebar {
-      width: 240px; background: #0c0c0f; border-right: 1px solid #18181b;
-      display: flex; flex-direction: column; padding: 0; position: fixed;
-      height: 100vh; z-index: 100; transition: transform .3s;
+      width: var(--sidebar-w);
+      background: rgba(255,255,255,0.018);
+      backdrop-filter: blur(60px); -webkit-backdrop-filter: blur(60px);
+      border-right: 1px solid var(--glass-border);
+      display: flex; flex-direction: column;
+      position: fixed; height: 100vh; z-index: 100;
     }
-    .sidebar-logo {
-      padding: 24px 20px 20px; border-bottom: 1px solid #18181b;
+
+    .sidebar-top {
+      padding: 28px 20px 20px;
+      border-bottom: 1px solid var(--glass-border);
     }
-    .sidebar-logo .brand {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+    .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 4px; }
+    .brand-mark {
+      width: 34px; height: 34px; flex-shrink: 0;
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      font-size: 16px; box-shadow: 0 4px 16px rgba(139,92,246,0.4);
     }
-    .sidebar-logo .brand-icon {
-      width: 32px; height: 32px; background: linear-gradient(135deg, #7c3aed, #4f46e5);
-      border-radius: 8px; display: flex; align-items: center; justify-content: center;
-      font-size: 15px; flex-shrink: 0;
+    .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.4px; color: #fff; }
+    .brand-rest {
+      font-size: 11px; color: var(--text-2); padding-left: 45px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .sidebar-logo .brand-name { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
-    .sidebar-logo .brand-rest {
-      font-size: 11px; color: #52525b; white-space: nowrap; overflow: hidden;
-      text-overflow: ellipsis; padding-left: 42px; letter-spacing: 0;
+
+    .sidebar-nav { padding: 14px 12px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+
+    .nav-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--text-3); padding: 10px 10px 4px; margin-top: 6px;
     }
-    .sidebar-menu { padding: 12px 10px; flex: 1; }
-    .sidebar-section { font-size: 10px; font-weight: 600; color: #3f3f46; text-transform: uppercase;
-      letter-spacing: 1px; padding: 8px 10px 4px; margin-top: 8px; }
-    .menu-item {
+
+    .nav-item {
       display: flex; align-items: center; gap: 10px; padding: 9px 12px;
-      border-radius: 8px; color: #71717a; font-size: 13px; font-weight: 500;
-      cursor: pointer; margin-bottom: 1px; text-decoration: none; transition: all .15s;
-      position: relative;
+      border-radius: 12px; color: var(--text-2); font-size: 13px; font-weight: 500;
+      text-decoration: none; transition: all 0.2s cubic-bezier(0.4,0,0.2,1); cursor: pointer;
     }
-    .menu-item:hover { background: #18181b; color: #d4d4d8; }
-    .menu-item.active { background: rgba(124,58,237,.12); color: #a78bfa; }
-    .menu-item.active::before {
-      content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-      width: 3px; height: 20px; background: linear-gradient(180deg, #7c3aed, #4f46e5);
-      border-radius: 0 3px 3px 0;
+    .nav-item:hover {
+      background: var(--glass-hover); color: var(--text);
     }
-    .menu-icon { font-size: 15px; width: 20px; text-align: center; opacity: .9; }
-    .sidebar-footer {
-      padding: 14px 16px; border-top: 1px solid #18181b;
+    .nav-item.active {
+      background: rgba(139,92,246,0.15);
+      color: #c4b5fd;
+      box-shadow: inset 0 0 0 1px rgba(139,92,246,0.25);
     }
-    .avatar { display: flex; align-items: center; gap: 10px; }
-    .avatar-circle {
-      width: 34px; height: 34px; background: linear-gradient(135deg, #7c3aed33, #4f46e533);
-      border: 1px solid #7c3aed44; border-radius: 50%;
+    .nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+
+    .sidebar-foot {
+      padding: 16px 16px 20px;
+      border-top: 1px solid var(--glass-border);
+    }
+    .user-row { display: flex; align-items: center; gap: 10px; }
+    .user-avatar {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(99,102,241,0.3));
+      border: 1px solid rgba(139,92,246,0.3);
       display: flex; align-items: center; justify-content: center;
-      color: #a78bfa; font-weight: 700; font-size: 13px; flex-shrink: 0;
+      font-size: 12px; font-weight: 700; color: #c4b5fd;
     }
-    .avatar-name { font-size: 12px; font-weight: 500; color: #d4d4d8; }
-    .avatar-email { font-size: 11px; color: #52525b; }
-    .logout {
-      color: #52525b; font-size: 11px; text-decoration: none; display: flex;
-      align-items: center; gap: 4px; margin-top: 12px; padding: 6px 0;
-      transition: color .15s;
+    .user-name { font-size: 12px; font-weight: 600; color: var(--text); }
+    .user-email { font-size: 11px; color: var(--text-3); }
+    .sign-out {
+      display: flex; align-items: center; gap: 5px; margin-top: 10px;
+      font-size: 11px; color: var(--text-3); text-decoration: none;
+      padding: 5px 2px; transition: color 0.2s;
     }
-    .logout:hover { color: #f87171; }
+    .sign-out:hover { color: #fca5a5; }
 
     /* ── MAIN ── */
-    .main { margin-left: 240px; flex: 1; padding: 32px; max-width: calc(100vw - 240px); }
-
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
-    .page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: #fafafa; }
-    .page-header p { color: #52525b; font-size: 13px; margin-top: 4px; }
-    .header-actions { display: flex; gap: 8px; align-items: center; }
-
-    .btn-secondary {
-      display: flex; align-items: center; gap: 6px; padding: 8px 14px;
-      background: #18181b; border: 1px solid #27272a; border-radius: 8px;
-      color: #a1a1aa; font-size: 12px; font-weight: 500; cursor: pointer;
-      text-decoration: none; transition: all .15s; font-family: Inter, sans-serif;
+    .main {
+      margin-left: var(--sidebar-w); flex: 1; min-height: 100vh;
+      padding: 36px 36px 60px; position: relative; z-index: 1;
     }
-    .btn-secondary:hover { border-color: #3f3f46; color: #e4e4e7; }
-    .btn-danger-soft {
-      display: flex; align-items: center; gap: 6px; padding: 8px 14px;
-      background: #18181b; border: 1px solid #27272a; border-radius: 8px;
-      color: #71717a; font-size: 12px; font-weight: 500; cursor: pointer;
-      text-decoration: none; transition: all .15s; font-family: Inter, sans-serif;
+
+    /* ── HEADER ── */
+    .header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 36px;
     }
-    .btn-danger-soft:hover { border-color: #f87171; color: #f87171; background: #1a0a0a; }
+    .header-left {}
+    .header-eyebrow {
+      font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--text-3); margin-bottom: 6px;
+    }
+    .header-title {
+      font-size: 28px; font-weight: 800; letter-spacing: -0.8px; color: var(--text); line-height: 1.1;
+    }
+    .header-sub { font-size: 13px; color: var(--text-2); margin-top: 5px; }
+
+    .header-actions { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 16px; border-radius: 12px; font-size: 12px; font-weight: 600;
+      cursor: pointer; text-decoration: none; font-family: inherit;
+      transition: all 0.2s cubic-bezier(0.4,0,0.2,1); letter-spacing: -0.1px;
+      border: 1px solid transparent;
+    }
+    .btn-ghost {
+      background: var(--glass); border-color: var(--glass-border);
+      color: var(--text-2);
+    }
+    .btn-ghost:hover { background: var(--glass-hover); color: var(--text); border-color: rgba(255,255,255,0.1); }
+    .btn-danger {
+      background: rgba(239,68,68,0.07); border-color: rgba(239,68,68,0.15);
+      color: rgba(252,165,165,0.7);
+    }
+    .btn-danger:hover { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3); color: #fca5a5; }
     .btn-primary {
-      display: flex; align-items: center; gap: 6px; padding: 9px 18px;
-      background: linear-gradient(135deg, #7c3aed, #4f46e5); border: none;
-      border-radius: 8px; color: #fff; font-size: 13px; font-weight: 600;
-      cursor: pointer; text-decoration: none; transition: opacity .15s;
-      font-family: Inter, sans-serif; letter-spacing: -0.2px;
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      color: #fff; border: none;
+      box-shadow: 0 4px 20px rgba(139,92,246,0.35);
     }
-    .btn-primary:hover { opacity: .88; }
+    .btn-primary:hover { box-shadow: 0 6px 28px rgba(139,92,246,0.5); transform: translateY(-1px); }
 
     /* ── STATS ── */
-    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+    .stats {
+      display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 28px;
+    }
     .stat {
-      background: #0f0f12; border: 1px solid #1c1c22; border-radius: 14px;
-      padding: 20px 22px; position: relative; overflow: hidden; transition: border-color .2s;
+      background: var(--glass);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius); padding: 24px 22px;
+      position: relative; overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      cursor: default;
     }
-    .stat:hover { border-color: #2c2c36; }
-    .stat::after {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-      background: linear-gradient(90deg, #7c3aed, #4f46e5); opacity: 0; transition: opacity .2s;
+    .stat:hover {
+      background: var(--glass-hover);
+      border-color: var(--glass-border-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 0 0 1px rgba(139,92,246,0.1), 0 20px 60px rgba(0,0,0,0.4), 0 0 80px rgba(139,92,246,0.05);
     }
-    .stat:hover::after { opacity: 1; }
-    .stat-icon { font-size: 22px; margin-bottom: 12px; }
-    .stat-label { font-size: 11px; color: #52525b; text-transform: uppercase; letter-spacing: .8px; font-weight: 600; margin-bottom: 6px; }
-    .stat-value { font-size: 32px; font-weight: 700; letter-spacing: -1.5px; color: #fafafa; line-height: 1; }
-    .stat-value.accent { background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .stat-sub { font-size: 11px; color: #3f3f46; margin-top: 6px; }
+    .stat.featured {
+      border-color: rgba(139,92,246,0.25);
+      box-shadow: inset 0 0 80px rgba(139,92,246,0.04);
+    }
+    .stat-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--text-3); margin-bottom: 12px;
+    }
+    .stat-value {
+      font-size: 44px; font-weight: 800; letter-spacing: -2px; line-height: 1;
+      color: var(--text);
+    }
+    .stat-value.purple {
+      background: linear-gradient(135deg, #c4b5fd, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .stat-sub {
+      font-size: 11px; color: var(--text-3); margin-top: 8px; font-weight: 500;
+    }
+    .stat-glow {
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse at 0% 0%, rgba(139,92,246,0.08) 0%, transparent 60%);
+    }
 
-    /* ── CARDS / GRID ── */
-    .grid-2 { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; margin-bottom: 24px; }
-    .card { background: #0f0f12; border: 1px solid #1c1c22; border-radius: 14px; padding: 22px; }
-    .card-title {
-      font-size: 11px; font-weight: 600; color: #52525b; text-transform: uppercase;
-      letter-spacing: .8px; margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+    /* ── PULSE DOT ── */
+    .live-dot {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 10px; font-weight: 600; color: #4ade80;
+      letter-spacing: 0.5px; text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .live-dot::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 0 0 rgba(74,222,128,0.4);
+      animation: pulse-green 2s ease-in-out infinite;
+    }
+    @keyframes pulse-green {
+      0%,100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(74,222,128,0); }
     }
 
-    /* ── PRÓXIMAS ── */
-    .proximas { display: flex; flex-direction: column; gap: 6px; }
-    .reserva-item {
-      display: flex; align-items: center; gap: 12px; padding: 10px 14px;
-      background: #131318; border: 1px solid #1c1c22; border-radius: 10px;
-      transition: border-color .15s;
-    }
-    .reserva-item:hover { border-color: #2c2c36; }
-    .reserva-hora {
-      font-size: 13px; font-weight: 700; color: #a78bfa; min-width: 46px;
-      font-variant-numeric: tabular-nums;
-    }
-    .reserva-nombre { font-size: 13px; color: #e4e4e7; flex: 1; font-weight: 500; }
-    .reserva-personas { font-size: 12px; color: #52525b; }
-    .empty-small { text-align: center; padding: 28px; color: #3f3f46; font-size: 13px; }
+    /* ── 2-COL GRID ── */
+    .grid-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-bottom: 20px; }
 
-    /* ── TABLAS ── */
-    .tabla-card { background: #0f0f12; border: 1px solid #1c1c22; border-radius: 14px; overflow: hidden; margin-bottom: 24px; }
-    .tabla-header {
-      padding: 18px 22px; display: flex; align-items: center; justify-content: space-between;
-      border-bottom: 1px solid #1c1c22; flex-wrap: wrap; gap: 10px;
+    .glass-card {
+      background: var(--glass);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius); padding: 24px;
     }
-    .tabla-title { font-size: 14px; font-weight: 600; color: #e4e4e7; display: flex; align-items: center; gap: 10px; }
-    .tabla-controles { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .buscador {
-      display: flex; align-items: center; gap: 8px; background: #131318;
-      border: 1px solid #1c1c22; border-radius: 8px; padding: 7px 12px; transition: border-color .15s;
+    .card-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--text-3); margin-bottom: 20px;
     }
-    .buscador:focus-within { border-color: #7c3aed; }
-    .buscador input { background: none; border: none; outline: none; color: #e4e4e7; font-size: 13px; width: 180px; font-family: Inter, sans-serif; }
-    .buscador input::placeholder { color: #3f3f46; }
-    .filtro-fecha input {
-      padding: 7px 10px; background: #131318; border: 1px solid #1c1c22;
-      border-radius: 8px; font-size: 13px; color: #e4e4e7; outline: none;
-      transition: border-color .15s; font-family: Inter, sans-serif;
-    }
-    .filtro-fecha input:focus { border-color: #7c3aed; }
-    .btn-filtro {
-      padding: 7px 14px; background: #7c3aed; color: white; border: none;
-      border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;
-      font-family: Inter, sans-serif; transition: opacity .15s;
-    }
-    .btn-filtro:hover { opacity: .85; }
-    .btn-clear {
-      padding: 7px 12px; background: #131318; color: #71717a; border: 1px solid #1c1c22;
-      border-radius: 8px; cursor: pointer; font-size: 12px; font-family: Inter, sans-serif; transition: all .15s;
-    }
-    .btn-clear:hover { border-color: #3f3f46; color: #e4e4e7; }
 
+    /* ── PROXIMAS ── */
+    .proxima-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--glass-border);
+      transition: all 0.15s;
+    }
+    .proxima-row:last-child { border-bottom: none; }
+    .proxima-hora {
+      font-size: 13px; font-weight: 700; color: #c4b5fd;
+      font-variant-numeric: tabular-nums; min-width: 44px;
+    }
+    .proxima-nombre { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; }
+    .proxima-pers {
+      font-size: 12px; color: var(--text-3);
+      background: var(--glass); border: 1px solid var(--glass-border);
+      padding: 2px 8px; border-radius: 20px;
+    }
+    .empty-small { text-align: center; padding: 32px 0; color: var(--text-3); font-size: 13px; }
+
+    /* ── TABLE CARD ── */
+    .tcard {
+      background: var(--glass);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius); overflow: hidden; margin-bottom: 16px;
+    }
+    .tcard-head {
+      padding: 20px 24px; border-bottom: 1px solid var(--glass-border);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    .tcard-title { font-size: 14px; font-weight: 700; letter-spacing: -0.3px; color: var(--text); display: flex; align-items: center; gap: 10px; }
+
+    .chip {
+      font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+      background: var(--glass); border: 1px solid var(--glass-border); color: var(--text-2);
+    }
+    .chip-yellow { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.2); color: #fbbf24; }
+
+    .tcard-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    .search-box {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border);
+      border-radius: 10px; padding: 8px 12px; transition: border-color 0.2s;
+    }
+    .search-box:focus-within { border-color: rgba(139,92,246,0.5); }
+    .search-box span { font-size: 12px; color: var(--text-3); }
+    .search-box input {
+      background: none; border: none; outline: none; color: var(--text);
+      font-size: 13px; width: 170px; font-family: inherit;
+    }
+    .search-box input::placeholder { color: var(--text-3); }
+
+    .date-input {
+      padding: 8px 11px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border);
+      border-radius: 10px; font-size: 13px; color: var(--text); outline: none; font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .date-input:focus { border-color: rgba(139,92,246,0.5); }
+
+    /* ── TABLE ── */
     table { width: 100%; border-collapse: collapse; }
-    th {
-      background: #0c0c0f; color: #3f3f46; padding: 10px 18px; text-align: left;
-      font-size: 10px; text-transform: uppercase; letter-spacing: .8px; font-weight: 600;
-      border-bottom: 1px solid #18181b;
+    thead th {
+      padding: 11px 24px; text-align: left;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+      color: var(--text-3); border-bottom: 1px solid var(--glass-border);
     }
-    td { padding: 13px 18px; border-bottom: 1px solid #18181b; font-size: 13px; color: #71717a; }
-    tr:last-child td { border-bottom: none; }
-    tbody tr { transition: background .1s; }
-    tbody tr:hover td { background: #131318; }
-    .nombre-td { color: #e4e4e7; font-weight: 500; }
+    tbody td { padding: 14px 24px; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 13px; color: var(--text-2); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background 0.15s; }
+    tbody tr:hover td { background: rgba(255,255,255,0.02); color: var(--text); }
+    .td-name { font-weight: 600; color: var(--text); }
 
     /* ── PILLS ── */
-    .hora-pill {
-      background: rgba(124,58,237,.15); color: #a78bfa; padding: 3px 10px;
-      border-radius: 6px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
-      border: 1px solid rgba(124,58,237,.2);
-    }
-    .estado-pill { padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
-    .estado-confirmada { background: rgba(74,222,128,.1); color: #4ade80; border-color: rgba(74,222,128,.15); }
-    .estado-pendiente { background: rgba(251,191,36,.1); color: #fbbf24; border-color: rgba(251,191,36,.15); }
-    .estado-cancelada { background: rgba(248,113,113,.1); color: #f87171; border-color: rgba(248,113,113,.15); }
-    .canal-pill { padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
-    .canal-llamada { background: rgba(167,139,250,.1); color: #a78bfa; border-color: rgba(167,139,250,.15); }
-    .canal-whatsapp { background: rgba(74,222,128,.1); color: #4ade80; border-color: rgba(74,222,128,.15); }
-    .canal-manual { background: #1c1c22; color: #71717a; border-color: #27272a; }
-    .espera-badge {
-      background: rgba(251,191,36,.1); color: #fbbf24; border: 1px solid rgba(251,191,36,.2);
-      padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
-    }
+    .pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
+    .pill-hour { background: rgba(139,92,246,0.12); color: #c4b5fd; border-color: rgba(139,92,246,0.2); font-variant-numeric: tabular-nums; }
+    .pill-ok { background: rgba(74,222,128,0.08); color: #86efac; border-color: rgba(74,222,128,0.15); }
+    .pill-wait { background: rgba(251,191,36,0.08); color: #fde68a; border-color: rgba(251,191,36,0.15); }
+    .pill-cancel { background: rgba(239,68,68,0.08); color: #fca5a5; border-color: rgba(239,68,68,0.15); }
+    .pill-wa { background: rgba(74,222,128,0.08); color: #86efac; border-color: rgba(74,222,128,0.15); }
+    .pill-call { background: rgba(139,92,246,0.1); color: #c4b5fd; border-color: rgba(139,92,246,0.18); }
+    .pill-manual { background: rgba(255,255,255,0.04); color: var(--text-3); border-color: var(--glass-border); }
 
-    /* ── ACCIONES ── */
-    .btn-editar {
-      background: none; border: none; color: #3f3f46; cursor: pointer;
-      font-size: 13px; padding: 5px 8px; border-radius: 6px; transition: all .15s;
+    /* ── ROW ACTIONS ── */
+    .row-actions { display: flex; align-items: center; gap: 4px; }
+    .act-btn {
+      width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent;
+      background: none; cursor: pointer; font-size: 13px; display: flex; align-items: center;
+      justify-content: center; transition: all 0.15s; color: var(--text-3);
     }
-    .btn-editar:hover { background: rgba(124,58,237,.15); color: #a78bfa; }
-    .btn-cancelar {
-      background: none; border: none; color: #3f3f46; cursor: pointer;
-      font-size: 13px; padding: 5px 8px; border-radius: 6px; transition: all .15s;
-    }
-    .btn-cancelar:hover { background: rgba(248,113,113,.12); color: #f87171; }
-    .empty { text-align: center; padding: 52px; color: #3f3f46; font-size: 13px; }
-    .empty-icon { font-size: 32px; margin-bottom: 12px; opacity: .4; }
+    .act-btn:hover { background: var(--glass-hover); border-color: var(--glass-border); color: var(--text); }
+    .act-btn.del:hover { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); color: #fca5a5; }
 
-    /* ── FORM NUEVA RESERVA ── */
-    .form-card { background: #0f0f12; border: 1px solid #1c1c22; border-radius: 14px; padding: 22px; }
-    .form-card-title { font-size: 14px; font-weight: 600; color: #e4e4e7; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
-    .form-grid { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-    .campo { display: flex; flex-direction: column; gap: 6px; }
-    .campo label { font-size: 10px; color: #52525b; text-transform: uppercase; letter-spacing: .8px; font-weight: 600; }
-    .campo input, .campo select {
-      padding: 9px 12px; background: #131318; border: 1px solid #1c1c22;
-      border-radius: 8px; font-size: 13px; color: #e4e4e7; outline: none;
-      transition: border .15s; font-family: Inter, sans-serif;
+    .empty-state { text-align: center; padding: 60px 24px; color: var(--text-3); font-size: 13px; }
+    .empty-state-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.3; }
+
+    /* ── FORM CARD ── */
+    .form-section {
+      background: var(--glass);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius); padding: 24px;
     }
-    .campo input:focus, .campo select:focus { border-color: #7c3aed; }
-    .campo select option { background: #131318; }
-    .btn-add {
-      padding: 9px 22px; background: linear-gradient(135deg, #7c3aed, #4f46e5);
-      color: white; border: none; border-radius: 8px; cursor: pointer;
-      font-size: 13px; font-weight: 600; height: 38px; font-family: Inter, sans-serif;
-      transition: opacity .15s; letter-spacing: -0.2px;
+    .form-title { font-size: 14px; font-weight: 700; letter-spacing: -0.3px; color: var(--text); margin-bottom: 20px; }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .field { display: flex; flex-direction: column; gap: 7px; }
+    .field-label { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-3); }
+    .field input, .field select {
+      padding: 9px 13px; background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border);
+      border-radius: 10px; font-size: 13px; color: var(--text); outline: none;
+      font-family: inherit; transition: border-color 0.2s;
     }
-    .btn-add:hover { opacity: .88; }
-    .error-msg {
-      background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.2);
-      color: #f87171; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px;
-      font-size: 13px;
+    .field input:focus, .field select:focus { border-color: rgba(139,92,246,0.5); }
+    .field input::placeholder { color: var(--text-3); }
+    .field select option { background: #0d0d1a; }
+
+    .err-msg {
+      background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.15);
+      color: #fca5a5; padding: 11px 16px; border-radius: 12px; font-size: 13px; margin-bottom: 16px;
     }
 
     /* ── MODAL ── */
-    .modal-overlay {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,.7); backdrop-filter: blur(4px); z-index: 1000;
-      align-items: center; justify-content: center;
+    .modal-bg {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      z-index: 500; align-items: center; justify-content: center;
     }
-    .modal-overlay.active { display: flex; }
+    .modal-bg.open { display: flex; }
     .modal {
-      background: #0f0f12; border: 1px solid #27272a; border-radius: 16px;
-      padding: 28px; width: 100%; max-width: 440px; box-shadow: 0 24px 60px rgba(0,0,0,.5);
+      background: #0d0d1a;
+      border: 1px solid var(--glass-border);
+      border-radius: 22px; padding: 32px; width: 100%; max-width: 440px;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.1);
+      animation: modal-in 0.25s cubic-bezier(0.4,0,0.2,1);
     }
-    .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: #fafafa; }
-    .modal-sub { font-size: 12px; color: #52525b; margin-bottom: 22px; }
-    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px; }
-    .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
-    .btn-modal-cancel {
-      padding: 9px 18px; background: #1c1c22; color: #71717a; border: 1px solid #27272a;
-      border-radius: 8px; cursor: pointer; font-size: 13px; font-family: Inter, sans-serif; transition: all .15s;
+    @keyframes modal-in { from { opacity:0; transform:scale(0.96) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
+    .modal-title { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 4px; }
+    .modal-sub { font-size: 13px; color: var(--text-2); margin-bottom: 24px; }
+    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-cancel-modal {
+      padding: 10px 20px; background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 12px; color: var(--text-2); font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
     }
-    .btn-modal-cancel:hover { color: #e4e4e7; border-color: #3f3f46; }
-    .btn-modal-save {
-      padding: 9px 22px; background: linear-gradient(135deg, #7c3aed, #4f46e5);
-      color: white; border: none; border-radius: 8px; cursor: pointer;
-      font-size: 13px; font-weight: 600; font-family: Inter, sans-serif;
+    .btn-cancel-modal:hover { color: var(--text); border-color: rgba(255,255,255,0.12); }
+    .btn-save-modal {
+      padding: 10px 24px; background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      border: none; border-radius: 12px; color: #fff; font-size: 13px; font-weight: 700;
+      cursor: pointer; font-family: inherit; letter-spacing: -0.2px;
+      box-shadow: 0 4px 20px rgba(139,92,246,0.4);
+      transition: all 0.2s;
     }
+    .btn-save-modal:hover { box-shadow: 0 6px 28px rgba(139,92,246,0.6); transform: translateY(-1px); }
 
     /* ── SCROLLBAR ── */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #0c0c0f; }
-    ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
   </style>
 </head>
 <body>
 
-  <div class="sidebar">
-    <div class="sidebar-logo">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-top">
       <div class="brand">
-        <div class="brand-icon">📅</div>
-        <div class="brand-name">ReservasBot</div>
+        <div class="brand-mark">🤖</div>
+        <span class="brand-name">ReservasBot</span>
       </div>
       <div class="brand-rest"><%= usuario.restaurante %></div>
     </div>
-    <div class="sidebar-menu">
+
+    <div class="sidebar-nav">
       <% if (usuario.rol === 'admin') { %>
-        <div class="sidebar-section">Sistema</div>
-        <a href="/admin" class="menu-item"><span class="menu-icon">🔧</span> Administración</a>
+        <div class="nav-label">Sistema</div>
+        <a href="/admin" class="nav-item"><span class="nav-icon">⚡</span> Administración</a>
       <% } %>
-      <div class="sidebar-section">Gestión</div>
-      <a href="/panel" class="menu-item active"><span class="menu-icon">📅</span> Reservas</a>
-      <a href="/clientes" class="menu-item"><span class="menu-icon">👥</span> Clientes</a>
-      <div class="sidebar-section">Ajustes</div>
-      <a href="/configuracion" class="menu-item"><span class="menu-icon">⚙️</span> Configuración</a>
+      <div class="nav-label">Gestión</div>
+      <a href="/panel" class="nav-item active"><span class="nav-icon">◼</span> Reservas</a>
+      <a href="/clientes" class="nav-item"><span class="nav-icon">◻</span> Clientes</a>
+      <div class="nav-label">Ajustes</div>
+      <a href="/configuracion" class="nav-item"><span class="nav-icon">◈</span> Configuración</a>
     </div>
-    <div class="sidebar-footer">
-      <div class="avatar">
-        <div class="avatar-circle"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
-        <div style="flex:1;min-width:0;">
-          <div class="avatar-name"><%= usuario.nombre %></div>
-          <div class="avatar-email"><%= usuario.email %></div>
+
+    <div class="sidebar-foot">
+      <div class="user-row">
+        <div class="user-avatar"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
+        <div>
+          <div class="user-name"><%= usuario.nombre %></div>
+          <div class="user-email"><%= usuario.email %></div>
         </div>
       </div>
-      <a href="/logout" class="logout">← Cerrar sesión</a>
+      <a href="/logout" class="sign-out">← Cerrar sesión</a>
     </div>
-  </div>
+  </nav>
 
-  <div class="main">
-    <div class="page-header">
-      <div>
-        <h1>Panel de Reservas</h1>
-        <p><%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="header">
+      <div class="header-left">
+        <div class="header-eyebrow">Panel de control</div>
+        <div class="header-title"><%= usuario.restaurante %></div>
+        <div class="header-sub"><%= new Date().toLocaleDateString('es-ES', {weekday:'long', year:'numeric', month:'long', day:'numeric'}) %></div>
       </div>
       <div class="header-actions">
-        <a href="/exportar-reservas" class="btn-secondary">⬇ Exportar CSV</a>
+        <a href="/exportar-reservas" class="btn btn-ghost">↓ Exportar CSV</a>
         <form method="POST" action="/borrar-reservas-pasadas" style="display:inline;" onsubmit="return confirm('¿Borrar reservas pasadas?')">
-          <button type="submit" class="btn-danger-soft">🗑 Borrar pasadas</button>
+          <button type="submit" class="btn btn-danger">Borrar pasadas</button>
         </form>
       </div>
     </div>
 
+    <!-- STATS -->
     <div class="stats">
-      <div class="stat">
-        <div class="stat-icon">📅</div>
+      <div class="stat featured">
+        <div class="stat-glow"></div>
+        <div class="live-dot">En vivo · hoy</div>
         <div class="stat-label">Reservas hoy</div>
-        <div class="stat-value accent"><%= reservasHoy.length %></div>
-        <div class="stat-sub">confirmadas para hoy</div>
+        <div class="stat-value purple"><%= reservasHoy.length %></div>
+        <div class="stat-sub">confirmadas</div>
       </div>
       <div class="stat">
-        <div class="stat-icon">👥</div>
-        <div class="stat-label">Personas hoy</div>
-        <div class="stat-value"><%= reservasHoy.reduce((a, r) => a + (r.personas || 0), 0) %></div>
-        <div class="stat-sub">comensales esperados</div>
+        <div class="stat-label">Comensales hoy</div>
+        <div class="stat-value"><%= reservasHoy.reduce((a,r) => a + (r.personas||0), 0) %></div>
+        <div class="stat-sub">personas esperadas</div>
       </div>
       <div class="stat">
-        <div class="stat-icon">📆</div>
         <div class="stat-label">Esta semana</div>
-        <div class="stat-value"><%= reservas.filter(r => { const d = new Date(r.fecha); const hoy = new Date(); const diff = (d - hoy) / (1000*60*60*24); return diff >= 0 && diff <= 7; }).length %></div>
+        <div class="stat-value"><%= reservas.filter(r => { const d=new Date(r.fecha); const hoy=new Date(); const diff=(d-hoy)/(864e5); return diff>=0&&diff<=7; }).length %></div>
         <div class="stat-sub">próximas reservas</div>
       </div>
       <div class="stat">
-        <div class="stat-icon">📊</div>
         <div class="stat-label">Total historial</div>
         <div class="stat-value"><%= reservas.length %></div>
         <div class="stat-sub">todas las reservas</div>
       </div>
     </div>
 
+    <!-- CHART + PROXIMAS -->
     <div class="grid-2">
-      <div class="card">
-        <div class="card-title">📈 Reservas — últimos 7 días</div>
-        <canvas id="grafico" height="130"></canvas>
+      <div class="glass-card">
+        <div class="card-label">Actividad — últimos 7 días</div>
+        <canvas id="grafico" height="120"></canvas>
       </div>
-      <div class="card">
-        <div class="card-title">⏱ Próximas reservas hoy</div>
-        <div class="proximas">
+      <div class="glass-card">
+        <div class="card-label">Próximas hoy</div>
+        <div>
           <% const proximas = reservasHoy.slice().sort((a,b) => a.hora > b.hora ? 1 : -1); %>
           <% if (proximas.length === 0) { %>
-            <div class="empty-small">No hay reservas para hoy</div>
+            <div class="empty-small">Sin reservas para hoy</div>
           <% } else { %>
-            <% proximas.slice(0, 5).forEach(r => { %>
-              <div class="reserva-item">
-                <span class="reserva-hora"><%= r.hora %></span>
-                <span class="reserva-nombre"><%= r.nombre %></span>
-                <span class="reserva-personas"><%= r.personas %> pers.</span>
+            <% proximas.slice(0,6).forEach(r => { %>
+              <div class="proxima-row">
+                <span class="proxima-hora"><%= r.hora %></span>
+                <span class="proxima-nombre"><%= r.nombre %></span>
+                <span class="proxima-pers"><%= r.personas %>p</span>
               </div>
             <% }) %>
-            <% if (proximas.length > 5) { %>
-              <div style="text-align:center;font-size:12px;color:#3f3f46;margin-top:8px;">+<%= proximas.length - 5 %> más hoy</div>
+            <% if (proximas.length > 6) { %>
+              <div style="text-align:center;font-size:11px;color:var(--text-3);margin-top:12px;font-weight:600;">+<%= proximas.length-6 %> más</div>
             <% } %>
           <% } %>
         </div>
@@ -380,42 +527,33 @@
     </div>
 
     <!-- LISTA DE ESPERA -->
-    <div class="tabla-card">
-      <div class="tabla-header">
-        <div class="tabla-title">
-          ⏳ Lista de espera
-          <span class="espera-badge"><%= listaEspera.length %> personas</span>
+    <div class="tcard">
+      <div class="tcard-head">
+        <div class="tcard-title">
+          Lista de espera
+          <span class="chip chip-yellow"><%= listaEspera.length %></span>
         </div>
       </div>
       <% if (listaEspera.length === 0) { %>
-        <div class="empty"><div class="empty-icon">⏳</div>No hay nadie en lista de espera</div>
+        <div class="empty-state"><div class="empty-state-icon">⏳</div>Nadie en lista de espera</div>
       <% } else { %>
         <table>
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Teléfono</th>
-              <th>Fecha</th>
-              <th>Hora</th>
-              <th>Personas</th>
-              <th>Estado</th>
-              <th>Apuntado</th>
-              <th></th>
-            </tr>
-          </thead>
+          <thead><tr>
+            <th>Nombre</th><th>Teléfono</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Estado</th><th>Apuntado</th><th></th>
+          </tr></thead>
           <tbody>
             <% listaEspera.forEach(l => { %>
               <tr>
-                <td class="nombre-td"><%= l.nombre %></td>
+                <td class="td-name"><%= l.nombre %></td>
                 <td><%= l.telefono %></td>
                 <td><%= l.fecha %></td>
-                <td><span class="hora-pill"><%= l.hora %></span></td>
+                <td><span class="pill pill-hour"><%= l.hora %></span></td>
                 <td><%= l.personas %> pers.</td>
-                <td><span class="estado-pill <%= l.estado === 'notificado' ? 'estado-pendiente' : 'estado-confirmada' %>"><%= l.estado || 'esperando' %></span></td>
+                <td><span class="pill <%= l.estado === 'notificado' ? 'pill-wait' : 'pill-ok' %>"><%= l.estado || 'esperando' %></span></td>
                 <td><%= new Date(l.creada_en).toLocaleDateString('es-ES') %></td>
                 <td>
                   <form method="POST" action="/espera/eliminar/<%= l.id %>" style="display:inline;">
-                    <button class="btn-cancelar" type="submit" onclick="return confirm('¿Eliminar de lista de espera?')">✕</button>
+                    <button class="act-btn del" type="submit" onclick="return confirm('¿Eliminar de lista de espera?')">✕</button>
                   </form>
                 </td>
               </tr>
@@ -426,63 +564,56 @@
     </div>
 
     <!-- TODAS LAS RESERVAS -->
-    <div class="tabla-card">
-      <div class="tabla-header">
-        <div class="tabla-title">📋 Todas las reservas</div>
-        <div class="tabla-controles">
-          <div class="buscador">
-            <span style="color:#3f3f46;font-size:13px;">🔍</span>
-            <input type="text" id="buscador" placeholder="Buscar por nombre..." oninput="filtrarTabla()">
+    <div class="tcard">
+      <div class="tcard-head">
+        <div class="tcard-title">Todas las reservas <span class="chip"><%= reservas.length %></span></div>
+        <div class="tcard-controls">
+          <div class="search-box">
+            <span>⌕</span>
+            <input type="text" id="buscador" placeholder="Buscar por nombre…" oninput="filtrarTabla()">
           </div>
-          <div class="filtro-fecha" style="display:flex;gap:8px;">
-            <input type="date" id="filtroFecha" value="<%= fechaFiltro || '' %>">
-            <button class="btn-filtro" onclick="filtrar()">Filtrar</button>
-            <button class="btn-clear" onclick="limpiar()">✕</button>
-          </div>
+          <input type="date" class="date-input" id="filtroFecha" value="<%= fechaFiltro || '' %>">
+          <button class="btn btn-primary" style="padding:8px 14px;font-size:12px;" onclick="filtrar()">Filtrar</button>
+          <button class="btn btn-ghost" style="padding:8px 12px;font-size:12px;" onclick="limpiar()">✕</button>
         </div>
       </div>
       <table id="tablaReservas">
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Fecha</th>
-            <th>Hora</th>
-            <th>Personas</th>
-            <th>Canal</th>
-            <th>Estado</th>
-            <th>Notas</th>
-            <th>Recibida</th>
-            <th></th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Canal</th><th>Estado</th><th>Notas</th><th>Recibida</th><th></th>
+        </tr></thead>
         <tbody>
           <% const listaReservas = fechaFiltro ? reservasFiltradas : reservas; %>
           <% if (listaReservas.length === 0) { %>
-            <tr><td colspan="9" class="empty"><div class="empty-icon">📋</div>No hay reservas todavía</td></tr>
+            <tr><td colspan="9" class="empty-state"><div class="empty-state-icon">◼</div>No hay reservas todavía</td></tr>
           <% } else { %>
             <% listaReservas.forEach(r => { %>
               <tr>
-                <td class="nombre-td"><%= r.nombre %></td>
+                <td class="td-name"><%= r.nombre %></td>
                 <td><%= r.fecha %></td>
-                <td><span class="hora-pill"><%= r.hora %></span></td>
+                <td><span class="pill pill-hour"><%= r.hora %></span></td>
                 <td><%= r.personas %> pers.</td>
                 <td>
-                  <% if (r.canal === 'whatsapp') { %>
-                    <span class="canal-pill canal-whatsapp">WhatsApp</span>
-                  <% } else if (r.canal === 'manual') { %>
-                    <span class="canal-pill canal-manual">Presencial</span>
-                  <% } else { %>
-                    <span class="canal-pill canal-llamada">Llamada</span>
-                  <% } %>
+                  <% if (r.canal === 'whatsapp') { %><span class="pill pill-wa">WhatsApp</span>
+                  <% } else if (r.canal === 'manual') { %><span class="pill pill-manual">Presencial</span>
+                  <% } else { %><span class="pill pill-call">Llamada</span><% } %>
                 </td>
-                <td><span class="estado-pill estado-<%= r.estado || 'confirmada' %>"><%= r.estado || 'confirmada' %></span></td>
-                <td><% if (r.notas) { %><span style="color:#fbbf24;font-size:12px;" title="<%= r.notas %>">⚠️ <%= r.notas.length > 30 ? r.notas.substring(0,30)+'…' : r.notas %></span><% } else { %><span style="color:#27272a;font-size:12px;">—</span><% } %></td>
+                <td>
+                  <% const est = r.estado || 'confirmada'; %>
+                  <span class="pill <%= est==='confirmada'?'pill-ok':est==='cancelada'?'pill-cancel':'pill-wait' %>"><%= est %></span>
+                </td>
+                <td>
+                  <% if (r.notas) { %>
+                    <span style="font-size:12px;color:#fde68a;" title="<%= r.notas %>">⚠ <%= r.notas.length>28 ? r.notas.substring(0,28)+'…' : r.notas %></span>
+                  <% } else { %><span style="color:var(--text-3)">—</span><% } %>
+                </td>
                 <td><%= new Date(r.creada_en).toLocaleDateString('es-ES') %></td>
-                <td style="white-space:nowrap;">
-                  <button class="btn-editar" onclick="abrirEditar('<%= r.id %>', '<%= r.nombre %>', '<%= r.fecha %>', '<%= r.hora %>', '<%= r.personas %>')" type="button">✏️</button>
-                  <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('¿Cancelar reserva de <%= r.nombre %>?')" style="display:inline;">
-                    <button class="btn-cancelar" type="submit">✕</button>
-                  </form>
+                <td>
+                  <div class="row-actions">
+                    <button class="act-btn" onclick="abrirEditar('<%= r.id %>','<%= r.nombre %>','<%= r.fecha %>','<%= r.hora %>','<%= r.personas %>')" type="button">✎</button>
+                    <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('¿Cancelar reserva de <%= r.nombre %>?')" style="display:inline;">
+                      <button class="act-btn del" type="submit">✕</button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             <% }) %>
@@ -491,76 +622,78 @@
       </table>
     </div>
 
-    <div class="form-card">
-      <div class="form-card-title">✚ Añadir reserva manual</div>
-      <% if (error === 'fecha') { %><div class="error-msg">⚠ La fecha y hora ya han pasado.</div><% } %>
-      <% if (error === 'cupo') { %><div class="error-msg">⚠ No hay mesas disponibles para esa fecha, hora y número de personas.</div><% } %>
-      <% if (error === 'telefono') { %><div class="error-msg">⚠ El teléfono es obligatorio.</div><% } %>
-      <form method="POST" action="/nueva-reserva" class="form-grid">
-        <div class="campo">
-          <label>Nombre</label>
-          <input name="nombre" required placeholder="Nombre cliente" style="width:150px;">
+    <!-- FORM NUEVA -->
+    <div class="form-section">
+      <div class="form-title">+ Nueva reserva manual</div>
+      <% if (error === 'fecha') { %><div class="err-msg">⚠ La fecha y hora ya han pasado.</div><% } %>
+      <% if (error === 'cupo') { %><div class="err-msg">⚠ No hay mesas disponibles para esa fecha, hora y número de personas.</div><% } %>
+      <% if (error === 'telefono') { %><div class="err-msg">⚠ El teléfono es obligatorio.</div><% } %>
+      <form method="POST" action="/nueva-reserva" class="form-row">
+        <div class="field">
+          <span class="field-label">Nombre</span>
+          <input name="nombre" required placeholder="Cliente" style="width:150px;">
         </div>
-        <div class="campo">
-          <label>Teléfono</label>
+        <div class="field">
+          <span class="field-label">Teléfono</span>
           <div style="display:flex;gap:6px;">
-            <select name="prefijo" style="width:80px;">
+            <select name="prefijo" style="width:78px;">
               <option value="+34">🇪🇸 +34</option>
               <option value="+1">🇺🇸 +1</option>
               <option value="+44">🇬🇧 +44</option>
               <option value="+33">🇫🇷 +33</option>
             </select>
-            <input name="telefono" required placeholder="600000000" pattern="[0-9]{9}" style="width:120px;">
+            <input name="telefono" required placeholder="600000000" pattern="[0-9]{9}" style="width:118px;">
           </div>
         </div>
-        <div class="campo">
-          <label>Fecha</label>
-          <input name="fecha" type="date" required style="width:140px;">
+        <div class="field">
+          <span class="field-label">Fecha</span>
+          <input name="fecha" type="date" required style="width:138px;">
         </div>
-        <div class="campo">
-          <label>Hora</label>
-          <input name="hora" type="time" required style="width:110px;">
+        <div class="field">
+          <span class="field-label">Hora</span>
+          <input name="hora" type="time" required style="width:108px;">
         </div>
-        <div class="campo">
-          <label>Personas</label>
-          <input name="personas" type="number" min="1" max="20" required placeholder="2" style="width:70px;">
+        <div class="field">
+          <span class="field-label">Personas</span>
+          <input name="personas" type="number" min="1" max="20" required placeholder="2" style="width:68px;">
         </div>
-        <div class="campo">
-          <label>Notas</label>
-          <input name="notas" placeholder="Alergias, vegano, cumpleaños..." style="width:200px;">
+        <div class="field">
+          <span class="field-label">Notas</span>
+          <input name="notas" placeholder="Alergias, vegano…" style="width:200px;">
         </div>
-        <button type="submit" class="btn-add">+ Añadir</button>
+        <button type="submit" class="btn btn-primary" style="align-self:flex-end;">Añadir reserva</button>
       </form>
     </div>
-  </div>
+
+  </main>
 
   <!-- MODAL EDITAR -->
-  <div class="modal-overlay" id="modalEditar" onclick="if(event.target===this)cerrarEditar()">
+  <div class="modal-bg" id="modalEditar" onclick="if(event.target===this)cerrarEditar()">
     <div class="modal">
-      <h3>Editar reserva</h3>
+      <div class="modal-title">Editar reserva</div>
       <div class="modal-sub">Modifica los datos de la reserva seleccionada</div>
       <form method="POST" id="formEditar">
         <div class="modal-grid">
-          <div class="campo">
-            <label>Nombre</label>
+          <div class="field">
+            <span class="field-label">Nombre</span>
             <input type="text" name="nombre" id="editNombre" required>
           </div>
-          <div class="campo">
-            <label>Personas</label>
+          <div class="field">
+            <span class="field-label">Personas</span>
             <input type="number" name="personas" id="editPersonas" min="1" max="20" required>
           </div>
-          <div class="campo">
-            <label>Fecha</label>
+          <div class="field">
+            <span class="field-label">Fecha</span>
             <input type="date" name="fecha" id="editFecha" required>
           </div>
-          <div class="campo">
-            <label>Hora</label>
+          <div class="field">
+            <span class="field-label">Hora</span>
             <input type="time" name="hora" id="editHora" required>
           </div>
         </div>
-        <div class="modal-btns">
-          <button type="button" class="btn-modal-cancel" onclick="cerrarEditar()">Cancelar</button>
-          <button type="submit" class="btn-modal-save">Guardar cambios</button>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel-modal" onclick="cerrarEditar()">Cancelar</button>
+          <button type="submit" class="btn-save-modal">Guardar cambios</button>
         </div>
       </form>
     </div>
@@ -568,15 +701,14 @@
 
   <script>
     function filtrar() {
-      const fecha = document.getElementById('filtroFecha').value;
-      if (fecha) window.location.href = '/panel?fecha=' + fecha;
+      const f = document.getElementById('filtroFecha').value;
+      if (f) window.location.href = '/panel?fecha=' + f;
     }
     function limpiar() { window.location.href = '/panel'; }
     function filtrarTabla() {
-      const texto = document.getElementById('buscador').value.toLowerCase();
-      document.querySelectorAll('#tablaReservas tbody tr').forEach(fila => {
-        const nombre = fila.cells[0]?.textContent.toLowerCase() || '';
-        fila.style.display = nombre.includes(texto) ? '' : 'none';
+      const t = document.getElementById('buscador').value.toLowerCase();
+      document.querySelectorAll('#tablaReservas tbody tr').forEach(r => {
+        r.style.display = (r.cells[0]?.textContent.toLowerCase()||'').includes(t) ? '' : 'none';
       });
     }
     function abrirEditar(id, nombre, fecha, hora, personas) {
@@ -585,45 +717,53 @@
       document.getElementById('editHora').value = hora;
       document.getElementById('editPersonas').value = personas;
       document.getElementById('formEditar').action = '/editar-reserva/' + id;
-      document.getElementById('modalEditar').classList.add('active');
+      document.getElementById('modalEditar').classList.add('open');
     }
     function cerrarEditar() {
-      document.getElementById('modalEditar').classList.remove('active');
+      document.getElementById('modalEditar').classList.remove('open');
     }
 
     // Chart
-    const reservas = <%- JSON.stringify(reservas.map(r => ({ fecha: r.fecha }))) %>;
+    const _reservas = <%- JSON.stringify(reservas.map(r => ({fecha: r.fecha}))) %>;
     const labels = [], datos = [];
     for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+      const d = new Date(); d.setDate(d.getDate() - i);
       const fecha = d.toISOString().split('T')[0];
-      labels.push(d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }));
-      datos.push(reservas.filter(r => r.fecha === fecha).length);
+      labels.push(d.toLocaleDateString('es-ES', {weekday:'short', day:'numeric'}));
+      datos.push(_reservas.filter(r => r.fecha === fecha).length);
     }
+    const grad = document.getElementById('grafico').getContext('2d').createLinearGradient(0,0,0,200);
+    grad.addColorStop(0, 'rgba(139,92,246,0.3)');
+    grad.addColorStop(1, 'rgba(139,92,246,0.0)');
     new Chart(document.getElementById('grafico'), {
       type: 'bar',
       data: {
         labels,
         datasets: [{
           data: datos,
-          backgroundColor: 'rgba(124,58,237,.25)',
-          borderColor: '#7c3aed',
+          backgroundColor: grad,
+          borderColor: 'rgba(139,92,246,0.7)',
           borderWidth: 1.5,
-          borderRadius: 6,
-          hoverBackgroundColor: 'rgba(124,58,237,.4)'
+          borderRadius: 8,
+          hoverBackgroundColor: 'rgba(139,92,246,0.4)'
         }]
       },
       options: {
         responsive: true,
-        plugins: { legend: { display: false }, tooltip: {
-          backgroundColor: '#1c1c22', titleColor: '#e4e4e7', bodyColor: '#a1a1aa',
-          borderColor: '#27272a', borderWidth: 1, padding: 10,
-          callbacks: { label: ctx => ` ${ctx.parsed.y} reserva${ctx.parsed.y !== 1 ? 's' : ''}` }
-        }},
+        plugins: {
+          legend: {display: false},
+          tooltip: {
+            backgroundColor: 'rgba(10,10,26,0.95)',
+            titleColor: 'rgba(255,255,255,0.9)',
+            bodyColor: 'rgba(255,255,255,0.5)',
+            borderColor: 'rgba(139,92,246,0.3)',
+            borderWidth: 1, padding: 12, cornerRadius: 10,
+            callbacks: { label: ctx => ` ${ctx.parsed.y} reserva${ctx.parsed.y!==1?'s':''}` }
+          }
+        },
         scales: {
-          x: { grid: { color: '#18181b' }, ticks: { color: '#52525b', font: { size: 11, family: 'Inter' } } },
-          y: { grid: { color: '#18181b' }, ticks: { color: '#52525b', stepSize: 1, font: { size: 11, family: 'Inter' } } }
+          x: { grid: {color: 'rgba(255,255,255,0.03)'}, ticks: {color: 'rgba(255,255,255,0.25)', font:{size:11,family:'Inter'}} },
+          y: { grid: {color: 'rgba(255,255,255,0.03)'}, ticks: {color: 'rgba(255,255,255,0.25)', stepSize:1, font:{size:11,family:'Inter'}}, beginAtZero: true }
         }
       }
     });
