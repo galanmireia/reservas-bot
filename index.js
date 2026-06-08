@@ -1182,9 +1182,10 @@ cron.schedule('*/15 * * * *', async () => {
 cron.schedule('0 10 * * *', async () => {
   console.log('Ejecutando recordatorios...');
   try {
-    const manana = new Date();
+    const manana = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
     manana.setDate(manana.getDate() + 1);
-    const fechaManana = manana.toISOString().split('T')[0];
+    const fechaManana = manana.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+    const fechaMananaHumana = manana.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
     const reservas = await db.query(
       'SELECT r.*, u.email, u.restaurante FROM reservas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.fecha = $1',
       [fechaManana]
@@ -1193,7 +1194,7 @@ cron.schedule('0 10 * * *', async () => {
       if (reserva.telefono_cliente && reserva.telefono_cliente !== 'manual') {
         await enviarWhatsApp(
           reserva.telefono_cliente,
-          `Hola ${reserva.nombre}, te recordamos tu reserva en ${reserva.restaurante} manana ${fechaManana} a las ${reserva.hora} para ${reserva.personas} personas.`
+          `Hola ${reserva.nombre}! Te recordamos tu reserva en ${reserva.restaurante} manana ${fechaMananaHumana} a ${horaHablada(reserva.hora)} para ${reserva.personas} persona${reserva.personas > 1 ? 's' : ''}. Si necesitas cancelar o modificar respondenos a este mensaje.`
         );
       }
       await enviarEmailRestaurante(reserva.usuario_id, {
@@ -1204,7 +1205,7 @@ cron.schedule('0 10 * * *', async () => {
         canal: 'Recordatorio automatico'
       });
     }
-    console.log('Recordatorios completados.');
+    console.log('Recordatorios completados:', reservas.rows.length);
   } catch (err) {
     console.error('Error en recordatorios:', err.message);
   }
