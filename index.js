@@ -260,24 +260,30 @@ async function hayDisponibilidad(fecha, hora, personas, uid = null, excluirId = 
 
 async function obtenerListaEspera(usuarioId, fecha, hora, personas) {
   const lista = await db.query(
-    'SELECT COUNT(*) FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND hora = $3 AND personas <= $4',
-    [usuarioId, fecha, hora, personas <= 2 ? 2 : 4]
+    "SELECT COUNT(*) FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND hora = $3 AND personas <= $4 AND (estado = 'esperando' OR estado IS NULL)",
+    [usuarioId, fecha, hora, personas]
   );
   return parseInt(lista.rows[0].count);
 }
 
 async function avisarListaEspera(usuarioId, fecha, hora, personas) {
   const enEspera = await db.query(
-    'SELECT * FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND personas <= $3 ORDER BY creada_en ASC LIMIT 1',
-    [usuarioId, fecha, personas <= 2 ? 2 : 4]
+    "SELECT * FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND hora = $3 AND personas <= $4 AND (estado = 'esperando' OR estado IS NULL) ORDER BY creada_en ASC LIMIT 1",
+    [usuarioId, fecha, hora, personas]
   );
   if (enEspera.rows.length === 0) return;
   const cliente = enEspera.rows[0];
+
+  await db.query(
+    "UPDATE lista_espera SET estado = 'notificado', notificado_en = NOW() WHERE id = $1",
+    [cliente.id]
+  );
+
+  const fechaFormateada = new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
   await enviarWhatsApp(
     cliente.telefono,
-    `Hola ${cliente.nombre}, hay un hueco disponible en el restaurante para el ${fecha} a las ${hora} para ${cliente.personas} personas. Responde SI para confirmar tu reserva o NO para cancelar tu espera.`
+    `Hola ${cliente.nombre}! Hay un hueco disponible para el ${fechaFormateada} a ${horaHablada(hora)} para ${cliente.personas} persona${cliente.personas > 1 ? 's' : ''}. Tienes 2 horas para confirmar. Responde *SI* para reservar tu mesa o *NO* si ya no te interesa.`
   );
-  await db.query('DELETE FROM lista_espera WHERE id = $1', [cliente.id]);
 }
 
 async function extraerDatosReserva(mensajes) {
@@ -417,11 +423,12 @@ if (datos.accion === 'DISPONIBILIDAD') {
   if (datos.accion === 'ESPERA') {
     if (!datos.nombre || !datos.fecha || !datos.hora || !datos.personas) return 'Necesito tu nombre, fecha, hora y numero de personas para apuntarte a la lista de espera.';
     await db.query(
-      'INSERT INTO lista_espera (usuario_id, telefono, nombre, fecha, hora, personas) VALUES ($1, $2, $3, $4, $5, $6)',
+      "INSERT INTO lista_espera (usuario_id, telefono, nombre, fecha, hora, personas, estado) VALUES ($1, $2, $3, $4, $5, $6, 'esperando')",
       [uid, telefonoParaWhatsapp, datos.nombre, datos.fecha, datos.hora, datos.personas]
     );
     const enEspera = await obtenerListaEspera(uid, datos.fecha, datos.hora, datos.personas);
-    return `Perfecto ${datos.nombre}, te he apuntado en la lista de espera para el ${datos.fecha} a las ${datos.hora}. Eres el numero ${enEspera} en la lista. Te avisaremos por WhatsApp si hay una cancelacion.`;
+    const fechaFormateada = new Date(datos.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    return `Perfecto ${datos.nombre}, te he apuntado en la lista de espera para el ${fechaFormateada} a ${horaHablada(datos.hora)}. Eres el numero ${enEspera} en la lista. Te avisaremos por WhatsApp si hay una cancelacion.`;
   }
 
   if (datos.accion === 'NUEVA') {
@@ -804,6 +811,56 @@ app.post('/whatsapp', async (req, res) => {
     const mensaje = req.body.Body;
     const numeroTwilio = req.body.To || null;
     console.log('WhatsApp de:', from, '→', mensaje);
+
+    // --- Detección de SI/NO de lista de espera ---
+    const notificado = await db.query(
+      "SELECT * FROM lista_espera WHERE telefono = $1 AND estado = 'notificado' ORDER BY notificado_en DESC LIMIT 1",
+      [from]
+    );
+    if (notificado.rows.length > 0) {
+      const entrada = notificado.rows[0];
+      const respNorm = mensaje.trim().toLowerCase().replace(/[^a-záéíóúüñ\s]/gi, '');
+      const esSi = /^s[ií](\s|$)/.test(respNorm) || respNorm === 'si' || respNorm === 'sí';
+      const esNo = /^no(\s|$)/.test(respNorm) || respNorm === 'no';
+
+      if (esSi || esNo) {
+        const fechaFormateada = new Date(entrada.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        let respuestaTwiml;
+
+        if (esSi) {
+          const disponibilidad = await hayDisponibilidad(entrada.fecha, entrada.hora, entrada.personas, entrada.usuario_id);
+          if (disponibilidad.disponible) {
+            await db.query(
+              "INSERT INTO reservas (call_sid, nombre, fecha, hora, personas, telefono_cliente, usuario_id, canal) VALUES ($1,$2,$3,$4,$5,$6,$7,'whatsapp')",
+              ['lista-espera', entrada.nombre, entrada.fecha, entrada.hora, entrada.personas, from, entrada.usuario_id]
+            );
+            await db.query('DELETE FROM lista_espera WHERE id = $1', [entrada.id]);
+            await obtenerOCrearCliente(from, entrada.nombre);
+            await enviarEmailRestaurante(entrada.usuario_id, {
+              nombre: entrada.nombre, fecha: entrada.fecha, hora: entrada.hora,
+              personas: entrada.personas, canal: 'Lista de espera (confirmado por WhatsApp)'
+            });
+            respuestaTwiml = `Perfecto ${entrada.nombre}! Tu reserva esta confirmada para el ${fechaFormateada} a ${horaHablada(entrada.hora)} para ${entrada.personas} persona${entrada.personas > 1 ? 's' : ''}. Te esperamos!`;
+          } else {
+            // La mesa ya no está disponible, volver a poner en espera y avisar al siguiente
+            await db.query("UPDATE lista_espera SET estado = 'esperando', notificado_en = NULL WHERE id = $1", [entrada.id]);
+            await avisarListaEspera(entrada.usuario_id, entrada.fecha, entrada.hora, entrada.personas);
+            respuestaTwiml = `Lo sentimos ${entrada.nombre}, la mesa ya no esta disponible (alguien se adelanto). Te hemos vuelto a apuntar en la lista de espera y te avisaremos si hay otro hueco.`;
+          }
+        } else {
+          // NO
+          await db.query('DELETE FROM lista_espera WHERE id = $1', [entrada.id]);
+          await avisarListaEspera(entrada.usuario_id, entrada.fecha, entrada.hora, entrada.personas);
+          respuestaTwiml = `Entendido ${entrada.nombre}, te hemos eliminado de la lista de espera. Si en otro momento quieres reservar, estamos aqui!`;
+        }
+
+        delete conversacionesWhatsapp[from];
+        res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?><Response><Message>${respuestaTwiml}</Message></Response>`);
+        return;
+      }
+    }
+    // --- Fin detección SI/NO ---
+
     const hoy = new Date().toISOString().split('T')[0];
     const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
     const contexto = await obtenerContextoCliente(from);
@@ -1070,6 +1127,26 @@ app.get('/test-recordatorios', requireLogin, async (req, res) => {
   res.send(`Recordatorios enviados para ${reservas.rows.length} reservas del ${fechaManana}`);
 });
 
+// Cron cada 15 min: expirar notificaciones de lista de espera > 2 horas
+cron.schedule('*/15 * * * *', async () => {
+  try {
+    const expirados = await db.query(
+      "SELECT * FROM lista_espera WHERE estado = 'notificado' AND notificado_en < NOW() - INTERVAL '2 hours'"
+    );
+    for (const entrada of expirados.rows) {
+      await db.query('DELETE FROM lista_espera WHERE id = $1', [entrada.id]);
+      await enviarWhatsApp(
+        entrada.telefono,
+        `Hola ${entrada.nombre}, el plazo de 2 horas para confirmar tu reserva ha expirado. Si sigues interesado, escribenos de nuevo y te apuntamos a la lista de espera.`
+      );
+      await avisarListaEspera(entrada.usuario_id, entrada.fecha, entrada.hora, entrada.personas);
+    }
+    if (expirados.rows.length > 0) console.log(`Lista de espera: ${expirados.rows.length} notificaciones expiradas procesadas`);
+  } catch (err) {
+    console.error('Error cron lista de espera:', err.message);
+  }
+});
+
 cron.schedule('0 10 * * *', async () => {
   console.log('Ejecutando recordatorios...');
   try {
@@ -1109,6 +1186,10 @@ app.post('/espera/eliminar/:id', requireLogin, async (req, res) => {
   await db.query('DELETE FROM lista_espera WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
   res.redirect('/panel');
 });
+// Migración: añadir columnas de lista de espera si no existen
+db.query(`ALTER TABLE lista_espera ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'esperando'`).catch(() => {});
+db.query(`ALTER TABLE lista_espera ADD COLUMN IF NOT EXISTS notificado_en TIMESTAMP`).catch(() => {});
+
 const PORT = process.env.PORT || 3000;
 const server = require('http').createServer(app);
 const { WebSocketServer } = require('ws');
