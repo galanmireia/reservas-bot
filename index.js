@@ -774,7 +774,7 @@ app.post('/responder', async (req, res) => {
         mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
       }
       console.log('Respuesta final:', mensaje);
-      if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('procesada') || mensaje.includes('lista de espera')) {
+      if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('procesada') || mensaje.includes('te he apuntado en la lista de espera')) {
         const nuevoContexto = await obtenerContextoCliente(telefono);
         conversaciones[callSid] = [
           { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
@@ -885,7 +885,7 @@ app.post('/whatsapp', async (req, res) => {
         console.error('Error en procesarAccion WhatsApp:', err.message);
         respuesta = 'Tu reserva ha sido procesada. Te esperamos!';
       }
-      if (respuesta.includes('confirmada') || respuesta.includes('cancelada') || respuesta.includes('modificada') || respuesta.includes('procesada') || respuesta.includes('lista de espera')) {
+      if (respuesta.includes('confirmada') || respuesta.includes('cancelada') || respuesta.includes('modificada') || respuesta.includes('procesada') || respuesta.includes('te he apuntado en la lista de espera')) {
         const nuevoContexto = await obtenerContextoCliente(from);
         conversacionesWhatsapp[from] = [
           { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },

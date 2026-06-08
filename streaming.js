@@ -158,7 +158,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
               mensaje = await procesarAccion(datos, callSid, contexto, telefonoCliente || callSid, usuarioId, config);
               console.log('Respuesta procesarAccion:', mensaje);
 
-              if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('lista de espera')) {
+              if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('te he apuntado en la lista de espera')) {
                 const nuevoContexto = await obtenerContextoCliente(telefonoCliente || callSid);
                 const hoy = fechaHoyMadrid();
                 conversacion = [
