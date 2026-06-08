@@ -1,84 +1,90 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="light">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clientes — <%= usuario.restaurante %></title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg: #f5f6fa; --bg2: #ffffff; --bg3: #eef0f6; --border: #e2e5f0;
-      --text: #1a1d2e; --text2: #6b7280; --text3: #9ca3af;
-      --accent: #4F46E5; --accent-light: #EEF2FF; --accent-hover: #4338CA;
-      --sidebar: #1a1d2e; --sidebar-text: #94a3b8; --sidebar-active: #4F46E5;
-      --sidebar-active-bg: rgba(79,70,229,0.15); --shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-    [data-theme="dark"] {
-      --bg: #0d0d14; --bg2: #111118; --bg3: #16161f; --border: #1e1e2a;
-      --text: #e2e2e2; --text2: #6b7280; --text3: #444;
-      --accent: #7C6FFF; --accent-light: #1e1a3a; --accent-hover: #6a5ce8;
-      --sidebar: #0d0d14; --sidebar-text: #6b7280; --sidebar-active: #7C6FFF;
-      --sidebar-active-bg: rgba(124,111,255,0.12); --shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; transition: background .2s, color .2s; }
-    .sidebar { width: 220px; background: var(--sidebar); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; padding: 20px 0; position: fixed; height: 100vh; z-index: 100; }
-    .sidebar-logo { padding: 0 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .sidebar-logo h2 { color: #fff; font-size: 16px; font-weight: 700; }
-    .sidebar-logo p { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sidebar-menu { padding: 16px 8px; flex: 1; }
-    .menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--sidebar-text); font-size: 13px; cursor: pointer; margin-bottom: 2px; text-decoration: none; transition: all .15s; }
-    .menu-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
-    .menu-item.active { background: var(--sidebar-active-bg); color: var(--sidebar-active); }
-    .sidebar-footer { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+    body { font-family: 'Inter', sans-serif; background: #09090b; color: #e4e4e7; display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar { width: 240px; background: #0c0c0f; border-right: 1px solid #18181b; display: flex; flex-direction: column; padding: 0; position: fixed; height: 100vh; z-index: 100; }
+    .sidebar-logo { padding: 24px 20px 20px; border-bottom: 1px solid #18181b; }
+    .sidebar-logo .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .sidebar-logo .brand-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #7c3aed, #4f46e5); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+    .sidebar-logo .brand-name { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+    .sidebar-logo .brand-rest { font-size: 11px; color: #52525b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 42px; }
+    .sidebar-menu { padding: 12px 10px; flex: 1; }
+    .sidebar-section { font-size: 10px; font-weight: 600; color: #3f3f46; text-transform: uppercase; letter-spacing: 1px; padding: 8px 10px 4px; margin-top: 8px; }
+    .menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: #71717a; font-size: 13px; font-weight: 500; cursor: pointer; margin-bottom: 1px; text-decoration: none; transition: all .15s; position: relative; }
+    .menu-item:hover { background: #18181b; color: #d4d4d8; }
+    .menu-item.active { background: rgba(124,58,237,.12); color: #a78bfa; }
+    .menu-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 20px; background: linear-gradient(180deg, #7c3aed, #4f46e5); border-radius: 0 3px 3px 0; }
+    .menu-icon { font-size: 15px; width: 20px; text-align: center; }
+    .sidebar-footer { padding: 14px 16px; border-top: 1px solid #18181b; }
     .avatar { display: flex; align-items: center; gap: 10px; }
-    .avatar-circle { width: 32px; height: 32px; background: var(--sidebar-active-bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--sidebar-active); font-weight: bold; font-size: 13px; flex-shrink: 0; }
-    .avatar-name { font-size: 12px; color: rgba(255,255,255,0.7); }
-    .avatar-email { font-size: 11px; color: rgba(255,255,255,0.3); }
-    .logout { color: rgba(255,255,255,0.3); font-size: 11px; text-decoration: none; display: block; margin-top: 10px; }
+    .avatar-circle { width: 34px; height: 34px; background: linear-gradient(135deg, #7c3aed33, #4f46e533); border: 1px solid #7c3aed44; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #a78bfa; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+    .avatar-name { font-size: 12px; font-weight: 500; color: #d4d4d8; }
+    .avatar-email { font-size: 11px; color: #52525b; }
+    .logout { color: #52525b; font-size: 11px; text-decoration: none; display: flex; align-items: center; gap: 4px; margin-top: 12px; padding: 6px 0; transition: color .15s; }
     .logout:hover { color: #f87171; }
-    .main { margin-left: 220px; flex: 1; padding: 28px; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-    .page-header h1 { font-size: 22px; font-weight: 600; }
-    .page-header p { color: var(--text2); font-size: 13px; margin-top: 3px; }
-    .theme-toggle { width: 36px; height: 36px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: var(--shadow); }
-    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
-    .stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
-    .stat-icon { font-size: 20px; margin-bottom: 10px; }
-    .stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-    .stat-value { font-size: 28px; font-weight: 700; }
-    .stat-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
-    .tabla-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
-    .tabla-header { padding: 16px 20px; border-bottom: 1px solid var(--border); }
-    .tabla-header h3 { font-size: 14px; font-weight: 600; }
+
+    /* MAIN */
+    .main { margin-left: 240px; flex: 1; padding: 32px; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+    .page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: #fafafa; }
+    .page-header p { color: #52525b; font-size: 13px; margin-top: 4px; }
+
+    /* STATS */
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+    .stat {
+      background: #0f0f12; border: 1px solid #1c1c22; border-radius: 12px; padding: 20px 22px;
+      transition: border-color .2s, transform .2s;
+    }
+    .stat:hover { border-color: #2a2a35; transform: translateY(-1px); }
+    .stat-label { font-size: 11px; font-weight: 600; color: #52525b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
+    .stat-value { font-size: 32px; font-weight: 700; color: #fafafa; letter-spacing: -1px; }
+    .stat-value.accent { background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .stat-sub { font-size: 12px; color: #3f3f46; margin-top: 4px; }
+
+    /* TABLE */
+    .tabla-card { background: #0f0f12; border: 1px solid #1c1c22; border-radius: 12px; overflow: hidden; }
+    .tabla-header { padding: 18px 22px; border-bottom: 1px solid #1c1c22; display: flex; justify-content: space-between; align-items: center; }
+    .tabla-header h3 { font-size: 14px; font-weight: 600; color: #fafafa; }
+    .tabla-count { font-size: 12px; color: #52525b; background: #18181b; padding: 3px 10px; border-radius: 20px; }
     table { width: 100%; border-collapse: collapse; }
-    th { background: var(--bg3); color: var(--text2); padding: 10px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
-    td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); cursor: pointer; }
+    th { color: #52525b; padding: 10px 22px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; border-bottom: 1px solid #1c1c22; }
+    td { padding: 13px 22px; border-bottom: 1px solid #18181b; font-size: 13px; color: #71717a; cursor: pointer; }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: var(--bg3); }
-    .nombre-td { color: var(--text); font-weight: 500; }
-    .badge { background: var(--accent-light); color: var(--accent); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
-    .canal-pill { padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
-    .canal-llamada { background: #ede9fe; color: #7c3aed; }
-    .canal-whatsapp { background: #dcfce7; color: #16a34a; }
-    .canal-manual { background: var(--bg3); color: var(--text2); }
-    [data-theme="dark"] .canal-llamada { background: #1e1a3a; color: #a78bfa; }
-    [data-theme="dark"] .canal-whatsapp { background: #0a2a15; color: #4ade80; }
-    .empty { text-align: center; padding: 48px; color: var(--text3); font-size: 14px; }
+    tr:hover td { background: #18181b; }
+    .nombre-td { color: #d4d4d8; font-weight: 500; }
+    .badge { background: rgba(124,58,237,.15); color: #a78bfa; border: 1px solid rgba(124,58,237,.25); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .canal-pill { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .canal-llamada { background: rgba(124,58,237,.1); color: #a78bfa; border: 1px solid rgba(124,58,237,.2); }
+    .canal-whatsapp { background: rgba(22,163,74,.1); color: #4ade80; border: 1px solid rgba(22,163,74,.2); }
+    .canal-manual { background: #18181b; color: #71717a; border: 1px solid #27272a; }
+    .empty { text-align: center; padding: 60px; color: #3f3f46; font-size: 14px; }
   </style>
 </head>
 <body>
   <div class="sidebar">
     <div class="sidebar-logo">
-      <h2>ReservasBot</h2>
-      <p><%= usuario.restaurante %></p>
+      <div class="brand">
+        <div class="brand-icon">🤖</div>
+        <div class="brand-name">ReservasBot</div>
+      </div>
+      <div class="brand-rest"><%= usuario.restaurante %></div>
     </div>
     <div class="sidebar-menu">
       <% if (usuario.rol === 'admin') { %>
-       <a href="/admin" class="menu-item"><span>🔧</span> Admin</a>
+        <a href="/admin" class="menu-item"><span class="menu-icon">🔧</span> Admin</a>
       <% } %>
-      <a href="/panel" class="menu-item"><span>📅</span> Reservas</a>
-      <a href="/clientes" class="menu-item active"><span>👥</span> Clientes</a>
-      <a href="/configuracion" class="menu-item"><span>⚙️</span> Configuración</a>
+      <div class="sidebar-section">Gestión</div>
+      <a href="/panel" class="menu-item"><span class="menu-icon">📅</span> Reservas</a>
+      <a href="/clientes" class="menu-item active"><span class="menu-icon">👥</span> Clientes</a>
+      <a href="/configuracion" class="menu-item"><span class="menu-icon">⚙️</span> Configuración</a>
     </div>
     <div class="sidebar-footer">
       <div class="avatar">
@@ -88,7 +94,7 @@
           <div class="avatar-email"><%= usuario.email %></div>
         </div>
       </div>
-      <a href="/logout" class="logout">Cerrar sesión →</a>
+      <a href="/logout" class="logout">↩ Cerrar sesión</a>
     </div>
   </div>
 
@@ -96,35 +102,32 @@
     <div class="page-header">
       <div>
         <h1>Clientes</h1>
-        <p>Historial de clientes que han reservado</p>
+        <p>Historial de clientes que han reservado en tu restaurante</p>
       </div>
-      <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙</button>
     </div>
 
     <div class="stats">
       <div class="stat">
-        <div class="stat-icon">👥</div>
         <div class="stat-label">Clientes totales</div>
-        <div class="stat-value"><%= clientes.length %></div>
+        <div class="stat-value accent"><%= clientes.length %></div>
         <div class="stat-sub">registrados</div>
       </div>
       <div class="stat">
-        <div class="stat-icon">🔄</div>
         <div class="stat-label">Recurrentes</div>
         <div class="stat-value"><%= clientes.filter(c => c.total_reservas > 1).length %></div>
         <div class="stat-sub">más de 1 reserva</div>
       </div>
       <div class="stat">
-        <div class="stat-icon">📊</div>
         <div class="stat-label">Total reservas</div>
         <div class="stat-value"><%= clientes.reduce((a, c) => a + parseInt(c.total_reservas), 0) %></div>
-        <div class="stat-sub">entre todos</div>
+        <div class="stat-sub">entre todos los clientes</div>
       </div>
     </div>
 
     <div class="tabla-card">
       <div class="tabla-header">
         <h3>Todos los clientes</h3>
+        <span class="tabla-count"><%= clientes.length %> registros</span>
       </div>
       <table>
         <thead>
@@ -157,18 +160,5 @@
       </table>
     </div>
   </div>
-
-  <script>
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    document.getElementById('themeBtn').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
-    function toggleTheme() {
-      const current = document.documentElement.getAttribute('data-theme');
-      const next = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('theme', next);
-      document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
-    }
-  </script>
 </body>
 </html>

@@ -1,139 +1,302 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="light">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel — <%= usuario.restaurante %></title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
-    :root {
-      --bg: #f5f6fa; --bg2: #ffffff; --bg3: #eef0f6; --border: #e2e5f0;
-      --text: #1a1d2e; --text2: #6b7280; --text3: #9ca3af;
-      --accent: #4F46E5; --accent-light: #EEF2FF; --accent-hover: #4338CA;
-      --sidebar: #1a1d2e; --sidebar-text: #94a3b8; --sidebar-active: #4F46E5;
-      --sidebar-active-bg: rgba(79,70,229,0.15); --shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-    [data-theme="dark"] {
-      --bg: #0d0d14; --bg2: #111118; --bg3: #16161f; --border: #1e1e2a;
-      --text: #e2e2e2; --text2: #6b7280; --text3: #444;
-      --accent: #7C6FFF; --accent-light: #1e1a3a; --accent-hover: #6a5ce8;
-      --sidebar: #0d0d14; --sidebar-text: #6b7280; --sidebar-active: #7C6FFF;
-      --sidebar-active-bg: rgba(124,111,255,0.12); --shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; transition: background .2s, color .2s; }
-    .btn-editar { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; transition: all .15s; }
-    .btn-editar:hover { background: var(--accent-light); color: var(--accent); }
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-    .modal-overlay.active { display: flex; }
-    .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 100%; max-width: 440px; }
-    .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
-    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
-    .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
-    .btn-modal-cancel { padding: 9px 18px; background: var(--bg3); color: var(--text2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; }
-    .btn-modal-save { padding: 9px 18px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; }
-    .sidebar { width: 220px; background: var(--sidebar); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; padding: 20px 0; position: fixed; height: 100vh; z-index: 100; }
-    .sidebar-logo { padding: 0 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .sidebar-logo h2 { color: #fff; font-size: 16px; font-weight: 700; }
-    .sidebar-logo p { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sidebar-menu { padding: 16px 8px; flex: 1; }
-    .menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--sidebar-text); font-size: 13px; cursor: pointer; margin-bottom: 2px; text-decoration: none; transition: all .15s; }
-    .menu-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
-    .menu-item.active { background: var(--sidebar-active-bg); color: var(--sidebar-active); }
-    .menu-icon { font-size: 15px; width: 20px; text-align: center; }
-    .sidebar-footer { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+    body { font-family: 'Inter', sans-serif; background: #09090b; color: #e4e4e7; display: flex; min-height: 100vh; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 240px; background: #0c0c0f; border-right: 1px solid #18181b;
+      display: flex; flex-direction: column; padding: 0; position: fixed;
+      height: 100vh; z-index: 100; transition: transform .3s;
+    }
+    .sidebar-logo {
+      padding: 24px 20px 20px; border-bottom: 1px solid #18181b;
+    }
+    .sidebar-logo .brand {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+    }
+    .sidebar-logo .brand-icon {
+      width: 32px; height: 32px; background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 15px; flex-shrink: 0;
+    }
+    .sidebar-logo .brand-name { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+    .sidebar-logo .brand-rest {
+      font-size: 11px; color: #52525b; white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; padding-left: 42px; letter-spacing: 0;
+    }
+    .sidebar-menu { padding: 12px 10px; flex: 1; }
+    .sidebar-section { font-size: 10px; font-weight: 600; color: #3f3f46; text-transform: uppercase;
+      letter-spacing: 1px; padding: 8px 10px 4px; margin-top: 8px; }
+    .menu-item {
+      display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+      border-radius: 8px; color: #71717a; font-size: 13px; font-weight: 500;
+      cursor: pointer; margin-bottom: 1px; text-decoration: none; transition: all .15s;
+      position: relative;
+    }
+    .menu-item:hover { background: #18181b; color: #d4d4d8; }
+    .menu-item.active { background: rgba(124,58,237,.12); color: #a78bfa; }
+    .menu-item.active::before {
+      content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+      width: 3px; height: 20px; background: linear-gradient(180deg, #7c3aed, #4f46e5);
+      border-radius: 0 3px 3px 0;
+    }
+    .menu-icon { font-size: 15px; width: 20px; text-align: center; opacity: .9; }
+    .sidebar-footer {
+      padding: 14px 16px; border-top: 1px solid #18181b;
+    }
     .avatar { display: flex; align-items: center; gap: 10px; }
-    .avatar-circle { width: 32px; height: 32px; background: var(--sidebar-active-bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--sidebar-active); font-weight: bold; font-size: 13px; flex-shrink: 0; }
-    .avatar-name { font-size: 12px; color: rgba(255,255,255,0.7); }
-    .avatar-email { font-size: 11px; color: rgba(255,255,255,0.3); }
-    .logout { color: rgba(255,255,255,0.3); font-size: 11px; text-decoration: none; display: block; margin-top: 10px; }
+    .avatar-circle {
+      width: 34px; height: 34px; background: linear-gradient(135deg, #7c3aed33, #4f46e533);
+      border: 1px solid #7c3aed44; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #a78bfa; font-weight: 700; font-size: 13px; flex-shrink: 0;
+    }
+    .avatar-name { font-size: 12px; font-weight: 500; color: #d4d4d8; }
+    .avatar-email { font-size: 11px; color: #52525b; }
+    .logout {
+      color: #52525b; font-size: 11px; text-decoration: none; display: flex;
+      align-items: center; gap: 4px; margin-top: 12px; padding: 6px 0;
+      transition: color .15s;
+    }
     .logout:hover { color: #f87171; }
-    .main { margin-left: 220px; flex: 1; padding: 28px; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-    .page-header h1 { font-size: 22px; font-weight: 600; }
-    .page-header p { color: var(--text2); font-size: 13px; margin-top: 3px; }
-    .header-actions { display: flex; gap: 10px; align-items: center; }
-    .btn-export { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; color: var(--text2); font-size: 13px; cursor: pointer; text-decoration: none; transition: all .15s; box-shadow: var(--shadow); }
-    .btn-export:hover { border-color: var(--accent); color: var(--accent); }
-    .theme-toggle { width: 36px; height: 36px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: var(--shadow); transition: all .15s; }
-    .theme-toggle:hover { border-color: var(--accent); }
-    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
-    .stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
-    .stat-icon { font-size: 20px; margin-bottom: 10px; }
-    .stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-    .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
-    .stat-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); }
-    .card h3 { font-size: 13px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; font-weight: 500; }
-    .proximas { display: flex; flex-direction: column; gap: 8px; }
-    .reserva-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--bg3); border-radius: 8px; }
-    .reserva-hora { font-size: 13px; font-weight: 600; color: var(--accent); min-width: 44px; }
-    .reserva-nombre { font-size: 13px; color: var(--text); flex: 1; font-weight: 500; }
-    .reserva-personas { font-size: 12px; color: var(--text3); }
-    .empty-small { text-align: center; padding: 24px; color: var(--text3); font-size: 13px; }
-    .tabla-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; box-shadow: var(--shadow); }
-    .tabla-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
-    .tabla-header h3 { font-size: 14px; font-weight: 600; }
-    .tabla-controles { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .buscador { display: flex; align-items: center; gap: 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; }
-    .buscador input { background: none; border: none; outline: none; color: var(--text); font-size: 13px; width: 180px; }
-    .buscador input::placeholder { color: var(--text3); }
-    .filtro-fecha input { padding: 7px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); outline: none; }
-    .btn-filtro { padding: 7px 14px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; }
-    .btn-filtro:hover { background: var(--accent-hover); }
-    .btn-clear { padding: 7px 12px; background: var(--bg3); color: var(--text2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; }
+
+    /* ── MAIN ── */
+    .main { margin-left: 240px; flex: 1; padding: 32px; max-width: calc(100vw - 240px); }
+
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+    .page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: #fafafa; }
+    .page-header p { color: #52525b; font-size: 13px; margin-top: 4px; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+
+    .btn-secondary {
+      display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+      background: #18181b; border: 1px solid #27272a; border-radius: 8px;
+      color: #a1a1aa; font-size: 12px; font-weight: 500; cursor: pointer;
+      text-decoration: none; transition: all .15s; font-family: Inter, sans-serif;
+    }
+    .btn-secondary:hover { border-color: #3f3f46; color: #e4e4e7; }
+    .btn-danger-soft {
+      display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+      background: #18181b; border: 1px solid #27272a; border-radius: 8px;
+      color: #71717a; font-size: 12px; font-weight: 500; cursor: pointer;
+      text-decoration: none; transition: all .15s; font-family: Inter, sans-serif;
+    }
+    .btn-danger-soft:hover { border-color: #f87171; color: #f87171; background: #1a0a0a; }
+    .btn-primary {
+      display: flex; align-items: center; gap: 6px; padding: 9px 18px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5); border: none;
+      border-radius: 8px; color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer; text-decoration: none; transition: opacity .15s;
+      font-family: Inter, sans-serif; letter-spacing: -0.2px;
+    }
+    .btn-primary:hover { opacity: .88; }
+
+    /* ── STATS ── */
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+    .stat {
+      background: #0f0f12; border: 1px solid #1c1c22; border-radius: 14px;
+      padding: 20px 22px; position: relative; overflow: hidden; transition: border-color .2s;
+    }
+    .stat:hover { border-color: #2c2c36; }
+    .stat::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, #7c3aed, #4f46e5); opacity: 0; transition: opacity .2s;
+    }
+    .stat:hover::after { opacity: 1; }
+    .stat-icon { font-size: 22px; margin-bottom: 12px; }
+    .stat-label { font-size: 11px; color: #52525b; text-transform: uppercase; letter-spacing: .8px; font-weight: 600; margin-bottom: 6px; }
+    .stat-value { font-size: 32px; font-weight: 700; letter-spacing: -1.5px; color: #fafafa; line-height: 1; }
+    .stat-value.accent { background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-sub { font-size: 11px; color: #3f3f46; margin-top: 6px; }
+
+    /* ── CARDS / GRID ── */
+    .grid-2 { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .card { background: #0f0f12; border: 1px solid #1c1c22; border-radius: 14px; padding: 22px; }
+    .card-title {
+      font-size: 11px; font-weight: 600; color: #52525b; text-transform: uppercase;
+      letter-spacing: .8px; margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── PRÓXIMAS ── */
+    .proximas { display: flex; flex-direction: column; gap: 6px; }
+    .reserva-item {
+      display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+      background: #131318; border: 1px solid #1c1c22; border-radius: 10px;
+      transition: border-color .15s;
+    }
+    .reserva-item:hover { border-color: #2c2c36; }
+    .reserva-hora {
+      font-size: 13px; font-weight: 700; color: #a78bfa; min-width: 46px;
+      font-variant-numeric: tabular-nums;
+    }
+    .reserva-nombre { font-size: 13px; color: #e4e4e7; flex: 1; font-weight: 500; }
+    .reserva-personas { font-size: 12px; color: #52525b; }
+    .empty-small { text-align: center; padding: 28px; color: #3f3f46; font-size: 13px; }
+
+    /* ── TABLAS ── */
+    .tabla-card { background: #0f0f12; border: 1px solid #1c1c22; border-radius: 14px; overflow: hidden; margin-bottom: 24px; }
+    .tabla-header {
+      padding: 18px 22px; display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #1c1c22; flex-wrap: wrap; gap: 10px;
+    }
+    .tabla-title { font-size: 14px; font-weight: 600; color: #e4e4e7; display: flex; align-items: center; gap: 10px; }
+    .tabla-controles { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .buscador {
+      display: flex; align-items: center; gap: 8px; background: #131318;
+      border: 1px solid #1c1c22; border-radius: 8px; padding: 7px 12px; transition: border-color .15s;
+    }
+    .buscador:focus-within { border-color: #7c3aed; }
+    .buscador input { background: none; border: none; outline: none; color: #e4e4e7; font-size: 13px; width: 180px; font-family: Inter, sans-serif; }
+    .buscador input::placeholder { color: #3f3f46; }
+    .filtro-fecha input {
+      padding: 7px 10px; background: #131318; border: 1px solid #1c1c22;
+      border-radius: 8px; font-size: 13px; color: #e4e4e7; outline: none;
+      transition: border-color .15s; font-family: Inter, sans-serif;
+    }
+    .filtro-fecha input:focus { border-color: #7c3aed; }
+    .btn-filtro {
+      padding: 7px 14px; background: #7c3aed; color: white; border: none;
+      border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;
+      font-family: Inter, sans-serif; transition: opacity .15s;
+    }
+    .btn-filtro:hover { opacity: .85; }
+    .btn-clear {
+      padding: 7px 12px; background: #131318; color: #71717a; border: 1px solid #1c1c22;
+      border-radius: 8px; cursor: pointer; font-size: 12px; font-family: Inter, sans-serif; transition: all .15s;
+    }
+    .btn-clear:hover { border-color: #3f3f46; color: #e4e4e7; }
+
     table { width: 100%; border-collapse: collapse; }
-    th { background: var(--bg3); color: var(--text2); padding: 10px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
-    td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); }
+    th {
+      background: #0c0c0f; color: #3f3f46; padding: 10px 18px; text-align: left;
+      font-size: 10px; text-transform: uppercase; letter-spacing: .8px; font-weight: 600;
+      border-bottom: 1px solid #18181b;
+    }
+    td { padding: 13px 18px; border-bottom: 1px solid #18181b; font-size: 13px; color: #71717a; }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: var(--bg3); }
-    .nombre-td { color: var(--text); font-weight: 500; }
-    .hora-pill { background: var(--accent-light); color: var(--accent); padding: 3px 10px; border-radius: 20px; font-size: 12px; display: inline-block; font-weight: 500; }
-    .estado-pill { padding: 3px 10px; border-radius: 20px; font-size: 11px; display: inline-block; font-weight: 500; }
-    .estado-confirmada { background: #dcfce7; color: #16a34a; }
-    .estado-pendiente { background: #fef9c3; color: #ca8a04; }
-    .estado-cancelada { background: #fee2e2; color: #dc2626; }
-    [data-theme="dark"] .estado-confirmada { background: #0a2a1a; color: #4ade80; }
-    [data-theme="dark"] .estado-pendiente { background: #2a2010; color: #fbbf24; }
-    [data-theme="dark"] .estado-cancelada { background: #2a1015; color: #f87171; }
-    .canal-pill { padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
-    .canal-llamada { background: #ede9fe; color: #7c3aed; }
-    .canal-whatsapp { background: #dcfce7; color: #16a34a; }
-    .canal-manual { background: var(--bg3); color: var(--text2); }
-    [data-theme="dark"] .canal-llamada { background: #1e1a3a; color: #a78bfa; }
-    [data-theme="dark"] .canal-whatsapp { background: #0a2a15; color: #4ade80; }
-    .btn-cancelar { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; transition: all .15s; }
-    .btn-cancelar:hover { background: #fee2e2; color: #dc2626; }
-    [data-theme="dark"] .btn-cancelar:hover { background: #2a1015; color: #f87171; }
-    .empty { text-align: center; padding: 48px; color: var(--text3); font-size: 14px; }
-    .form-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); }
-    .form-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+    tbody tr { transition: background .1s; }
+    tbody tr:hover td { background: #131318; }
+    .nombre-td { color: #e4e4e7; font-weight: 500; }
+
+    /* ── PILLS ── */
+    .hora-pill {
+      background: rgba(124,58,237,.15); color: #a78bfa; padding: 3px 10px;
+      border-radius: 6px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+      border: 1px solid rgba(124,58,237,.2);
+    }
+    .estado-pill { padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
+    .estado-confirmada { background: rgba(74,222,128,.1); color: #4ade80; border-color: rgba(74,222,128,.15); }
+    .estado-pendiente { background: rgba(251,191,36,.1); color: #fbbf24; border-color: rgba(251,191,36,.15); }
+    .estado-cancelada { background: rgba(248,113,113,.1); color: #f87171; border-color: rgba(248,113,113,.15); }
+    .canal-pill { padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
+    .canal-llamada { background: rgba(167,139,250,.1); color: #a78bfa; border-color: rgba(167,139,250,.15); }
+    .canal-whatsapp { background: rgba(74,222,128,.1); color: #4ade80; border-color: rgba(74,222,128,.15); }
+    .canal-manual { background: #1c1c22; color: #71717a; border-color: #27272a; }
+    .espera-badge {
+      background: rgba(251,191,36,.1); color: #fbbf24; border: 1px solid rgba(251,191,36,.2);
+      padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    }
+
+    /* ── ACCIONES ── */
+    .btn-editar {
+      background: none; border: none; color: #3f3f46; cursor: pointer;
+      font-size: 13px; padding: 5px 8px; border-radius: 6px; transition: all .15s;
+    }
+    .btn-editar:hover { background: rgba(124,58,237,.15); color: #a78bfa; }
+    .btn-cancelar {
+      background: none; border: none; color: #3f3f46; cursor: pointer;
+      font-size: 13px; padding: 5px 8px; border-radius: 6px; transition: all .15s;
+    }
+    .btn-cancelar:hover { background: rgba(248,113,113,.12); color: #f87171; }
+    .empty { text-align: center; padding: 52px; color: #3f3f46; font-size: 13px; }
+    .empty-icon { font-size: 32px; margin-bottom: 12px; opacity: .4; }
+
+    /* ── FORM NUEVA RESERVA ── */
+    .form-card { background: #0f0f12; border: 1px solid #1c1c22; border-radius: 14px; padding: 22px; }
+    .form-card-title { font-size: 14px; font-weight: 600; color: #e4e4e7; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
     .form-grid { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-    .campo { display: flex; flex-direction: column; gap: 5px; }
-    .campo label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
-    .campo input, .campo select { padding: 9px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); outline: none; transition: border .15s; }
-    .campo input:focus, .campo select:focus { border-color: var(--accent); }
-    .btn-add { padding: 9px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; height: 38px; }
-    .btn-add:hover { background: var(--accent-hover); }
-    .error-msg { background: #fee2e2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; }
-    [data-theme="dark"] .error-msg { background: #1a0a0a; border-color: #3a1515; color: #f87171; }
-    .espera-pill { background: #fef9c3; color: #ca8a04; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
-    [data-theme="dark"] .espera-pill { background: #2a2010; color: #fbbf24; }
+    .campo { display: flex; flex-direction: column; gap: 6px; }
+    .campo label { font-size: 10px; color: #52525b; text-transform: uppercase; letter-spacing: .8px; font-weight: 600; }
+    .campo input, .campo select {
+      padding: 9px 12px; background: #131318; border: 1px solid #1c1c22;
+      border-radius: 8px; font-size: 13px; color: #e4e4e7; outline: none;
+      transition: border .15s; font-family: Inter, sans-serif;
+    }
+    .campo input:focus, .campo select:focus { border-color: #7c3aed; }
+    .campo select option { background: #131318; }
+    .btn-add {
+      padding: 9px 22px; background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: white; border: none; border-radius: 8px; cursor: pointer;
+      font-size: 13px; font-weight: 600; height: 38px; font-family: Inter, sans-serif;
+      transition: opacity .15s; letter-spacing: -0.2px;
+    }
+    .btn-add:hover { opacity: .88; }
+    .error-msg {
+      background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.2);
+      color: #f87171; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px;
+      font-size: 13px;
+    }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,.7); backdrop-filter: blur(4px); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: #0f0f12; border: 1px solid #27272a; border-radius: 16px;
+      padding: 28px; width: 100%; max-width: 440px; box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    }
+    .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: #fafafa; }
+    .modal-sub { font-size: 12px; color: #52525b; margin-bottom: 22px; }
+    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px; }
+    .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-modal-cancel {
+      padding: 9px 18px; background: #1c1c22; color: #71717a; border: 1px solid #27272a;
+      border-radius: 8px; cursor: pointer; font-size: 13px; font-family: Inter, sans-serif; transition: all .15s;
+    }
+    .btn-modal-cancel:hover { color: #e4e4e7; border-color: #3f3f46; }
+    .btn-modal-save {
+      padding: 9px 22px; background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: white; border: none; border-radius: 8px; cursor: pointer;
+      font-size: 13px; font-weight: 600; font-family: Inter, sans-serif;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0c0c0f; }
+    ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
   </style>
 </head>
 <body>
+
   <div class="sidebar">
     <div class="sidebar-logo">
-      <h2>ReservasBot</h2>
-      <p><%= usuario.restaurante %></p>
+      <div class="brand">
+        <div class="brand-icon">📅</div>
+        <div class="brand-name">ReservasBot</div>
+      </div>
+      <div class="brand-rest"><%= usuario.restaurante %></div>
     </div>
     <div class="sidebar-menu">
       <% if (usuario.rol === 'admin') { %>
-        <a href="/admin" class="menu-item"><span class="menu-icon">🔧</span> Admin</a>
+        <div class="sidebar-section">Sistema</div>
+        <a href="/admin" class="menu-item"><span class="menu-icon">🔧</span> Administración</a>
       <% } %>
+      <div class="sidebar-section">Gestión</div>
       <a href="/panel" class="menu-item active"><span class="menu-icon">📅</span> Reservas</a>
       <a href="/clientes" class="menu-item"><span class="menu-icon">👥</span> Clientes</a>
+      <div class="sidebar-section">Ajustes</div>
       <a href="/configuracion" class="menu-item"><span class="menu-icon">⚙️</span> Configuración</a>
     </div>
     <div class="sidebar-footer">
@@ -144,7 +307,7 @@
           <div class="avatar-email"><%= usuario.email %></div>
         </div>
       </div>
-      <a href="/logout" class="logout">Cerrar sesión →</a>
+      <a href="/logout" class="logout">← Cerrar sesión</a>
     </div>
   </div>
 
@@ -152,13 +315,12 @@
     <div class="page-header">
       <div>
         <h1>Panel de Reservas</h1>
-        <p>Hoy: <%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
+        <p><%= new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) %></p>
       </div>
       <div class="header-actions">
-        <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙</button>
-        <a href="/exportar-reservas" class="btn-export">⬇ Exportar CSV</a>
-        <form method="POST" action="/borrar-reservas-pasadas" style="display:inline;" onsubmit="return confirm('¿Borrar reservas pasadas? No se puede deshacer.')">
-        <button type="submit" class="btn-export" style="color:#dc2626;border-color:#fecaca;">🗑 Borrar pasadas</button>
+        <a href="/exportar-reservas" class="btn-secondary">⬇ Exportar CSV</a>
+        <form method="POST" action="/borrar-reservas-pasadas" style="display:inline;" onsubmit="return confirm('¿Borrar reservas pasadas?')">
+          <button type="submit" class="btn-danger-soft">🗑 Borrar pasadas</button>
         </form>
       </div>
     </div>
@@ -167,14 +329,14 @@
       <div class="stat">
         <div class="stat-icon">📅</div>
         <div class="stat-label">Reservas hoy</div>
-        <div class="stat-value"><%= reservasHoy.length %></div>
-        <div class="stat-sub">confirmadas</div>
+        <div class="stat-value accent"><%= reservasHoy.length %></div>
+        <div class="stat-sub">confirmadas para hoy</div>
       </div>
       <div class="stat">
         <div class="stat-icon">👥</div>
         <div class="stat-label">Personas hoy</div>
         <div class="stat-value"><%= reservasHoy.reduce((a, r) => a + (r.personas || 0), 0) %></div>
-        <div class="stat-sub">comensales</div>
+        <div class="stat-sub">comensales esperados</div>
       </div>
       <div class="stat">
         <div class="stat-icon">📆</div>
@@ -192,11 +354,11 @@
 
     <div class="grid-2">
       <div class="card">
-        <h3>Reservas últimos 7 días</h3>
-        <canvas id="grafico" height="120"></canvas>
+        <div class="card-title">📈 Reservas — últimos 7 días</div>
+        <canvas id="grafico" height="130"></canvas>
       </div>
       <div class="card">
-        <h3>Próximas reservas hoy</h3>
+        <div class="card-title">⏱ Próximas reservas hoy</div>
         <div class="proximas">
           <% const proximas = reservasHoy.slice().sort((a,b) => a.hora > b.hora ? 1 : -1); %>
           <% if (proximas.length === 0) { %>
@@ -210,7 +372,7 @@
               </div>
             <% }) %>
             <% if (proximas.length > 5) { %>
-              <div style="text-align:center;font-size:12px;color:var(--text3);margin-top:8px;">+<%= proximas.length - 5 %> más</div>
+              <div style="text-align:center;font-size:12px;color:#3f3f46;margin-top:8px;">+<%= proximas.length - 5 %> más hoy</div>
             <% } %>
           <% } %>
         </div>
@@ -220,10 +382,13 @@
     <!-- LISTA DE ESPERA -->
     <div class="tabla-card">
       <div class="tabla-header">
-        <h3>Lista de espera <span class="espera-pill"><%= listaEspera.length %> personas</span></h3>
+        <div class="tabla-title">
+          ⏳ Lista de espera
+          <span class="espera-badge"><%= listaEspera.length %> personas</span>
+        </div>
       </div>
       <% if (listaEspera.length === 0) { %>
-        <div class="empty">No hay nadie en lista de espera</div>
+        <div class="empty"><div class="empty-icon">⏳</div>No hay nadie en lista de espera</div>
       <% } else { %>
         <table>
           <thead>
@@ -233,6 +398,7 @@
               <th>Fecha</th>
               <th>Hora</th>
               <th>Personas</th>
+              <th>Estado</th>
               <th>Apuntado</th>
               <th></th>
             </tr>
@@ -245,6 +411,7 @@
                 <td><%= l.fecha %></td>
                 <td><span class="hora-pill"><%= l.hora %></span></td>
                 <td><%= l.personas %> pers.</td>
+                <td><span class="estado-pill <%= l.estado === 'notificado' ? 'estado-pendiente' : 'estado-confirmada' %>"><%= l.estado || 'esperando' %></span></td>
                 <td><%= new Date(l.creada_en).toLocaleDateString('es-ES') %></td>
                 <td>
                   <form method="POST" action="/espera/eliminar/<%= l.id %>" style="display:inline;">
@@ -261,16 +428,16 @@
     <!-- TODAS LAS RESERVAS -->
     <div class="tabla-card">
       <div class="tabla-header">
-        <h3>Todas las reservas</h3>
+        <div class="tabla-title">📋 Todas las reservas</div>
         <div class="tabla-controles">
           <div class="buscador">
-            <span style="color:var(--text3);">🔍</span>
+            <span style="color:#3f3f46;font-size:13px;">🔍</span>
             <input type="text" id="buscador" placeholder="Buscar por nombre..." oninput="filtrarTabla()">
           </div>
           <div class="filtro-fecha" style="display:flex;gap:8px;">
             <input type="date" id="filtroFecha" value="<%= fechaFiltro || '' %>">
             <button class="btn-filtro" onclick="filtrar()">Filtrar</button>
-            <button class="btn-clear" onclick="limpiar()">✕ Limpiar</button>
+            <button class="btn-clear" onclick="limpiar()">✕</button>
           </div>
         </div>
       </div>
@@ -291,7 +458,7 @@
         <tbody>
           <% const listaReservas = fechaFiltro ? reservasFiltradas : reservas; %>
           <% if (listaReservas.length === 0) { %>
-            <tr><td colspan="8" class="empty">No hay reservas todavía</td></tr>
+            <tr><td colspan="9" class="empty"><div class="empty-icon">📋</div>No hay reservas todavía</td></tr>
           <% } else { %>
             <% listaReservas.forEach(r => { %>
               <tr>
@@ -309,9 +476,9 @@
                   <% } %>
                 </td>
                 <td><span class="estado-pill estado-<%= r.estado || 'confirmada' %>"><%= r.estado || 'confirmada' %></span></td>
-                <td><% if (r.notas) { %><span style="color:var(--accent);font-size:12px;">⚠️ <%= r.notas %></span><% } else { %><span style="color:var(--text3);font-size:12px;">—</span><% } %></td>
+                <td><% if (r.notas) { %><span style="color:#fbbf24;font-size:12px;" title="<%= r.notas %>">⚠️ <%= r.notas.length > 30 ? r.notas.substring(0,30)+'…' : r.notas %></span><% } else { %><span style="color:#27272a;font-size:12px;">—</span><% } %></td>
                 <td><%= new Date(r.creada_en).toLocaleDateString('es-ES') %></td>
-                <td>
+                <td style="white-space:nowrap;">
                   <button class="btn-editar" onclick="abrirEditar('<%= r.id %>', '<%= r.nombre %>', '<%= r.fecha %>', '<%= r.hora %>', '<%= r.personas %>')" type="button">✏️</button>
                   <form method="POST" action="/cancelar/<%= r.id %>" onsubmit="return confirm('¿Cancelar reserva de <%= r.nombre %>?')" style="display:inline;">
                     <button class="btn-cancelar" type="submit">✕</button>
@@ -325,19 +492,19 @@
     </div>
 
     <div class="form-card">
-      <h3>Añadir reserva manual</h3>
-      <% if (error === 'fecha') { %><div class="error-msg">La fecha y hora ya han pasado.</div><% } %>
-      <% if (error === 'cupo') { %><div class="error-msg">No hay mesas disponibles para esa fecha, hora y número de personas.</div><% } %>
-      <% if (error === 'telefono') { %><div class="error-msg">El teléfono es obligatorio.</div><% } %>
+      <div class="form-card-title">✚ Añadir reserva manual</div>
+      <% if (error === 'fecha') { %><div class="error-msg">⚠ La fecha y hora ya han pasado.</div><% } %>
+      <% if (error === 'cupo') { %><div class="error-msg">⚠ No hay mesas disponibles para esa fecha, hora y número de personas.</div><% } %>
+      <% if (error === 'telefono') { %><div class="error-msg">⚠ El teléfono es obligatorio.</div><% } %>
       <form method="POST" action="/nueva-reserva" class="form-grid">
         <div class="campo">
           <label>Nombre</label>
-          <input name="nombre" required placeholder="Nombre cliente" style="width:160px;">
+          <input name="nombre" required placeholder="Nombre cliente" style="width:150px;">
         </div>
         <div class="campo">
           <label>Teléfono</label>
           <div style="display:flex;gap:6px;">
-            <select name="prefijo">
+            <select name="prefijo" style="width:80px;">
               <option value="+34">🇪🇸 +34</option>
               <option value="+1">🇺🇸 +1</option>
               <option value="+44">🇬🇧 +44</option>
@@ -348,11 +515,11 @@
         </div>
         <div class="campo">
           <label>Fecha</label>
-          <input name="fecha" type="date" required>
+          <input name="fecha" type="date" required style="width:140px;">
         </div>
         <div class="campo">
           <label>Hora</label>
-          <input name="hora" type="time" required>
+          <input name="hora" type="time" required style="width:110px;">
         </div>
         <div class="campo">
           <label>Personas</label>
@@ -367,9 +534,11 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="modalEditar">
+  <!-- MODAL EDITAR -->
+  <div class="modal-overlay" id="modalEditar" onclick="if(event.target===this)cerrarEditar()">
     <div class="modal">
       <h3>Editar reserva</h3>
+      <div class="modal-sub">Modifica los datos de la reserva seleccionada</div>
       <form method="POST" id="formEditar">
         <div class="modal-grid">
           <div class="campo">
@@ -398,20 +567,6 @@
   </div>
 
   <script>
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    document.getElementById('themeBtn').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
-
-    function toggleTheme() {
-      const current = document.documentElement.getAttribute('data-theme');
-      const next = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('theme', next);
-      document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
-      if (window.chartInstance) window.chartInstance.destroy();
-      renderChart();
-    }
-
     function filtrar() {
       const fecha = document.getElementById('filtroFecha').value;
       if (fecha) window.location.href = '/panel?fecha=' + fecha;
@@ -436,43 +591,42 @@
       document.getElementById('modalEditar').classList.remove('active');
     }
 
-    function renderChart() {
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      const reservas = <%- JSON.stringify(reservas.map(r => ({ fecha: r.fecha }))) %>;
-      const labels = [], datos = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const fecha = d.toISOString().split('T')[0];
-        labels.push(d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }));
-        datos.push(reservas.filter(r => r.fecha === fecha).length);
-      }
-      const accent = isDark ? '#7C6FFF' : '#4F46E5';
-      const gridColor = isDark ? '#1e1e2a' : '#e2e5f0';
-      const tickColor = isDark ? '#6b7280' : '#9ca3af';
-      window.chartInstance = new Chart(document.getElementById('grafico'), {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            data: datos,
-            backgroundColor: accent + '33',
-            borderColor: accent,
-            borderWidth: 1,
-            borderRadius: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 } } },
-            y: { grid: { color: gridColor }, ticks: { color: tickColor, stepSize: 1, font: { size: 11 } } }
-          }
-        }
-      });
+    // Chart
+    const reservas = <%- JSON.stringify(reservas.map(r => ({ fecha: r.fecha }))) %>;
+    const labels = [], datos = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const fecha = d.toISOString().split('T')[0];
+      labels.push(d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }));
+      datos.push(reservas.filter(r => r.fecha === fecha).length);
     }
-    renderChart();
+    new Chart(document.getElementById('grafico'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: datos,
+          backgroundColor: 'rgba(124,58,237,.25)',
+          borderColor: '#7c3aed',
+          borderWidth: 1.5,
+          borderRadius: 6,
+          hoverBackgroundColor: 'rgba(124,58,237,.4)'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: {
+          backgroundColor: '#1c1c22', titleColor: '#e4e4e7', bodyColor: '#a1a1aa',
+          borderColor: '#27272a', borderWidth: 1, padding: 10,
+          callbacks: { label: ctx => ` ${ctx.parsed.y} reserva${ctx.parsed.y !== 1 ? 's' : ''}` }
+        }},
+        scales: {
+          x: { grid: { color: '#18181b' }, ticks: { color: '#52525b', font: { size: 11, family: 'Inter' } } },
+          y: { grid: { color: '#18181b' }, ticks: { color: '#52525b', stepSize: 1, font: { size: 11, family: 'Inter' } } }
+        }
+      }
+    });
   </script>
 </body>
 </html>
