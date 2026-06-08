@@ -17,9 +17,7 @@ async function textToSpeechStream(text) {
 
     const chunks = [];
     if (response[Symbol.asyncIterator]) {
-      for await (const chunk of response) {
-        chunks.push(chunk);
-      }
+      for await (const chunk of response) chunks.push(chunk);
     } else if (response.pipe) {
       await new Promise((resolve, reject) => {
         response.on('data', chunk => chunks.push(chunk));
@@ -34,6 +32,42 @@ async function textToSpeechStream(text) {
     console.error('Error ElevenLabs streaming:', err.message);
     return null;
   }
+}
+
+// Envía audio a Twilio en streaming real: empieza a reproducir mientras ElevenLabs genera
+async function enviarAudioStreaming(text, ws, streamSid, setBotHablando) {
+  if (!text || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ event: 'clear', streamSid }));
+  setBotHablando(true);
+  try {
+    const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
+      text,
+      model_id: 'eleven_turbo_v2_5',
+      voice_settings: { stability: 0.8, similarity_boost: 0.85, style: 0, use_speaker_boost: true },
+      output_format: 'ulaw_8000'
+    });
+    if (response[Symbol.asyncIterator]) {
+      for await (const chunk of response) {
+        if (ws.readyState !== WebSocket.OPEN) break;
+        ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: Buffer.from(chunk).toString('base64') } }));
+      }
+    } else if (response.pipe) {
+      await new Promise((resolve, reject) => {
+        response.on('data', chunk => {
+          if (ws.readyState === WebSocket.OPEN)
+            ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: Buffer.from(chunk).toString('base64') } }));
+        });
+        response.on('end', resolve);
+        response.on('error', reject);
+      });
+    } else {
+      const buf = Buffer.from(await response.arrayBuffer());
+      ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: buf.toString('base64') } }));
+    }
+  } catch (err) {
+    console.error('Error ElevenLabs streaming:', err.message);
+  }
+  ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: 'fin' } }));
 }
 
 // FIX: helper timezone Madrid
@@ -57,19 +91,8 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
     let procesando = false;
     let botHablando = false; // FIX: flag para no procesar audio del bot
 
-    async function enviarAudio(audioBase64) {
-      if (!audioBase64 || ws.readyState !== WebSocket.OPEN) return;
-
-      // FIX: limpiar audio anterior antes de enviar el nuevo
-      ws.send(JSON.stringify({ event: 'clear', streamSid }));
-
-      botHablando = true;
-      ws.send(JSON.stringify({
-        event: 'media',
-        streamSid,
-        media: { payload: audioBase64 }
-      }));
-      ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: 'fin' } }));
+    async function enviarAudio(texto) {
+      await enviarAudioStreaming(texto, ws, streamSid, (v) => { botHablando = v; });
     }
 
     async function iniciarDeepgram() {
@@ -82,7 +105,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
         sample_rate: 8000,
         channels: 1,
         interim_results: true,
-        utterance_end_ms: 1000,
+        utterance_end_ms: 500,
         vad_events: true
       });
 
@@ -147,8 +170,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
             }
           }
 
-          const audioBase64 = await textToSpeechStream(mensaje);
-          await enviarAudio(audioBase64); // FIX: usar enviarAudio con clear
+            await enviarAudio(mensaje);
         } catch (err) {
           console.error('Error procesando:', err.message);
         } finally {
@@ -205,8 +227,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
             const saludoTexto = 'Hola, soy Laura, la asistente del restaurante. ¿En qué puedo ayudarte?';
             conversacion.push({ role: 'assistant', content: saludoTexto });
 
-            const saludoAudio = await textToSpeechStream(saludoTexto);
-            await enviarAudio(saludoAudio); // FIX: usar enviarAudio con flag
+            await enviarAudio(saludoTexto);
             break;
 
           case 'media':

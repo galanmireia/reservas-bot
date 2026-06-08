@@ -42,7 +42,7 @@ app.get('/audio', async (req, res) => {
     const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
       text: texto,
       model_id: 'eleven_turbo_v2_5',
-      voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+      voice_settings: { stability: 0.8, similarity_boost: 0.85, style: 0, use_speaker_boost: true }
     });
     res.setHeader('Content-Type', 'audio/mpeg');
     if (response.pipe) {
@@ -157,6 +157,16 @@ async function obtenerUsuarioPorNumero(numero) {
 // ============================================================
 
 const DURACION_SERVICIO_MIN = 90; // tiempo que una mesa queda ocupada
+
+function horaHablada(hora) {
+  if (!hora) return hora;
+  const [h, m] = hora.split(':').map(Number);
+  const h12 = h > 12 ? h - 12 : h;
+  const sufijo = h >= 20 ? 'de la noche' : h >= 13 ? 'de la tarde' : 'de la mañana';
+  const articulo = h12 === 1 ? 'la' : 'las';
+  const minStr = m === 30 ? ' y media' : m === 15 ? ' y cuarto' : m === 45 ? ' menos cuarto' : m > 0 ? ` y ${m}` : '';
+  return `${articulo} ${h12}${minStr} ${sufijo}`;
+}
 
 function horaAMinutos(hora) {
   const [h, m] = hora.split(':').map(Number);
@@ -336,7 +346,7 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
       personas: reserva.rows[0].personas,
       canal: '❌ CANCELACION por cliente'
     });
-    return `Reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a las ${reserva.rows[0].hora} cancelada correctamente.`;
+    return `Reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a ${horaHablada(reserva.rows[0].hora)} cancelada correctamente.`;
   }
 
   if (datos.accion === 'MODIFICAR') {
@@ -363,7 +373,7 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
       personas: nuevasPersonas,
       canal: `✏️ MODIFICACION por cliente (antes: ${reserva.rows[0].fecha} ${reserva.rows[0].hora})`
     });
-    return `Reserva modificada correctamente. Nueva fecha: ${nuevaFecha} a las ${nuevaHora} para ${nuevasPersonas} personas.`;
+    return `Reserva modificada correctamente. Nueva fecha: ${nuevaFecha} a ${horaHablada(nuevaHora)} para ${nuevasPersonas} personas.`;
   }
 if (datos.accion === 'DISPONIBILIDAD') {
   const fecha = datos.fecha || new Date().toISOString().split('T')[0];
@@ -473,7 +483,7 @@ if (datos.accion === 'DISPONIBILIDAD') {
     await obtenerOCrearCliente(telefonoParaWhatsapp, datos.nombre);
     await enviarEmailRestaurante(uid, { nombre: datos.nombre, fecha: datos.fecha, hora: datos.hora, personas: datos.personas, canal: telefonoCliente?.includes('whatsapp') ? 'whatsapp' : 'llamada' });
     const fechaFormateada = new Date(datos.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-    return `Perfecto ${datos.nombre}, tu reserva esta confirmada para el ${fechaFormateada} a las ${datos.hora} para ${datos.personas} personas. Te esperamos!`;
+    return `Perfecto ${datos.nombre}, tu reserva esta confirmada para el ${fechaFormateada} a ${horaHablada(datos.hora)} para ${datos.personas} personas. Te esperamos!`;
   }
 
   return 'No he entendido lo que necesitas. Quieres hacer, consultar, cancelar o modificar una reserva?';
