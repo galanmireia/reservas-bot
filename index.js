@@ -158,6 +158,17 @@ async function obtenerUsuarioPorNumero(numero) {
 
 const DURACION_SERVICIO_MIN = 90; // tiempo que una mesa queda ocupada
 
+function fechaISO(fecha) {
+  if (!fecha) return fecha;
+  if (fecha instanceof Date) return fecha.toISOString().split('T')[0];
+  return String(fecha).split('T')[0];
+}
+
+function fechaHumana(fecha) {
+  const iso = fechaISO(fecha);
+  return new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
 function horaHablada(hora) {
   if (!hora) return hora;
   const [h, m] = hora.split(':').map(Number);
@@ -283,7 +294,7 @@ async function avisarListaEspera(usuarioId, fecha, hora, personas) {
     [cliente.id]
   );
 
-  const fechaFormateada = new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  const fechaFormateada = fechaHumana(fecha);
   await enviarWhatsApp(
     cliente.telefono,
     `Hola ${cliente.nombre}! Hay un hueco disponible para el ${fechaFormateada} a ${horaHablada(hora)} para ${cliente.personas} persona${cliente.personas > 1 ? 's' : ''}. Tienes 2 horas para confirmar. Responde *SI* para reservar tu mesa o *NO* si ya no te interesa.`
@@ -431,7 +442,7 @@ if (datos.accion === 'DISPONIBILIDAD') {
       [uid, telefonoParaWhatsapp, datos.nombre, datos.fecha, datos.hora, datos.personas]
     );
     const enEspera = await obtenerListaEspera(uid, datos.fecha, datos.hora, datos.personas);
-    const fechaFormateada = new Date(datos.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    const fechaFormateada = fechaHumana(datos.fecha);
 
     // WhatsApp de confirmación al cliente
     if (telefonoParaWhatsapp && !telefonoParaWhatsapp.startsWith('CA')) {
@@ -508,7 +519,7 @@ if (datos.accion === 'DISPONIBILIDAD') {
         const alternativasHabladas = alternativas.map(h => horaHablada(h));
         return `Lo siento, no hay mesas a ${horaHablada(datos.hora)}. Tengo sitio a ${alternativasHabladas.join(' o a ')}. O si prefieres, puedo apuntarte a la lista de espera — ${msgEspera} Que prefieres, horario alternativo o lista de espera?`;
       }
-      const fechaFormateadaND = new Date(datos.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+      const fechaFormateadaND = fechaHumana(datos.fecha);
       return `Lo siento, no hay mesas disponibles el ${fechaFormateadaND}. ${msgEspera} Te apunto en la lista de espera y te aviso si hay una cancelacion?`;
     }
 
@@ -518,7 +529,7 @@ if (datos.accion === 'DISPONIBILIDAD') {
     );
     await obtenerOCrearCliente(telefonoParaWhatsapp, datos.nombre);
     await enviarEmailRestaurante(uid, { nombre: datos.nombre, fecha: datos.fecha, hora: datos.hora, personas: datos.personas, canal: telefonoCliente?.includes('whatsapp') ? 'whatsapp' : 'llamada' });
-    const fechaFormateada = new Date(datos.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    const fechaFormateada = fechaHumana(datos.fecha);
     return `Perfecto ${datos.nombre}, tu reserva esta confirmada para el ${fechaFormateada} a ${horaHablada(datos.hora)} para ${datos.personas} personas. Te esperamos!`;
   }
 
@@ -849,7 +860,7 @@ app.post('/whatsapp', async (req, res) => {
       const esNo = /^no(\s|$)/.test(respNorm) || respNorm === 'no';
 
       if (esSi || esNo) {
-        const fechaFormateada = new Date(entrada.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        const fechaFormateada = fechaHumana(entrada.fecha);
         let respuestaTwiml;
 
         if (esSi) {
