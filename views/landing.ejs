@@ -1,273 +1,519 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="light">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ReservasBot — El asistente inteligente para tu restaurante</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
     :root {
-      --bg: #ffffff; --bg2: #f5f6fa; --bg3: #eef0f6;
-      --text: #1a1d2e; --text2: #6b7280; --text3: #9ca3af;
-      --accent: #4F46E5; --accent-light: #EEF2FF; --accent-hover: #4338CA;
-      --border: #e2e5f0;
+      --bg: #030308;
+      --glass: rgba(255,255,255,0.032);
+      --glass-h: rgba(255,255,255,0.055);
+      --gb: rgba(255,255,255,0.07);
+      --t: rgba(255,255,255,0.92);
+      --t2: rgba(255,255,255,0.45);
+      --t3: rgba(255,255,255,0.18);
+      --acc: #8b5cf6;
+      --acc2: #6366f1;
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
-    
-    /* NAV */
-    nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 80px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); z-index: 100; }
-    .nav-logo { font-size: 20px; font-weight: 700; color: var(--accent); }
-    .nav-links { display: flex; align-items: center; gap: 32px; }
-    .nav-links a { color: var(--text2); text-decoration: none; font-size: 14px; }
-    .nav-links a:hover { color: var(--text); }
-    .btn-nav { padding: 8px 20px; background: var(--accent); color: white; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; }
-    .btn-nav:hover { background: var(--accent-hover); color: white; }
 
-    /* HERO */
-    .hero { padding: 100px 80px 80px; text-align: center; max-width: 900px; margin: 0 auto; }
-    .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-light); color: var(--accent); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; margin-bottom: 24px; }
-    .hero h1 { font-size: 52px; font-weight: 700; line-height: 1.15; margin-bottom: 20px; }
-    .hero h1 span { color: var(--accent); }
-    .hero p { font-size: 18px; color: var(--text2); max-width: 600px; margin: 0 auto 36px; line-height: 1.6; }
-    .hero-btns { display: flex; gap: 14px; justify-content: center; }
-    .btn-primary { padding: 14px 32px; background: var(--accent); color: white; border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: 600; }
-    .btn-primary:hover { background: var(--accent-hover); }
-    .btn-secondary { padding: 14px 32px; background: var(--bg2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: 500; }
-    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg); color: var(--t);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
 
-    /* STATS */
-    .stats-bar { background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 32px 80px; display: flex; justify-content: center; gap: 80px; }
-    .stat-item { text-align: center; }
-    .stat-item .num { font-size: 32px; font-weight: 700; color: var(--accent); }
-    .stat-item .lbl { font-size: 13px; color: var(--text2); margin-top: 4px; }
+    /* ── ORBS ── */
+    .orb {
+      position: fixed; border-radius: 50%;
+      filter: blur(140px); pointer-events: none; z-index: 0; will-change: transform;
+    }
+    .orb-1 { width: 900px; height: 900px; background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%); top: -300px; left: -200px; animation: d1 26s ease-in-out infinite; }
+    .orb-2 { width: 700px; height: 700px; background: radial-gradient(circle, rgba(79,70,229,0.09) 0%, transparent 70%); top: 30%; right: -200px; animation: d2 32s ease-in-out infinite; }
+    .orb-3 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(167,139,250,0.07) 0%, transparent 70%); bottom: 10%; left: 20%; animation: d3 20s ease-in-out infinite; }
+    @keyframes d1 { 0%,100%{transform:translate(0,0)} 33%{transform:translate(60px,50px)} 66%{transform:translate(-30px,80px)} }
+    @keyframes d2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-60px,-40px)} }
+    @keyframes d3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(40px,-60px)} }
 
-    /* COMO FUNCIONA */
-    .section { padding: 80px; max-width: 1100px; margin: 0 auto; }
-    .section-badge { display: inline-block; background: var(--accent-light); color: var(--accent); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
-    .section h2 { font-size: 36px; font-weight: 700; margin-bottom: 12px; }
-    .section p.sub { font-size: 16px; color: var(--text2); margin-bottom: 48px; }
-    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
-    .step { text-align: center; padding: 32px 24px; background: var(--bg2); border-radius: 16px; border: 1px solid var(--border); }
-    .step-num { width: 48px; height: 48px; background: var(--accent); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; margin: 0 auto 16px; }
-    .step h3 { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
-    .step p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 60px; height: 64px;
+      background: rgba(3,3,8,0.7);
+      backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+      border-bottom: 1px solid var(--gb);
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-mark {
+      width: 32px; height: 32px; background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      border-radius: 9px; display: flex; align-items: center; justify-content: center;
+      font-size: 15px; box-shadow: 0 4px 16px rgba(139,92,246,0.5);
+    }
+    .nav-name { font-size: 16px; font-weight: 700; letter-spacing: -0.4px; color: #fff; }
+    .nav-links { display: flex; align-items: center; gap: 36px; }
+    .nav-links a { font-size: 13px; font-weight: 500; color: var(--t2); text-decoration: none; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--t); }
+    .nav-actions { display: flex; align-items: center; gap: 10px; }
+    .btn-ghost-sm {
+      padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      color: var(--t2); text-decoration: none; border: 1px solid var(--gb);
+      background: var(--glass); transition: all 0.2s;
+    }
+    .btn-ghost-sm:hover { color: var(--t); border-color: rgba(255,255,255,0.12); background: var(--glass-h); }
+    .btn-accent-sm {
+      padding: 8px 18px; border-radius: 10px; font-size: 13px; font-weight: 700;
+      color: #fff; text-decoration: none;
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      box-shadow: 0 4px 16px rgba(139,92,246,0.4);
+      transition: all 0.2s;
+    }
+    .btn-accent-sm:hover { box-shadow: 0 6px 24px rgba(139,92,246,0.6); transform: translateY(-1px); }
 
-    /* FUNCIONALIDADES */
-    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-    .feature { padding: 24px; background: var(--bg2); border-radius: 12px; border: 1px solid var(--border); }
-    .feature-icon { font-size: 28px; margin-bottom: 12px; }
-    .feature h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
-    .feature p { font-size: 13px; color: var(--text2); line-height: 1.6; }
+    /* ── SECTIONS ── */
+    section { position: relative; z-index: 1; }
 
-    /* PRECIOS */
-    .pricing { background: var(--bg2); padding: 80px; }
-    .pricing-inner { max-width: 1000px; margin: 0 auto; }
-    .pricing h2 { font-size: 36px; font-weight: 700; text-align: center; margin-bottom: 12px; }
-    .pricing .sub { font-size: 16px; color: var(--text2); text-align: center; margin-bottom: 48px; }
-    .planes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-    .plan { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 32px; }
-    .plan.popular { border-color: var(--accent); position: relative; }
-    .plan-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 4px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; }
-    .plan-name { font-size: 14px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-    .plan-price { font-size: 40px; font-weight: 700; margin-bottom: 4px; }
-    .plan-price span { font-size: 16px; color: var(--text2); font-weight: 400; }
-    .plan-desc { font-size: 13px; color: var(--text2); margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
-    .plan-features { list-style: none; margin-bottom: 28px; }
-    .plan-features li { font-size: 13px; color: var(--text2); padding: 6px 0; display: flex; align-items: center; gap: 8px; }
-    .plan-features li::before { content: '✓'; color: var(--accent); font-weight: 700; }
-    .btn-plan { display: block; text-align: center; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; }
-    .btn-plan-outline { border: 1px solid var(--border); color: var(--text); }
-    .btn-plan-outline:hover { border-color: var(--accent); color: var(--accent); }
-    .btn-plan-filled { background: var(--accent); color: white; }
-    .btn-plan-filled:hover { background: var(--accent-hover); }
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 120px 40px 80px; text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.3);
+      border-radius: 20px; padding: 6px 16px; margin-bottom: 28px;
+      font-size: 12px; font-weight: 600; color: #c4b5fd; letter-spacing: 0.5px;
+    }
+    .hero-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #8b5cf6; box-shadow: 0 0 8px #8b5cf6; animation: glow 2s ease-in-out infinite; }
+    @keyframes glow { 0%,100%{box-shadow:0 0 4px #8b5cf6} 50%{box-shadow:0 0 14px #8b5cf6} }
 
-    /* CTA */
-    .cta { padding: 80px; text-align: center; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); }
-    .cta h2 { font-size: 36px; font-weight: 700; color: white; margin-bottom: 16px; }
-    .cta p { font-size: 16px; color: rgba(255,255,255,0.8); margin-bottom: 36px; }
-    .btn-cta { padding: 14px 40px; background: white; color: var(--accent); border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: 700; }
-    .btn-cta:hover { background: #f5f5ff; }
+    .hero h1 {
+      font-size: clamp(44px, 7vw, 80px); font-weight: 900; letter-spacing: -3px;
+      line-height: 1.02; margin-bottom: 22px; max-width: 820px;
+    }
+    .hero h1 em {
+      font-style: normal;
+      background: linear-gradient(135deg, #c4b5fd 20%, #818cf8 60%, #6366f1 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero-sub {
+      font-size: 18px; color: var(--t2); max-width: 540px; line-height: 1.65;
+      margin-bottom: 40px; font-weight: 400;
+    }
+    .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-hero-primary {
+      padding: 15px 36px; border-radius: 14px; font-size: 15px; font-weight: 700;
+      color: #fff; text-decoration: none; letter-spacing: -0.3px;
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      box-shadow: 0 8px 32px rgba(139,92,246,0.45);
+      transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+    .btn-hero-primary:hover { box-shadow: 0 12px 48px rgba(139,92,246,0.65); transform: translateY(-2px); }
+    .btn-hero-secondary {
+      padding: 15px 32px; border-radius: 14px; font-size: 15px; font-weight: 600;
+      color: var(--t2); text-decoration: none; background: var(--glass);
+      border: 1px solid var(--gb); transition: all 0.2s;
+    }
+    .btn-hero-secondary:hover { color: var(--t); border-color: rgba(255,255,255,0.12); background: var(--glass-h); }
 
-    /* FOOTER */
-    footer { padding: 32px 80px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-    footer p { font-size: 13px; color: var(--text3); }
-    footer a { font-size: 13px; color: var(--text2); text-decoration: none; }
-    footer a:hover { color: var(--accent); }
+    /* ── SOCIAL PROOF ── */
+    .proof-bar {
+      margin-top: 60px; padding: 0 40px 80px;
+      display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
+    }
+    .proof-stat {
+      background: var(--glass); border: 1px solid var(--gb);
+      border-radius: 16px; padding: 20px 32px; text-align: center;
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      min-width: 140px;
+    }
+    .proof-num {
+      font-size: 32px; font-weight: 800; letter-spacing: -1px;
+      background: linear-gradient(135deg, #c4b5fd, #818cf8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .proof-lbl { font-size: 12px; color: var(--t3); margin-top: 4px; font-weight: 500; }
+
+    /* ── COMO FUNCIONA ── */
+    .how {
+      padding: 100px 40px; max-width: 1100px; margin: 0 auto;
+    }
+    .section-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2);
+      border-radius: 20px; padding: 4px 14px;
+      font-size: 11px; font-weight: 700; color: #c4b5fd; letter-spacing: 1px; text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: clamp(32px, 4vw, 46px); font-weight: 800; letter-spacing: -1.5px;
+      line-height: 1.1; margin-bottom: 14px;
+    }
+    .section-title em { font-style:normal; background:linear-gradient(135deg,#c4b5fd,#818cf8); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .section-sub { font-size: 16px; color: var(--t2); margin-bottom: 56px; max-width: 500px; line-height: 1.6; }
+
+    .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .step-card {
+      background: var(--glass); border: 1px solid var(--gb); border-radius: 20px;
+      padding: 36px 28px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1); position: relative; overflow: hidden;
+    }
+    .step-card::before {
+      content: ''; position: absolute; inset: 0; opacity: 0;
+      background: radial-gradient(ellipse at 30% 0%, rgba(139,92,246,0.08) 0%, transparent 70%);
+      transition: opacity 0.3s;
+    }
+    .step-card:hover { border-color: rgba(139,92,246,0.35); transform: translateY(-4px); box-shadow: 0 24px 60px rgba(0,0,0,0.4), 0 0 80px rgba(139,92,246,0.06); }
+    .step-card:hover::before { opacity: 1; }
+    .step-num {
+      width: 44px; height: 44px; border-radius: 14px; margin-bottom: 22px;
+      background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.2));
+      border: 1px solid rgba(139,92,246,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 800; color: #c4b5fd;
+    }
+    .step-title { font-size: 18px; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 10px; }
+    .step-desc { font-size: 14px; color: var(--t2); line-height: 1.65; }
+
+    /* ── FEATURES ── */
+    .features-section { padding: 100px 40px; }
+    .features-section .inner { max-width: 1100px; margin: 0 auto; }
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .feat-card {
+      background: var(--glass); border: 1px solid var(--gb); border-radius: 18px;
+      padding: 28px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    .feat-card:hover { border-color: rgba(139,92,246,0.3); transform: translateY(-2px); box-shadow: 0 16px 48px rgba(0,0,0,0.3); }
+    .feat-icon {
+      width: 44px; height: 44px; border-radius: 12px; margin-bottom: 18px;
+      background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(99,102,241,0.15));
+      border: 1px solid rgba(139,92,246,0.2);
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .feat-title { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 8px; }
+    .feat-desc { font-size: 13px; color: var(--t2); line-height: 1.65; }
+
+    /* ── PRICING ── */
+    .pricing-section { padding: 100px 40px; }
+    .pricing-section .inner { max-width: 1000px; margin: 0 auto; }
+    .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 56px; }
+    .plan {
+      background: var(--glass); border: 1px solid var(--gb); border-radius: 22px;
+      padding: 36px 28px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      position: relative; transition: all 0.3s;
+    }
+    .plan:hover { border-color: rgba(139,92,246,0.3); transform: translateY(-2px); }
+    .plan.featured {
+      border-color: rgba(139,92,246,0.4);
+      background: rgba(139,92,246,0.06);
+      box-shadow: 0 0 0 1px rgba(139,92,246,0.15), 0 0 80px rgba(139,92,246,0.06);
+    }
+    .plan-popular {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      color: #fff; padding: 4px 18px; border-radius: 20px;
+      font-size: 11px; font-weight: 700; white-space: nowrap; letter-spacing: 0.3px;
+    }
+    .plan-tier {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--t3); margin-bottom: 16px;
+    }
+    .plan-price { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 6px; }
+    .plan-price-num {
+      font-size: 48px; font-weight: 800; letter-spacing: -2px; line-height: 1;
+      color: var(--t);
+    }
+    .plan.featured .plan-price-num {
+      background: linear-gradient(135deg, #c4b5fd, #818cf8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .plan-price-period { font-size: 14px; color: var(--t3); margin-bottom: 8px; font-weight: 500; }
+    .plan-desc { font-size: 13px; color: var(--t2); margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid var(--gb); line-height: 1.5; }
+    .plan-feats { list-style: none; margin-bottom: 32px; display: flex; flex-direction: column; gap: 10px; }
+    .plan-feats li { font-size: 13px; color: var(--t2); display: flex; align-items: center; gap: 10px; }
+    .feat-check {
+      width: 18px; height: 18px; border-radius: 6px; flex-shrink: 0;
+      background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: #c4b5fd; font-weight: 700;
+    }
+    .plan-btn {
+      display: block; text-align: center; padding: 12px;
+      border-radius: 12px; font-size: 14px; font-weight: 700; text-decoration: none;
+      transition: all 0.2s; letter-spacing: -0.2px;
+    }
+    .plan-btn-outline {
+      background: var(--glass); border: 1px solid var(--gb); color: var(--t2);
+    }
+    .plan-btn-outline:hover { color: var(--t); border-color: rgba(255,255,255,0.15); background: var(--glass-h); }
+    .plan-btn-filled {
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      border: none; color: #fff;
+      box-shadow: 0 4px 20px rgba(139,92,246,0.4);
+    }
+    .plan-btn-filled:hover { box-shadow: 0 8px 32px rgba(139,92,246,0.6); transform: translateY(-1px); }
+
+    /* ── CTA ── */
+    .cta-section { padding: 100px 40px; }
+    .cta-box {
+      max-width: 820px; margin: 0 auto; text-align: center;
+      background: linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(99,102,241,0.08) 100%);
+      border: 1px solid rgba(139,92,246,0.25); border-radius: 28px;
+      padding: 80px 60px;
+      backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+      position: relative; overflow: hidden;
+    }
+    .cta-box::before {
+      content: ''; position: absolute; top: -100px; left: 50%; transform: translateX(-50%);
+      width: 400px; height: 400px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%);
+      filter: blur(40px); pointer-events: none;
+    }
+    .cta-box h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; letter-spacing: -1.5px; margin-bottom: 14px; position: relative; }
+    .cta-box p { font-size: 16px; color: var(--t2); margin-bottom: 36px; position: relative; }
+    .cta-box .btn-hero-primary { position: relative; }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 32px 60px; border-top: 1px solid var(--gb);
+      display: flex; justify-content: space-between; align-items: center;
+      position: relative; z-index: 1;
+    }
+    .footer-brand { display: flex; align-items: center; gap: 8px; }
+    .footer-brand span { font-size: 14px; font-weight: 700; color: var(--t); }
+    footer p { font-size: 12px; color: var(--t3); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 13px; color: var(--t2); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--t); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      nav { padding: 0 24px; }
+      .nav-links { display: none; }
+      .hero h1 { letter-spacing: -1.5px; }
+      .steps-grid, .features-grid, .plans { grid-template-columns: 1fr; }
+      .how, .features-section .inner, .pricing-section .inner { padding: 60px 24px; }
+      .proof-bar { padding: 0 24px 60px; }
+      .cta-box { padding: 48px 28px; }
+      footer { flex-direction: column; gap: 16px; text-align: center; padding: 24px; }
+    }
   </style>
 </head>
 <body>
 
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
   <!-- NAV -->
   <nav>
-    <div class="nav-logo">ReservasBot</div>
+    <a href="/" class="nav-brand">
+      <div class="nav-mark">🤖</div>
+      <span class="nav-name">ReservasBot</span>
+    </a>
     <div class="nav-links">
       <a href="#como-funciona">Cómo funciona</a>
       <a href="#funcionalidades">Funcionalidades</a>
       <a href="#precios">Precios</a>
-      <a href="/login">Iniciar sesión</a>
-      <a href="/registro" class="btn-nav">Empieza gratis</a>
+    </div>
+    <div class="nav-actions">
+      <a href="/login" class="btn-ghost-sm">Iniciar sesión</a>
+      <a href="/registro" class="btn-accent-sm">Empieza gratis</a>
     </div>
   </nav>
 
   <!-- HERO -->
-  <div class="hero">
-    <div class="hero-badge">🤖 Inteligencia artificial para hostelería</div>
-    <h1>Tu restaurante nunca más<br><span>perderá una reserva</span></h1>
-    <p>ReservasBot atiende las llamadas y WhatsApp de tu restaurante automáticamente, 24 horas al día, 7 días a la semana.</p>
-    <div class="hero-btns">
-      <a href="/registro" class="btn-primary">Empieza gratis →</a>
-      <a href="#como-funciona" class="btn-secondary">Ver cómo funciona</a>
+  <section class="hero">
+    <div class="hero-badge">
+      <div class="hero-badge-dot"></div>
+      Inteligencia artificial para hostelería
     </div>
-  </div>
+    <h1>Tu restaurante nunca más<br><em>perderá una reserva</em></h1>
+    <p class="hero-sub">ReservasBot atiende llamadas y WhatsApp automáticamente, 24 horas al día. Con voz natural, sin errores, sin pausas.</p>
+    <div class="hero-btns">
+      <a href="/registro" class="btn-hero-primary">Empieza gratis →</a>
+      <a href="#como-funciona" class="btn-hero-secondary">Ver cómo funciona</a>
+    </div>
+  </section>
 
   <!-- STATS -->
-  <div class="stats-bar">
-    <div class="stat-item">
-      <div class="num">24/7</div>
-      <div class="lbl">Disponible siempre</div>
+  <div class="proof-bar">
+    <div class="proof-stat">
+      <div class="proof-num">24/7</div>
+      <div class="proof-lbl">Siempre disponible</div>
     </div>
-    <div class="stat-item">
-      <div class="num">&lt;2s</div>
-      <div class="lbl">Tiempo de respuesta</div>
+    <div class="proof-stat">
+      <div class="proof-num">&lt;2s</div>
+      <div class="proof-lbl">Tiempo de respuesta</div>
     </div>
-    <div class="stat-item">
-      <div class="num">100%</div>
-      <div class="lbl">Llamadas atendidas</div>
+    <div class="proof-stat">
+      <div class="proof-num">100%</div>
+      <div class="proof-lbl">Llamadas atendidas</div>
     </div>
-    <div class="stat-item">
-      <div class="num">0€</div>
-      <div class="lbl">Para empezar</div>
+    <div class="proof-stat">
+      <div class="proof-num">0€</div>
+      <div class="proof-lbl">Para empezar</div>
     </div>
   </div>
 
   <!-- COMO FUNCIONA -->
-  <div class="section" id="como-funciona">
-    <div class="section-badge">Cómo funciona</div>
-    <h2>Simple para ti,<br>invisible para tus clientes</h2>
-    <p class="sub">En 3 pasos tu restaurante empieza a gestionar reservas automáticamente</p>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <h3>Cliente llama o escribe</h3>
-        <p>El cliente llama al teléfono de tu restaurante o te escribe por WhatsApp para hacer una reserva</p>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <h3>El bot gestiona todo</h3>
-        <p>Laura, tu asistente virtual, atiende al cliente con voz natural, recoge los datos y comprueba disponibilidad</p>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <h3>Tú lo ves en el panel</h3>
-        <p>La reserva aparece en tu panel en tiempo real y recibes un email de confirmación al instante</p>
+  <section id="como-funciona">
+    <div class="how">
+      <div class="section-tag">Cómo funciona</div>
+      <div class="section-title">Simple para ti,<br><em>invisible para tus clientes</em></div>
+      <p class="section-sub">En 3 pasos tu restaurante empieza a gestionar reservas automáticamente.</p>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-title">Cliente llama o escribe</div>
+          <p class="step-desc">El cliente llama al teléfono de tu restaurante o escribe por WhatsApp para hacer, cancelar o modificar una reserva.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-title">El bot gestiona todo</div>
+          <p class="step-desc">Laura, tu asistente con voz natural, atiende al cliente, recoge los datos y comprueba disponibilidad en tiempo real.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-title">Tú lo ves en el panel</div>
+          <p class="step-desc">La reserva aparece en tu panel al instante y recibes un email de confirmación. Sin esfuerzo de tu parte.</p>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
   <!-- FUNCIONALIDADES -->
-  <div class="section" id="funcionalidades" style="background: var(--bg2); padding: 80px; max-width: 100%;">
-    <div style="max-width: 1100px; margin: 0 auto;">
-      <div class="section-badge">Funcionalidades</div>
-      <h2>Todo lo que necesita<br>tu restaurante</h2>
-      <p class="sub">Una solución completa para gestionar todas tus reservas</p>
+  <section id="funcionalidades" class="features-section">
+    <div class="inner">
+      <div class="section-tag">Funcionalidades</div>
+      <div class="section-title">Todo lo que necesita<br><em>tu restaurante</em></div>
+      <p class="section-sub">Una plataforma completa. Sin necesidad de nada más.</p>
       <div class="features-grid">
-        <div class="feature">
-          <div class="feature-icon">📞</div>
-          <h3>Llamadas automáticas</h3>
-          <p>Atiende todas las llamadas con una voz natural en español. Nunca más una llamada sin respuesta.</p>
+        <div class="feat-card">
+          <div class="feat-icon">📞</div>
+          <div class="feat-title">Llamadas automáticas</div>
+          <p class="feat-desc">Atiende todas las llamadas con voz natural en español. Nunca más una llamada sin respuesta.</p>
         </div>
-        <div class="feature">
-          <div class="feature-icon">💬</div>
-          <h3>WhatsApp integrado</h3>
-          <p>Gestiona reservas por WhatsApp automáticamente. Los clientes pueden reservar, cancelar y modificar.</p>
+        <div class="feat-card">
+          <div class="feat-icon">💬</div>
+          <div class="feat-title">WhatsApp integrado</div>
+          <p class="feat-desc">Gestiona reservas por WhatsApp automáticamente. Los clientes pueden reservar, cancelar y modificar.</p>
         </div>
-        <div class="feature">
-          <div class="feature-icon">📊</div>
-          <h3>Panel en tiempo real</h3>
-          <p>Ve todas tus reservas del día en un panel limpio y profesional. Filtra, busca y exporta.</p>
+        <div class="feat-card">
+          <div class="feat-icon">📊</div>
+          <div class="feat-title">Panel en tiempo real</div>
+          <p class="feat-desc">Ve todas tus reservas en un panel limpio. Filtra por fecha, busca por nombre y exporta a CSV.</p>
         </div>
-        <div class="feature">
-          <div class="feature-icon">✉️</div>
-          <h3>Emails automáticos</h3>
-          <p>Recibe un email cada vez que llega una reserva nueva. Nunca te pierdas nada.</p>
+        <div class="feat-card">
+          <div class="feat-icon">✉️</div>
+          <div class="feat-title">Emails automáticos</div>
+          <p class="feat-desc">Recibe confirmación por email de cada reserva nueva. Y tus clientes también la reciben.</p>
         </div>
-        <div class="feature">
-          <div class="feature-icon">🔔</div>
-          <h3>Recordatorios</h3>
-          <p>El sistema avisa a tus clientes el día anterior para reducir los no-shows.</p>
+        <div class="feat-card">
+          <div class="feat-icon">🔔</div>
+          <div class="feat-title">Recordatorios</div>
+          <p class="feat-desc">El sistema avisa a tus clientes el día anterior para reducir los no-shows drásticamente.</p>
         </div>
-        <div class="feature">
-          <div class="feature-icon">🪑</div>
-          <h3>Control de mesas</h3>
-          <p>El bot comprueba disponibilidad en tiempo real y nunca acepta más reservas de las que tienes.</p>
+        <div class="feat-card">
+          <div class="feat-icon">🪑</div>
+          <div class="feat-title">Control de mesas</div>
+          <p class="feat-desc">El bot comprueba disponibilidad en tiempo real y nunca acepta más reservas de las que puedes atender.</p>
         </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- PRECIOS -->
-  <div class="pricing" id="precios">
-    <div class="pricing-inner">
-      <div class="section-badge" style="display:block;text-align:center;">Precios</div>
-      <h2>Precios claros, sin sorpresas</h2>
-      <p class="sub">Primer mes gratis. Cancela cuando quieras.</p>
-      <div class="planes">
+  <!-- PRICING -->
+  <section id="precios" class="pricing-section">
+    <div class="inner">
+      <div style="text-align:center;">
+        <div class="section-tag">Precios</div>
+        <div class="section-title">Precios claros,<br><em>sin sorpresas</em></div>
+        <p class="section-sub" style="margin:0 auto;">Primer mes gratis. Cancela cuando quieras. Sin tarjeta de crédito para empezar.</p>
+      </div>
+      <div class="plans">
         <div class="plan">
-          <div class="plan-name">Básico</div>
-          <div class="plan-price">49€ <span>/mes</span></div>
+          <div class="plan-tier">Básico</div>
+          <div class="plan-price">
+            <div class="plan-price-num">49€</div>
+            <div class="plan-price-period">/mes</div>
+          </div>
           <div class="plan-desc">Perfecto para empezar a automatizar reservas</div>
-          <ul class="plan-features">
-            <li>Canal de llamadas</li>
-            <li>Panel de reservas</li>
-            <li>Email de confirmación</li>
-            <li>Hasta 200 reservas/mes</li>
-            <li>Soporte por email</li>
+          <ul class="plan-feats">
+            <li><div class="feat-check">✓</div> Canal de llamadas</li>
+            <li><div class="feat-check">✓</div> Panel de reservas</li>
+            <li><div class="feat-check">✓</div> Email de confirmación</li>
+            <li><div class="feat-check">✓</div> Hasta 200 reservas/mes</li>
+            <li><div class="feat-check">✓</div> Soporte por email</li>
           </ul>
-          <a href="/registro" class="btn-plan btn-plan-outline">Empezar gratis</a>
+          <a href="/registro" class="plan-btn plan-btn-outline">Empezar gratis</a>
         </div>
-        <div class="plan popular">
-          <div class="plan-badge">Más popular</div>
-          <div class="plan-name">Pro</div>
-          <div class="plan-price">99€ <span>/mes</span></div>
+
+        <div class="plan featured">
+          <div class="plan-popular">Más popular</div>
+          <div class="plan-tier">Pro</div>
+          <div class="plan-price">
+            <div class="plan-price-num">99€</div>
+            <div class="plan-price-period">/mes</div>
+          </div>
           <div class="plan-desc">Para restaurantes con alto volumen de reservas</div>
-          <ul class="plan-features">
-            <li>Llamadas + WhatsApp</li>
-            <li>Voz natural (IA)</li>
-            <li>Recordatorios automáticos</li>
-            <li>Reservas ilimitadas</li>
-            <li>Exportar CSV</li>
-            <li>Soporte prioritario</li>
+          <ul class="plan-feats">
+            <li><div class="feat-check">✓</div> Llamadas + WhatsApp</li>
+            <li><div class="feat-check">✓</div> Voz natural con IA</li>
+            <li><div class="feat-check">✓</div> Recordatorios automáticos</li>
+            <li><div class="feat-check">✓</div> Lista de espera</li>
+            <li><div class="feat-check">✓</div> Reservas ilimitadas</li>
+            <li><div class="feat-check">✓</div> Exportar CSV</li>
+            <li><div class="feat-check">✓</div> Soporte prioritario</li>
           </ul>
-          <a href="/registro" class="btn-plan btn-plan-filled">Empezar gratis</a>
+          <a href="/registro" class="plan-btn plan-btn-filled">Empezar gratis</a>
         </div>
+
         <div class="plan">
-          <div class="plan-name">Agencia</div>
-          <div class="plan-price">249€ <span>/mes</span></div>
+          <div class="plan-tier">Agencia</div>
+          <div class="plan-price">
+            <div class="plan-price-num">249€</div>
+            <div class="plan-price-period">/mes</div>
+          </div>
           <div class="plan-desc">Para cadenas y grupos de restaurantes</div>
-          <ul class="plan-features">
-            <li>Hasta 5 restaurantes</li>
-            <li>Todo lo del plan Pro</li>
-            <li>Panel multi-restaurante</li>
-            <li>Onboarding personalizado</li>
-            <li>Soporte dedicado</li>
+          <ul class="plan-feats">
+            <li><div class="feat-check">✓</div> Hasta 5 restaurantes</li>
+            <li><div class="feat-check">✓</div> Todo lo del plan Pro</li>
+            <li><div class="feat-check">✓</div> Panel multi-restaurante</li>
+            <li><div class="feat-check">✓</div> Onboarding personalizado</li>
+            <li><div class="feat-check">✓</div> Soporte dedicado</li>
           </ul>
-          <a href="/registro" class="btn-plan btn-plan-outline">Contactar</a>
+          <a href="/registro" class="plan-btn plan-btn-outline">Contactar</a>
         </div>
       </div>
     </div>
-  </div>
+  </section>
 
   <!-- CTA -->
-  <div class="cta">
-    <h2>¿Listo para no perder<br>más reservas?</h2>
-    <p>Empieza gratis hoy. Sin tarjeta de crédito. Sin compromisos.</p>
-    <a href="/registro" class="btn-cta">Crear cuenta gratis →</a>
-  </div>
+  <section class="cta-section">
+    <div class="cta-box">
+      <h2>¿Listo para no perder<br>más reservas?</h2>
+      <p>Empieza gratis hoy. Sin tarjeta de crédito. Sin compromisos.</p>
+      <a href="/registro" class="btn-hero-primary">Crear cuenta gratis →</a>
+    </div>
+  </section>
 
   <!-- FOOTER -->
   <footer>
-    <p>© 2026 ReservasBot. Todos los derechos reservados.</p>
-    <div style="display:flex;gap:24px;">
+    <div>
+      <div class="footer-brand">
+        <span>ReservasBot</span>
+      </div>
+      <p style="margin-top:6px;">© 2026 ReservasBot. Todos los derechos reservados.</p>
+    </div>
+    <div class="footer-links">
       <a href="/login">Iniciar sesión</a>
       <a href="/registro">Registro</a>
       <a href="/legal">Términos y Privacidad</a>
