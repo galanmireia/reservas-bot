@@ -70,10 +70,12 @@ async function enviarAudioStreaming(text, ws, streamSid, setBotHablando) {
   ws.send(JSON.stringify({ event: 'mark', streamSid, mark: { name: 'fin' } }));
 }
 
-// FIX: helper timezone Madrid
 function fechaHoyMadrid() {
   const ahora = new Date();
-  return ahora.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+  const iso = ahora.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+  const diaNombre = ahora.toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', weekday: 'long' });
+  const fechaLarga = ahora.toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return { iso, diaNombre, fechaLarga };
 }
 
 function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerContextoCliente, obtenerUsuarioPorNumero, obtenerConfigRestaurante, SYSTEM_PROMPT) {
@@ -158,9 +160,9 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
 
               if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('lista de espera')) {
                 const nuevoContexto = await obtenerContextoCliente(telefonoCliente || callSid);
-                const hoy = fechaHoyMadrid(); // FIX: timezone Madrid
+                const hoy = fechaHoyMadrid();
                 conversacion = [
-                  { role: 'system', content: SYSTEM_PROMPT(hoy, nuevoContexto, config) },
+                  { role: 'system', content: SYSTEM_PROMPT(hoy.iso, nuevoContexto, config) },
                   { role: 'assistant', content: mensaje }
                 ];
               }
@@ -187,12 +189,12 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
     }
 
     async function extraerDatosReservaLocal(mensajes, openai) {
-      const hoy = fechaHoyMadrid(); // FIX: timezone Madrid
+      const hoy = fechaHoyMadrid();
       const respuesta = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           ...mensajes,
-          { role: 'user', content: `Extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas, nueva_fecha, nueva_hora, nuevas_personas. La fecha en formato YYYY-MM-DD, hoy es ${hoy}. La hora en HH:MM. Si falta un dato pon null. Solo JSON sin texto adicional.` }
+          { role: 'user', content: `Extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas, nueva_fecha, nueva_hora, nuevas_personas. La fecha en formato YYYY-MM-DD. HOY es ${hoy.diaNombre} ${hoy.iso} (${hoy.fechaLarga}). Usa esta fecha como referencia exacta para calcular "mañana", "este viernes", etc. La hora en HH:MM. Si falta un dato pon null. Solo JSON sin texto adicional.` }
         ]
       });
       const texto = respuesta.choices[0].message.content.replace(/```json|```/g, '').trim();
@@ -219,8 +221,8 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
             usuarioId = await obtenerUsuarioPorNumero(data.start.customParameters?.to || data.start.customParameters?.To || null);
             config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
 
-            const hoy = fechaHoyMadrid(); // FIX: timezone Madrid
-            conversacion = [{ role: 'system', content: SYSTEM_PROMPT(hoy, { cliente: null, reservas: [] }, config) }];
+            const hoy = fechaHoyMadrid();
+            conversacion = [{ role: 'system', content: SYSTEM_PROMPT(hoy.iso, { cliente: null, reservas: [] }, config) }];
 
             await iniciarDeepgram();
 

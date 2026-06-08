@@ -286,12 +286,17 @@ async function extraerDatosReserva(mensajes) {
     max_tokens: 150,
     messages: [
       ...mensajes,
-      { role: 'user', content: `Analiza la conversacion y extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas (alergias, preferencias alimentarias, ocasiones especiales o cualquier nota relevante para el restaurante), nueva_fecha, nueva_hora, nuevas_personas.
-        
+      { role: 'user', content: (() => {
+        const ahora = new Date();
+        const iso = ahora.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+        const diaNombre = ahora.toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', weekday: 'long' });
+        const fechaLarga = ahora.toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        return `Analiza la conversacion y extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas (alergias, preferencias alimentarias, ocasiones especiales o cualquier nota relevante para el restaurante), nueva_fecha, nueva_hora, nuevas_personas.
 
 IMPORTANTE: Si el ultimo mensaje del asistente contiene "ACCION:CONSULTAR" la accion es CONSULTAR. Si contiene "ACCION:NUEVA" la accion es NUEVA. Si contiene "ACCION:CANCELAR" la accion es CANCELAR. Si contiene "ACCION:MODIFICAR" la accion es MODIFICAR. Si contiene "ACCION:ESPERA" la accion es ESPERA. Si contiene "ACCION:DISPONIBILIDAD" la accion es DISPONIBILIDAD.
 
-La fecha debe estar en formato YYYY-MM-DD usando como referencia que hoy es ${new Date().toISOString().split('T')[0]}. La hora en formato HH:MM. Si algun dato no aplica o falta pon null. Responde SOLO con el JSON, sin texto adicional, sin comillas de codigo.` }
+La fecha en formato YYYY-MM-DD. HOY es ${diaNombre} ${iso} (${fechaLarga}). Usa esta fecha como referencia exacta para calcular "mañana", "este viernes", etc. La hora en HH:MM. Si algun dato no aplica o falta pon null. Responde SOLO con el JSON, sin texto adicional, sin comillas de codigo.`;
+      })() }
     ]
   });
   try {
