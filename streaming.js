@@ -89,6 +89,21 @@ El campo nombre es el nombre PARA LA RESERVA, no el del teléfono. Si dice "a no
 Si faltan datos, "datos" es null y "respuesta" es la pregunta al cliente.`;
 }
 
+async function guardarTranscripcion(db, callSid, usuarioId, telefono, lineas, inicioLlamada) {
+  if (!db || !callSid || lineas.length === 0) return;
+  try {
+    const transcript = lineas.join('\n');
+    const duracion = inicioLlamada ? Math.floor((Date.now() - inicioLlamada) / 1000) : null;
+    await db.query(
+      'INSERT INTO transcripciones (call_sid, usuario_id, telefono, transcript, duracion_seg) VALUES ($1,$2,$3,$4,$5)',
+      [callSid, usuarioId, telefono, transcript, duracion]
+    );
+    console.log('Transcripción guardada:', callSid);
+  } catch (err) {
+    console.error('Error guardando transcripción:', err.message);
+  }
+}
+
 function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerContextoCliente, obtenerUsuarioPorNumero, obtenerConfigRestaurante, SYSTEM_PROMPT) {
   wss.on('connection', (ws) => {
     console.log('Media Stream WebSocket conectado');
@@ -103,13 +118,17 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
     let transcripcionBuffer = '';
     let procesando = false;
     let botHablando = false;
-    let pendingHangup = false; // colgar cuando termine el audio
+    let pendingHangup = false;
+    let lineasTranscript = [];
+    let inicioLlamada = null;
+    let deepgramReconnecting = false;
+    let deepgramRetries = 0;
 
     async function enviarAudio(texto) {
       await enviarAudioStreaming(texto, ws, streamSid, (v) => { botHablando = v; });
     }
 
-    async function iniciarDeepgram() {
+    async function iniciarDeepgram(esReconexion = false) {
       deepgramLive = deepgramClient.listen.live({
         model: 'nova-2',
         language: 'es',
@@ -124,7 +143,9 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
       });
 
       deepgramLive.on(LiveTranscriptionEvents.Open, () => {
-        console.log('Deepgram conectado');
+        console.log(esReconexion ? 'Deepgram reconectado' : 'Deepgram conectado');
+        deepgramReconnecting = false;
+        deepgramRetries = 0;
       });
 
       deepgramLive.on(LiveTranscriptionEvents.Transcript, async (data) => {
@@ -147,6 +168,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
           transcripcionBuffer += ' ' + transcript;
           transcripcionBuffer = transcripcionBuffer.trim();
           console.log('Transcripcion final:', transcripcionBuffer);
+          lineasTranscript.push(`Cliente: ${transcript.trim()}`);
         }
       });
 
@@ -179,6 +201,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
           let mensaje = parsed.respuesta || 'Un momento.';
           conversacion.push({ role: 'assistant', content: mensaje });
           console.log('Respuesta IA:', mensaje, parsed.datos ? '| datos: ' + JSON.stringify(parsed.datos) : '', parsed.colgar ? '| COLGAR' : '');
+          lineasTranscript.push(`Bot: ${mensaje}`);
 
           // Procesar acción si GPT ya tiene los datos (sin segunda llamada GPT)
           if (parsed.datos && parsed.datos.accion) {
@@ -216,6 +239,22 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
       deepgramLive.on(LiveTranscriptionEvents.Error, (err) => {
         console.error('Error Deepgram:', err);
       });
+
+      deepgramLive.on(LiveTranscriptionEvents.Close, () => {
+        if (deepgramReconnecting || deepgramRetries >= 3 || ws.readyState !== WebSocket.OPEN) return;
+        deepgramRetries++;
+        deepgramReconnecting = true;
+        const delay = deepgramRetries * 1000;
+        console.log(`Deepgram cerrado inesperadamente. Reconectando en ${delay}ms (intento ${deepgramRetries})...`);
+        setTimeout(async () => {
+          try {
+            await iniciarDeepgram(true);
+          } catch (e) {
+            console.error('Error reconectando Deepgram:', e.message);
+            deepgramReconnecting = false;
+          }
+        }, delay);
+      });
     }
 
     ws.on('message', async (message) => {
@@ -240,10 +279,14 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
             const hoy = fechaHoyMadrid();
             conversacion = [{ role: 'system', content: buildCallSystemPrompt(SYSTEM_PROMPT(hoy.iso, { cliente: null, reservas: [] }, config), hoy) }];
 
+            inicioLlamada = Date.now();
             await iniciarDeepgram();
 
-            const saludoTexto = 'Hola, soy Laura, la asistente del restaurante. ¿En qué puedo ayudarte?';
+            const nombreBot = config?.nombre_bot?.trim() || 'Laura';
+            const nombreRest = config?.restaurante?.trim() || 'el restaurante';
+            const saludoTexto = `Hola, soy ${nombreBot}, la asistente de ${nombreRest}. ¿En qué puedo ayudarte?`;
             conversacion.push({ role: 'assistant', content: saludoTexto });
+            lineasTranscript.push(`Bot: ${saludoTexto}`);
             await enviarAudio(saludoTexto);
             break;
 
@@ -271,6 +314,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
           case 'stop':
             console.log('Stream parado');
             if (deepgramLive) deepgramLive.finish();
+            await guardarTranscripcion(db, callSid, usuarioId, telefonoCliente, lineasTranscript, inicioLlamada);
             break;
         }
       } catch (err) {
@@ -278,9 +322,12 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
       }
     });
 
-    ws.on('close', () => {
+    ws.on('close', async () => {
       console.log('Media Stream WebSocket desconectado');
-      if (deepgramLive) deepgramLive.finish();
+      if (deepgramLive) { deepgramLive.finish(); deepgramReconnecting = true; }
+      if (lineasTranscript.length > 0) {
+        await guardarTranscripcion(db, callSid, usuarioId, telefonoCliente, lineasTranscript, inicioLlamada);
+      }
     });
   });
 }

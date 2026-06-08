@@ -167,8 +167,14 @@
     <div class="tcard">
       <div class="tcard-head">
         <div class="tcard-title">Todos los clientes <span class="chip"><%= clientes.length %></span></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.2);border:1px solid var(--gb);border-radius:10px;padding:7px 12px;">
+            <span style="font-size:12px;color:var(--t3);">⌕</span>
+            <input type="text" id="buscadorClientes" placeholder="Buscar cliente…" oninput="filtrarClientes()" style="background:none;border:none;outline:none;color:var(--t);font-size:13px;width:170px;font-family:inherit;">
+          </div>
+        </div>
       </div>
-      <div class="table-scroll"><table>
+      <div class="table-scroll"><table id="tablaClientes">
         <thead><tr><th>#</th><th>Nombre</th><th>Teléfono</th><th>Reservas</th><th>Última visita</th><th>Canal</th></tr></thead>
         <tbody>
           <% if (clientes.length === 0) { %>
@@ -191,11 +197,50 @@
           <% } %>
         </tbody>
       </table></div>
+      <div id="paginacion" style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-top:1px solid var(--gb);flex-wrap:wrap;gap:8px;"></div>
     </div>
   </main>
   <script>
     function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open');}
     function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');}
+
+    const PAGE_SIZE = 25;
+    let paginaActual = 1;
+    let filasVisibles = [];
+
+    function filtrarClientes() {
+      const q = document.getElementById('buscadorClientes').value.toLowerCase();
+      const filas = Array.from(document.querySelectorAll('#tablaClientes tbody tr'));
+      filasVisibles = filas.filter(r => {
+        const texto = r.textContent.toLowerCase();
+        const coincide = !q || texto.includes(q);
+        r.style.display = 'none';
+        return coincide;
+      });
+      paginaActual = 1;
+      renderPagina();
+    }
+
+    function renderPagina() {
+      filasVisibles.forEach((r, i) => {
+        r.style.display = (i >= (paginaActual-1)*PAGE_SIZE && i < paginaActual*PAGE_SIZE) ? '' : 'none';
+      });
+      const total = Math.ceil(filasVisibles.length / PAGE_SIZE) || 1;
+      document.getElementById('paginacion').innerHTML = total <= 1 ? '' :
+        `<span style="font-size:12px;color:var(--t3);">Página ${paginaActual} de ${total} · ${filasVisibles.length} clientes</span>
+         <div style="display:flex;gap:6px;">
+           <button onclick="cambiarPagina(-1)" ${paginaActual===1?'disabled':''} style="background:var(--glass);border:1px solid var(--gb);color:var(--t2);padding:5px 10px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;">‹ Ant</button>
+           <button onclick="cambiarPagina(1)" ${paginaActual===total?'disabled':''} style="background:var(--glass);border:1px solid var(--gb);color:var(--t2);padding:5px 10px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;">Sig ›</button>
+         </div>`;
+    }
+
+    function cambiarPagina(dir) { paginaActual = Math.max(1, paginaActual + dir); renderPagina(); }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+      filasVisibles = Array.from(document.querySelectorAll('#tablaClientes tbody tr'));
+      renderPagina();
+    });
   </script>
 </body>
 </html>

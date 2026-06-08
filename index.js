@@ -1,7 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const app = express();
+app.set('trust proxy', 1);
 app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
 
 const bcrypt = require('bcrypt');
 const session = require('express-session');
@@ -13,6 +15,7 @@ const elevenlabs = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY
 const ELEVENLABS_ENABLED = process.env.ELEVENLABS_ENABLED === 'true';
 const ELEVENLABS_VOICE_ID = 'uQw4jpKzMLrZuo0RLPS9';
 
+const rateLimit = require('express-rate-limit');
 const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -34,6 +37,29 @@ app.use(session({
   cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax' }
 }));
 const { setupMediaStreamWebSocket } = require('./streaming');
+
+// ── Rate limiters ──────────────────────────────────────────
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => res.render('login', { error: 'Demasiados intentos. Espera 15 minutos e inténtalo de nuevo.' })
+});
+
+// ── Twilio signature validation ────────────────────────────
+function validarTwilio(req, res, next) {
+  if (!process.env.TWILIO_AUTH_TOKEN) return next();
+  const signature = req.headers['x-twilio-signature'];
+  if (!signature) { console.warn('Twilio: petición sin firma desde', req.ip); return res.status(403).send('Forbidden'); }
+  const baseUrl = process.env.BASE_URL || `https://${req.get('host')}`;
+  const url = `${baseUrl}${req.originalUrl}`;
+  const valid = require('twilio').validateRequest(process.env.TWILIO_AUTH_TOKEN, signature, url, req.body);
+  if (!valid) { console.warn('Twilio: firma inválida desde', req.ip); return res.status(403).send('Forbidden'); }
+  next();
+}
+
+app.get('/health', (req, res) => res.json({ status: 'ok', uptime: Math.floor(process.uptime()), timestamp: new Date().toISOString() }));
 
 app.get('/audio', async (req, res) => {
   try {
@@ -368,6 +394,10 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
       personas: reserva.rows[0].personas,
       canal: '❌ CANCELACION por cliente'
     });
+    const esLlamadaCancel = telefonoParaWhatsapp && !telefonoParaWhatsapp.startsWith('CA') && !telefonoParaWhatsapp.includes('whatsapp');
+    if (esLlamadaCancel) {
+      await enviarWhatsApp(telefonoParaWhatsapp, `❌ Reserva cancelada\n\nHemos cancelado tu reserva de ${reserva.rows[0].nombre} del ${fechaHumana(reserva.rows[0].fecha)} a ${horaHablada(reserva.rows[0].hora)}.\n\nSi quieres hacer una nueva reserva, responde a este mensaje.`);
+    }
     return `Reserva de ${reserva.rows[0].nombre} para el ${reserva.rows[0].fecha} a ${horaHablada(reserva.rows[0].hora)} cancelada correctamente.`;
   }
 
@@ -395,6 +425,11 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
       personas: nuevasPersonas,
       canal: `✏️ MODIFICACION por cliente (antes: ${reserva.rows[0].fecha} ${reserva.rows[0].hora})`
     });
+    const esLlamadaModif = telefonoParaWhatsapp && !telefonoParaWhatsapp.startsWith('CA') && !telefonoParaWhatsapp.includes('whatsapp');
+    if (esLlamadaModif) {
+      const nombreRest = config?.restaurante || 'el restaurante';
+      await enviarWhatsApp(telefonoParaWhatsapp, `✏️ Reserva modificada en ${nombreRest}\n\n📅 ${fechaHumana(nuevaFecha)}\n🕐 ${horaHablada(nuevaHora)}\n👥 ${nuevasPersonas} persona${nuevasPersonas > 1 ? 's' : ''}\n📋 A nombre de: ${reserva.rows[0].nombre}\n\nSi necesitas algo más, responde a este mensaje.`);
+    }
     return `Reserva modificada correctamente. Nueva fecha: ${nuevaFecha} a ${horaHablada(nuevaHora)} para ${nuevasPersonas} personas.`;
   }
 if (datos.accion === 'DISPONIBILIDAD') {
@@ -526,6 +561,13 @@ if (datos.accion === 'DISPONIBILIDAD') {
     await obtenerOCrearCliente(telefonoParaWhatsapp, datos.nombre);
     await enviarEmailRestaurante(uid, { nombre: datos.nombre, fecha: datos.fecha, hora: datos.hora, personas: datos.personas, canal: telefonoCliente?.includes('whatsapp') ? 'whatsapp' : 'llamada' });
     const fechaFormateada = fechaHumana(datos.fecha);
+    // Confirmación WhatsApp al cliente si es llamada (número real, no callSid)
+    const esLlamada = telefonoParaWhatsapp && !telefonoParaWhatsapp.startsWith('CA') && !telefonoParaWhatsapp.includes('whatsapp');
+    if (esLlamada) {
+      const nombreRest = config?.restaurante || 'el restaurante';
+      const notasTexto = datos.notas ? `\n📝 Notas: ${datos.notas}` : '';
+      await enviarWhatsApp(telefonoParaWhatsapp, `✅ Reserva confirmada en ${nombreRest}\n\n📅 ${fechaFormateada}\n🕐 ${horaHablada(datos.hora)}\n👥 ${datos.personas} persona${datos.personas > 1 ? 's' : ''}\n📋 A nombre de: ${datos.nombre}${notasTexto}\n\nSi necesitas cancelar o modificar, responde a este mensaje.`);
+    }
     return `Perfecto ${datos.nombre}, tu reserva esta confirmada para el ${fechaFormateada} a ${horaHablada(datos.hora)} para ${datos.personas} personas. Te esperamos!`;
   }
 
@@ -569,8 +611,9 @@ const SYSTEM_PROMPT = (hoy, contexto, config = null) => {
     : '';
 
   const nombreRestaurante = nombre || 'el restaurante';
+  const nombreBot = config?.nombre_bot?.trim() || 'Laura';
 
-  let prompt = `Eres Laura, recepcionista profesional de ${nombreRestaurante}. Hoy es ${hoy}.
+  let prompt = `Eres ${nombreBot}, recepcionista profesional de ${nombreRestaurante}. Hoy es ${hoy}.
 
 ═══════════════════════════════════
 IDENTIDAD Y TONO
@@ -721,7 +764,7 @@ app.get('/legal', (req, res) => res.render('legal'));
 
 app.get('/login', (req, res) => res.render('login', { error: null }));
 
-app.post('/login', async (req, res) => {
+app.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   const usuario = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
   if (usuario.rows.length === 0) return res.render('login', { error: 'Email o contrasena incorrectos.' });
@@ -748,7 +791,7 @@ app.post('/registro', async (req, res) => {
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
 
-app.post('/llamada', async (req, res) => {
+app.post('/llamada', validarTwilio, async (req, res) => {
   try {
     const callSid = req.body.CallSid;
     const telefono = req.body.From || callSid;
@@ -837,7 +880,7 @@ app.post('/responder', async (req, res) => {
   }
 });
 
-app.post('/whatsapp', async (req, res) => {
+app.post('/whatsapp', validarTwilio, async (req, res) => {
   try {
     const from = req.body.From;
     const mensaje = req.body.Body;
@@ -952,6 +995,15 @@ app.get('/panel', requireLogin, async (req, res) => {
     filtradas = filtroQuery.rows;
   }
   const espera = await db.query('SELECT * FROM lista_espera WHERE usuario_id = $1 ORDER BY creada_en ASC', [usuarioId]);
+  const configPanel = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
+  const mesasPanel = await db.query('SELECT COUNT(*) FROM mesas WHERE usuario_id = $1', [usuarioId]);
+  const cfg = configPanel.rows[0] || {};
+  const onboarding = {
+    config: !!cfg.horario,
+    mesas: parseInt(mesasPanel.rows[0].count) > 0,
+    twilio: !!req.session.usuario.numero_twilio
+  };
+  const onboardingCompleto = onboarding.config && onboarding.mesas && onboarding.twilio;
   res.render('reservas', {
     reservas: todas.rows,
     reservasHoy: hoyQuery.rows,
@@ -959,7 +1011,8 @@ app.get('/panel', requireLogin, async (req, res) => {
     listaEspera: espera.rows,
     fechaFiltro,
     error,
-    usuario: req.session.usuario
+    usuario: req.session.usuario,
+    onboarding: onboardingCompleto ? null : onboarding
   });
 });
 
@@ -1056,17 +1109,17 @@ app.get('/configuracion', requireLogin, async (req, res) => {
 
 app.post('/configuracion', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
-  const { restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad } = req.body;
+  const { restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, nombre_bot } = req.body;
   const existe = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
   if (existe.rows.length > 0) {
     await db.query(
-      'UPDATE configuracion SET restaurante=$1, telefono=$2, direccion=$3, horario=$4, aparcamiento=$5, menu=$6, especialidad=$7 WHERE usuario_id=$8',
-      [restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, usuarioId]
+      'UPDATE configuracion SET restaurante=$1, telefono=$2, direccion=$3, horario=$4, aparcamiento=$5, menu=$6, especialidad=$7, nombre_bot=$8 WHERE usuario_id=$9',
+      [restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, nombre_bot || 'Laura', usuarioId]
     );
   } else {
     await db.query(
-      'INSERT INTO configuracion (usuario_id, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-      [usuarioId, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad]
+      'INSERT INTO configuracion (usuario_id, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, nombre_bot) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+      [usuarioId, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, nombre_bot || 'Laura']
     );
   }
   await db.query('UPDATE usuarios SET restaurante = $1 WHERE id = $2', [restaurante, usuarioId]);
@@ -1220,9 +1273,19 @@ app.post('/espera/eliminar/:id', requireLogin, async (req, res) => {
   await db.query('DELETE FROM lista_espera WHERE id = $1 AND usuario_id = $2', [req.params.id, req.session.usuario.id]);
   res.redirect('/panel');
 });
-// Migración: añadir columnas de lista de espera si no existen
+// Migraciones automáticas
 db.query(`ALTER TABLE lista_espera ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'esperando'`).catch(() => {});
 db.query(`ALTER TABLE lista_espera ADD COLUMN IF NOT EXISTS notificado_en TIMESTAMP`).catch(() => {});
+db.query(`ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS nombre_bot VARCHAR(50)`).catch(() => {});
+db.query(`CREATE TABLE IF NOT EXISTS transcripciones (
+  id SERIAL PRIMARY KEY,
+  call_sid TEXT,
+  usuario_id INTEGER,
+  telefono TEXT,
+  transcript TEXT,
+  duracion_seg INTEGER,
+  creada_en TIMESTAMP DEFAULT NOW()
+)`).catch(() => {});
 
 const PORT = process.env.PORT || 3000;
 const server = require('http').createServer(app);

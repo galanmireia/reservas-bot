@@ -19,6 +19,7 @@
     "ejs": "^5.0.1",
     "elevenlabs": "^1.59.0",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
     "express-session": "^1.19.0",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.2",

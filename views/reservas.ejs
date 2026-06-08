@@ -505,6 +505,27 @@
   <!-- MAIN -->
   <main class="main">
 
+    <!-- ONBOARDING -->
+    <% if (onboarding) { %>
+    <div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.2);border-radius:18px;padding:22px 24px;margin-bottom:28px;">
+      <div style="font-size:13px;font-weight:700;color:#c4b5fd;margin-bottom:14px;">🚀 Completa la configuración para activar tu bot</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:<%= onboarding.config ? '#86efac' : 'rgba(255,255,255,0.5)' %>;">
+          <span style="width:20px;height:20px;border-radius:50%;background:<%= onboarding.config ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)' %>;border:1px solid <%= onboarding.config ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.1)' %>;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;"><%= onboarding.config ? '✓' : '1' %></span>
+          <%= onboarding.config ? 'Información del restaurante configurada' : 'Configura el horario y datos del restaurante' %> <%= !onboarding.config ? '→ <a href="/configuracion" style="color:#c4b5fd;">Ir a configuración</a>' : '' %>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:<%= onboarding.mesas ? '#86efac' : 'rgba(255,255,255,0.5)' %>;">
+          <span style="width:20px;height:20px;border-radius:50%;background:<%= onboarding.mesas ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)' %>;border:1px solid <%= onboarding.mesas ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.1)' %>;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;"><%= onboarding.mesas ? '✓' : '2' %></span>
+          <%= onboarding.mesas ? 'Mesas configuradas' : 'Añade tus mesas para controlar la disponibilidad' %> <%= !onboarding.mesas ? '→ <a href="/configuracion#mesas" style="color:#c4b5fd;">Añadir mesas</a>' : '' %>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:<%= onboarding.twilio ? '#86efac' : 'rgba(255,255,255,0.5)' %>;">
+          <span style="width:20px;height:20px;border-radius:50%;background:<%= onboarding.twilio ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)' %>;border:1px solid <%= onboarding.twilio ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.1)' %>;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;"><%= onboarding.twilio ? '✓' : '3' %></span>
+          <%= onboarding.twilio ? 'Número de teléfono asignado' : 'Solicita tu número Twilio — contacta con soporte' %>
+        </div>
+      </div>
+    </div>
+    <% } %>
+
     <div class="header">
       <div class="header-left">
         <div class="header-eyebrow">Panel de control</div>
@@ -570,6 +591,27 @@
             <% } %>
           <% } %>
         </div>
+      </div>
+    </div>
+
+    <!-- CALENDARIO -->
+    <div class="tcard" style="margin-bottom:16px;">
+      <div class="tcard-head">
+        <div class="tcard-title">Vista calendario</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="btnPrevMes" onclick="cambiarMes(-1)" style="background:var(--glass);border:1px solid var(--glass-border);color:var(--text-2);padding:5px 11px;border-radius:8px;cursor:pointer;font-size:13px;">‹</button>
+          <span id="labelMes" style="font-size:13px;font-weight:600;color:var(--text);min-width:130px;text-align:center;"></span>
+          <button id="btnNextMes" onclick="cambiarMes(1)" style="background:var(--glass);border:1px solid var(--glass-border);color:var(--text-2);padding:5px 11px;border-radius:8px;cursor:pointer;font-size:13px;">›</button>
+        </div>
+      </div>
+      <div style="padding:16px;">
+        <div id="diasSemana" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;">
+          <% ['L','M','X','J','V','S','D'].forEach(d => { %>
+            <div style="text-align:center;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0;"><%= d %></div>
+          <% }) %>
+        </div>
+        <div id="calendarioGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+        <div id="detalleDia" style="margin-top:14px;display:none;"></div>
       </div>
     </div>
 
@@ -667,6 +709,7 @@
           <% } %>
         </tbody>
       </table></div>
+      <div id="paginacionReservas" style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-top:1px solid var(--glass-border);flex-wrap:wrap;gap:8px;"></div>
     </div>
 
     <!-- FORM NUEVA -->
@@ -762,10 +805,116 @@
     function limpiar() { window.location.href = '/panel'; }
     function filtrarTabla() {
       const t = document.getElementById('buscador').value.toLowerCase();
-      document.querySelectorAll('#tablaReservas tbody tr').forEach(r => {
-        r.style.display = (r.cells[0]?.textContent.toLowerCase()||'').includes(t) ? '' : 'none';
+      filasR = Array.from(document.querySelectorAll('#tablaReservas tbody tr')).filter(r => {
+        const coincide = (r.cells[0]?.textContent.toLowerCase()||'').includes(t);
+        r.style.display = 'none';
+        return coincide;
       });
+      paginaR = 1;
+      renderPaginaR();
     }
+    // ── PAGINACIÓN RESERVAS ─────────────────────────────────
+    const PAGE_SIZE_R = 20;
+    let paginaR = 1;
+    let filasR = [];
+
+    function initPaginacion() {
+      filasR = Array.from(document.querySelectorAll('#tablaReservas tbody tr[data-paginar]'));
+      if (filasR.length === 0) filasR = Array.from(document.querySelectorAll('#tablaReservas tbody tr'));
+      renderPaginaR();
+    }
+
+    function renderPaginaR() {
+      const totalPags = Math.ceil(filasR.length / PAGE_SIZE_R) || 1;
+      filasR.forEach((r, i) => {
+        r.style.display = (i >= (paginaR-1)*PAGE_SIZE_R && i < paginaR*PAGE_SIZE_R) ? '' : 'none';
+      });
+      const el = document.getElementById('paginacionReservas');
+      if (filasR.length <= PAGE_SIZE_R) { el.innerHTML = ''; return; }
+      el.innerHTML = `<span style="font-size:12px;color:var(--text-3);">Página ${paginaR} de ${totalPags} · ${filasR.length} reservas</span>
+        <div style="display:flex;gap:6px;">
+          <button onclick="cambiarPagR(-1)" ${paginaR===1?'disabled':''} style="background:var(--glass);border:1px solid var(--glass-border);color:var(--text-2);padding:5px 10px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;">‹ Ant</button>
+          <button onclick="cambiarPagR(1)" ${paginaR===totalPags?'disabled':''} style="background:var(--glass);border:1px solid var(--glass-border);color:var(--text-2);padding:5px 10px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;">Sig ›</button>
+        </div>`;
+    }
+    function cambiarPagR(dir) { paginaR = Math.max(1, Math.min(Math.ceil(filasR.length/PAGE_SIZE_R), paginaR+dir)); renderPaginaR(); }
+
+    // ── CALENDARIO ──────────────────────────────────────────
+    const _todasReservas = <%- JSON.stringify(reservas.map(r => ({fecha: r.fecha, nombre: r.nombre, hora: r.hora, personas: r.personas}))) %>;
+    let mesCalendario = new Date();
+    mesCalendario.setDate(1);
+
+    function renderCalendario() {
+      const año = mesCalendario.getFullYear();
+      const mes = mesCalendario.getMonth();
+      document.getElementById('labelMes').textContent = mesCalendario.toLocaleDateString('es-ES', {month:'long', year:'numeric'});
+
+      const primerDia = new Date(año, mes, 1);
+      let offsetDia = primerDia.getDay() - 1; // lunes=0
+      if (offsetDia < 0) offsetDia = 6;
+
+      const diasEnMes = new Date(año, mes+1, 0).getDate();
+      const hoyStr = new Date().toLocaleDateString('sv-SE');
+
+      const reservasPorDia = {};
+      _todasReservas.forEach(r => {
+        if (!reservasPorDia[r.fecha]) reservasPorDia[r.fecha] = [];
+        reservasPorDia[r.fecha].push(r);
+      });
+
+      const grid = document.getElementById('calendarioGrid');
+      grid.innerHTML = '';
+
+      for (let i = 0; i < offsetDia; i++) {
+        const cel = document.createElement('div');
+        cel.style.cssText = 'min-height:52px;';
+        grid.appendChild(cel);
+      }
+
+      for (let d = 1; d <= diasEnMes; d++) {
+        const fechaStr = `${año}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const rsv = reservasPorDia[fechaStr] || [];
+        const esHoy = fechaStr === hoyStr;
+        const tieneReservas = rsv.length > 0;
+
+        const cel = document.createElement('div');
+        cel.style.cssText = `min-height:52px;border-radius:12px;padding:8px;cursor:${tieneReservas?'pointer':'default'};border:1px solid ${esHoy?'rgba(139,92,246,0.4)':tieneReservas?'rgba(139,92,246,0.15)':'rgba(255,255,255,0.05)'};background:${esHoy?'rgba(139,92,246,0.12)':tieneReservas?'rgba(139,92,246,0.06)':'rgba(255,255,255,0.02)'};transition:all 0.15s;`;
+        cel.innerHTML = `<div style="font-size:12px;font-weight:${esHoy?'800':'600'};color:${esHoy?'#c4b5fd':'rgba(255,255,255,0.7)'};">${d}</div>${tieneReservas?`<div style="margin-top:4px;"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(139,92,246,0.3);font-size:10px;font-weight:700;color:#c4b5fd;">${rsv.length}</span></div>`:''}`;
+
+        if (tieneReservas) {
+          cel.onmouseenter = () => cel.style.background = 'rgba(139,92,246,0.12)';
+          cel.onmouseleave = () => cel.style.background = esHoy?'rgba(139,92,246,0.12)':'rgba(139,92,246,0.06)';
+          cel.onclick = () => mostrarDetalleDia(fechaStr, rsv);
+        }
+        grid.appendChild(cel);
+      }
+    }
+
+    function mostrarDetalleDia(fecha, rsv) {
+      const det = document.getElementById('detalleDia');
+      const fechaLinda = new Date(fecha+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+      det.style.display = 'block';
+      det.innerHTML = `<div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);border-radius:14px;padding:16px;">
+        <div style="font-size:12px;font-weight:700;color:#c4b5fd;margin-bottom:12px;text-transform:capitalize;">${fechaLinda} · ${rsv.length} reserva${rsv.length!==1?'s':''}</div>
+        ${rsv.sort((a,b)=>a.hora>b.hora?1:-1).map(r=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <span style="font-size:12px;font-weight:700;color:#c4b5fd;min-width:42px;">${r.hora}</span>
+          <span style="font-size:13px;color:rgba(255,255,255,0.85);flex:1;">${r.nombre}</span>
+          <span style="font-size:11px;color:rgba(255,255,255,0.3);">${r.personas}p</span>
+        </div>`).join('')}
+      </div>`;
+    }
+
+    function cambiarMes(dir) {
+      mesCalendario.setMonth(mesCalendario.getMonth() + dir);
+      document.getElementById('detalleDia').style.display = 'none';
+      renderCalendario();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderCalendario();
+      initPaginacion();
+    });
+
     function abrirEditar(id, nombre, fecha, hora, personas) {
       document.getElementById('editNombre').value = nombre;
       document.getElementById('editFecha').value = fecha;
