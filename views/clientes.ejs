@@ -73,13 +73,45 @@
     .empty-state { text-align:center; padding:60px; color:var(--t3); font-size:13px; }
 
     ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:10px}
+
+    .mobile-bar{display:none;position:fixed;top:0;left:0;right:0;height:56px;background:rgba(3,3,8,0.92);backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);border-bottom:1px solid var(--gb);z-index:200;align-items:center;justify-content:space-between;padding:0 16px;}
+    .hamburger{width:36px;height:36px;border-radius:10px;background:var(--glass);border:1px solid var(--gb);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer;flex-shrink:0;}
+    .hamburger span{width:16px;height:1.5px;background:rgba(255,255,255,0.6);border-radius:2px;display:block;}
+    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:149;}
+    .sidebar-overlay.open{display:block;}
+    .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    @media(max-width:768px){
+      .mobile-bar{display:flex;}
+      .sidebar{transform:translateX(-100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);z-index:150;}
+      .sidebar.open{transform:translateX(0);}
+      .main{margin-left:0!important;padding:72px 14px 60px!important;}
+      .stats{grid-template-columns:repeat(2,1fr)!important;gap:10px;}
+      .stat-value{font-size:32px!important;letter-spacing:-1px!important;}
+      .tcard{overflow:visible;}
+      .tcard-head{flex-direction:column;align-items:flex-start!important;gap:10px;}
+    }
+    @media(max-width:480px){
+      .stat{padding:14px 12px;}
+      .stat-value{font-size:26px!important;}
+      thead th,tbody td{padding:10px 10px!important;font-size:12px;}
+    }
   </style>
 </head>
 <body>
   <div class="orb orb-1"></div>
   <div class="orb orb-2"></div>
 
-  <nav class="sidebar">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <div class="mobile-bar">
+    <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú"><span></span><span></span><span></span></button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="width:28px;height:28px;background:linear-gradient(135deg,#8b5cf6,#6366f1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;">🤖</div>
+      <span style="font-size:14px;font-weight:700;color:#fff;letter-spacing:-0.3px;">ReservasBot</span>
+    </div>
+    <div style="width:36px;"></div>
+  </div>
+
+  <nav class="sidebar" id="sidebar">
     <div class="sidebar-top">
       <div class="brand">
         <div class="brand-mark">🤖</div>
@@ -136,7 +168,7 @@
       <div class="tcard-head">
         <div class="tcard-title">Todos los clientes <span class="chip"><%= clientes.length %></span></div>
       </div>
-      <table>
+      <div class="table-scroll"><table>
         <thead><tr><th>#</th><th>Nombre</th><th>Teléfono</th><th>Reservas</th><th>Última visita</th><th>Canal</th></tr></thead>
         <tbody>
           <% if (clientes.length === 0) { %>
@@ -158,8 +190,12 @@
             <% }) %>
           <% } %>
         </tbody>
-      </table>
+      </table></div>
     </div>
   </main>
+  <script>
+    function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open');}
+    function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');}
+  </script>
 </body>
 </html>

@@ -413,6 +413,42 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+    /* ── RESPONSIVE ── */
+    .mobile-bar { display:none; position:fixed; top:0; left:0; right:0; height:56px; background:rgba(3,3,8,0.92); backdrop-filter:blur(40px); -webkit-backdrop-filter:blur(40px); border-bottom:1px solid var(--glass-border); z-index:200; align-items:center; justify-content:space-between; padding:0 16px; }
+    .hamburger { width:36px; height:36px; border-radius:10px; background:var(--glass); border:1px solid var(--glass-border); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; cursor:pointer; flex-shrink:0; }
+    .hamburger span { width:16px; height:1.5px; background:rgba(255,255,255,0.6); border-radius:2px; display:block; }
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); z-index:149; }
+    .sidebar-overlay.open { display:block; }
+    .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+    @media(max-width:768px){
+      .mobile-bar { display:flex; }
+      .sidebar { transform:translateX(-100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); z-index:150; }
+      .sidebar.open { transform:translateX(0); }
+      .main { margin-left:0 !important; padding:72px 14px 60px !important; }
+      .stats { grid-template-columns:repeat(2,1fr) !important; gap:10px; }
+      .stat-value { font-size:32px !important; letter-spacing:-1px !important; }
+      .grid-2 { grid-template-columns:1fr !important; }
+      .header { flex-direction:column !important; gap:12px; align-items:flex-start !important; }
+      .header-actions { width:100%; flex-wrap:wrap; }
+      .tcard-controls { flex-direction:column !important; align-items:stretch !important; }
+      .search-box { width:100% !important; }
+      .search-box input { width:100% !important; flex:1; }
+      .date-input { width:100% !important; box-sizing:border-box; }
+      .form-row { flex-direction:column; }
+      .form-row .field { width:100% !important; }
+      .form-row .field input, .form-row .field select { width:100% !important; }
+      .modal { margin:12px; max-width:calc(100vw - 24px) !important; padding:22px 18px; }
+      .modal-grid { grid-template-columns:1fr !important; }
+      .tcard-head { flex-direction:column; align-items:flex-start !important; }
+      .tcard { overflow:visible; }
+    }
+    @media(max-width:480px){
+      .stat { padding:14px 12px; }
+      .stat-value { font-size:26px !important; }
+      thead th, tbody td { padding:10px 10px !important; font-size:12px; }
+    }
   </style>
 </head>
 <body>
@@ -421,8 +457,19 @@
   <div class="orb orb-2"></div>
   <div class="orb orb-3"></div>
 
+  <!-- MOBILE TOPBAR -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <div class="mobile-bar">
+    <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú"><span></span><span></span><span></span></button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="width:28px;height:28px;background:linear-gradient(135deg,#8b5cf6,#6366f1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;">🤖</div>
+      <span style="font-size:14px;font-weight:700;color:#fff;letter-spacing:-0.3px;">ReservasBot</span>
+    </div>
+    <div style="width:36px;"></div>
+  </div>
+
   <!-- SIDEBAR -->
-  <nav class="sidebar">
+  <nav class="sidebar" id="sidebar">
     <div class="sidebar-top">
       <div class="brand">
         <div class="brand-mark">🤖</div>
@@ -537,7 +584,7 @@
       <% if (listaEspera.length === 0) { %>
         <div class="empty-state"><div class="empty-state-icon">⏳</div>Nadie en lista de espera</div>
       <% } else { %>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr>
             <th>Nombre</th><th>Teléfono</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Estado</th><th>Apuntado</th><th></th>
           </tr></thead>
@@ -559,7 +606,7 @@
               </tr>
             <% }) %>
           </tbody>
-        </table>
+        </table></div>
       <% } %>
     </div>
 
@@ -577,7 +624,7 @@
           <button class="btn btn-ghost" style="padding:8px 12px;font-size:12px;" onclick="limpiar()">✕</button>
         </div>
       </div>
-      <table id="tablaReservas">
+      <div class="table-scroll"><table id="tablaReservas">
         <thead><tr>
           <th>Nombre</th><th>Fecha</th><th>Hora</th><th>Personas</th><th>Canal</th><th>Estado</th><th>Notas</th><th>Recibida</th><th></th>
         </tr></thead>
@@ -619,7 +666,7 @@
             <% }) %>
           <% } %>
         </tbody>
-      </table>
+      </table></div>
     </div>
 
     <!-- FORM NUEVA -->
@@ -700,6 +747,14 @@
   </div>
 
   <script>
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('open');
+    }
     function filtrar() {
       const f = document.getElementById('filtroFecha').value;
       if (f) window.location.href = '/panel?fecha=' + f;
