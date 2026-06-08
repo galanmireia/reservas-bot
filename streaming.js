@@ -195,7 +195,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
         model: 'gpt-4o-mini',
         messages: [
           ...mensajes,
-          { role: 'user', content: `Extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas, nueva_fecha, nueva_hora, nuevas_personas. La fecha en formato YYYY-MM-DD. HOY es ${hoy.diaNombre} ${hoy.iso} (${hoy.fechaLarga}). Usa esta fecha como referencia exacta para calcular "mañana", "este viernes", etc. La hora en HH:MM. Si falta un dato pon null. Solo JSON sin texto adicional.` }
+          { role: 'user', content: `Extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas, nueva_fecha, nueva_hora, nuevas_personas. La fecha en formato YYYY-MM-DD. HOY es ${hoy.diaNombre} ${hoy.iso} (${hoy.fechaLarga}). Usa esta fecha como referencia exacta para calcular "mañana", "este viernes", etc. La hora en HH:MM. IMPORTANTE: el campo nombre es el nombre dado PARA LA RESERVA en esta conversacion, no el nombre asociado al telefono ni el del sistema. Si el cliente dice "a nombre de X", nombre es X. Si falta un dato pon null. Solo JSON sin texto adicional.` }
         ]
       });
       const texto = respuesta.choices[0].message.content.replace(/```json|```/g, '').trim();

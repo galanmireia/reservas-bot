@@ -301,7 +301,7 @@ async function extraerDatosReserva(mensajes) {
 
 IMPORTANTE: Si el ultimo mensaje del asistente contiene "ACCION:CONSULTAR" la accion es CONSULTAR. Si contiene "ACCION:NUEVA" la accion es NUEVA. Si contiene "ACCION:CANCELAR" la accion es CANCELAR. Si contiene "ACCION:MODIFICAR" la accion es MODIFICAR. Si contiene "ACCION:ESPERA" la accion es ESPERA. Si contiene "ACCION:DISPONIBILIDAD" la accion es DISPONIBILIDAD.
 
-La fecha en formato YYYY-MM-DD. HOY es ${diaNombre} ${iso} (${fechaLarga}). Usa esta fecha como referencia exacta para calcular "mañana", "este viernes", etc. La hora en HH:MM. Si algun dato no aplica o falta pon null. Responde SOLO con el JSON, sin texto adicional, sin comillas de codigo.`;
+La fecha en formato YYYY-MM-DD. HOY es ${diaNombre} ${iso} (${fechaLarga}). Usa esta fecha como referencia exacta para calcular "mañana", "este viernes", etc. La hora en HH:MM. El campo nombre es el nombre dado PARA LA RESERVA en la conversacion, no el nombre del telefono ni el del sistema — si el cliente dice "a nombre de X", nombre es X. Si algun dato no aplica o falta pon null. Responde SOLO con el JSON, sin texto adicional, sin comillas de codigo.`;
       })() }
     ]
   });
@@ -483,9 +483,11 @@ if (datos.accion === 'DISPONIBILIDAD') {
         : 'Serias el primero en la lista de espera para ese horario.';
 
       if (alternativas.length > 0) {
-        return `Lo siento, no hay mesas a las ${datos.hora}. Tengo sitio a las ${alternativas.join(' o a las ')}. O si prefieres, puedo apuntarte a la lista de espera — ${msgEspera} Que prefieres, horario alternativo o lista de espera?`;
+        const alternativasHabladas = alternativas.map(h => horaHablada(h));
+        return `Lo siento, no hay mesas a ${horaHablada(datos.hora)}. Tengo sitio a ${alternativasHabladas.join(' o a ')}. O si prefieres, puedo apuntarte a la lista de espera — ${msgEspera} Que prefieres, horario alternativo o lista de espera?`;
       }
-      return `Lo siento, no hay mesas disponibles el ${datos.fecha}. ${msgEspera} Te apunto en la lista de espera y te aviso si hay una cancelacion?`;
+      const fechaFormateadaND = new Date(datos.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+      return `Lo siento, no hay mesas disponibles el ${fechaFormateadaND}. ${msgEspera} Te apunto en la lista de espera y te aviso si hay una cancelacion?`;
     }
 
     await db.query(
