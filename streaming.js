@@ -1,40 +1,12 @@
 const WebSocket = require('ws');
 const { createClient, LiveTranscriptionEvents } = require('@deepgram/sdk');
 const { ElevenLabsClient } = require('elevenlabs');
+const twilio = require('twilio');
 
 const deepgramClient = createClient(process.env.DEEPGRAM_API_KEY);
 const elevenlabs = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
 const ELEVENLABS_VOICE_ID = 'uQw4jpKzMLrZuo0RLPS9';
 
-async function textToSpeechStream(text) {
-  try {
-    const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
-      text,
-      model_id: 'eleven_turbo_v2_5',
-      voice_settings: { stability: 0.85, similarity_boost: 0.9, style: 0, use_speaker_boost: true },
-      output_format: 'ulaw_8000'
-    });
-
-    const chunks = [];
-    if (response[Symbol.asyncIterator]) {
-      for await (const chunk of response) chunks.push(chunk);
-    } else if (response.pipe) {
-      await new Promise((resolve, reject) => {
-        response.on('data', chunk => chunks.push(chunk));
-        response.on('end', resolve);
-        response.on('error', reject);
-      });
-    } else {
-      chunks.push(Buffer.from(await response.arrayBuffer()));
-    }
-    return Buffer.concat(chunks).toString('base64');
-  } catch (err) {
-    console.error('Error ElevenLabs streaming:', err.message);
-    return null;
-  }
-}
-
-// Genera audio con ElevenLabs y lo envía a Twilio como un único bloque
 async function enviarAudioStreaming(text, ws, streamSid, setBotHablando) {
   if (!text || ws.readyState !== WebSocket.OPEN) return;
 
@@ -79,26 +51,41 @@ function fechaHoyMadrid() {
   return { iso, diaNombre, fechaLarga };
 }
 
-// Envuelve el system prompt para llamadas: GPT devuelve JSON con respuesta + datos opcionales.
-// Esto elimina la segunda llamada GPT para extraer datos — todo en una sola petición.
+// Cuelga la llamada vía Twilio REST API
+async function colgarLlamada(callSid) {
+  try {
+    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    await client.calls(callSid).update({ status: 'completed' });
+    console.log('Llamada colgada:', callSid);
+  } catch (err) {
+    console.error('Error colgando llamada:', err.message);
+  }
+}
+
+// GPT devuelve JSON con: respuesta (voz), datos (reserva opcional), colgar (boolean)
+// Una sola llamada GPT = respuesta conversacional + extracción + señal de colgar
 function buildCallSystemPrompt(baseContent, hoy) {
   return baseContent + `
 
 FORMATO DE RESPUESTA OBLIGATORIO PARA LLAMADAS:
-Responde SIEMPRE únicamente con JSON válido, sin texto adicional fuera del JSON:
-{"respuesta": "lo que dices en voz alta", "datos": null}
+Responde SIEMPRE únicamente con JSON válido, sin texto fuera del JSON:
+{"respuesta": "lo que dices en voz alta", "datos": null, "colgar": false}
 
-Cuando tengas TODOS los datos necesarios para procesar la acción del cliente, incluye "datos":
-- NUEVA reserva necesita: nombre (para la reserva), fecha, hora, personas
-- CANCELAR necesita: nombre o fecha
-- MODIFICAR necesita: nombre/fecha actuales + nuevos datos
-- CONSULTAR, ESPERA, DISPONIBILIDAD: con los datos que tengas
+CUÁNDO PONER colgar: true:
+Cuando el cliente se despida, diga adiós, gracias y ya está, o no quiera nada más. Antes de colgar despídete brevemente.
 
-Cuando tengas todos los datos, responde así (ajusta los valores):
-{"respuesta": "Un momento, voy a procesarlo.", "datos": {"accion": "NUEVA", "nombre": "Pedro", "fecha": "YYYY-MM-DD", "hora": "HH:MM", "personas": 2, "notas": null, "nueva_fecha": null, "nueva_hora": null, "nuevas_personas": null}}
+CUÁNDO INCLUIR datos:
+Cuando tengas TODOS los datos para procesar la acción:
+- NUEVA: nombre (para la reserva), fecha, hora, personas
+- CANCELAR: nombre o fecha de la reserva
+- MODIFICAR: datos actuales + nuevos datos
+- CONSULTAR / ESPERA / DISPONIBILIDAD: con los datos disponibles
 
-HOY es ${hoy.diaNombre} ${hoy.iso} (${hoy.fechaLarga}). Usa esta fecha para calcular "mañana", "este viernes", etc.
-El campo nombre es el nombre dado PARA LA RESERVA, no el nombre del teléfono. Si dice "a nombre de X", nombre es X.
+Ejemplo con reserva lista:
+{"respuesta": "Un momento, voy a procesarlo.", "datos": {"accion": "NUEVA", "nombre": "Pedro", "fecha": "YYYY-MM-DD", "hora": "HH:MM", "personas": 2, "notas": null, "nueva_fecha": null, "nueva_hora": null, "nuevas_personas": null}, "colgar": false}
+
+HOY es ${hoy.diaNombre} ${hoy.iso} (${hoy.fechaLarga}). Úsalo para calcular "mañana", "este viernes", etc.
+El campo nombre es el nombre PARA LA RESERVA, no el del teléfono. Si dice "a nombre de X", nombre es X.
 Si faltan datos, "datos" es null y "respuesta" es la pregunta al cliente.`;
 }
 
@@ -116,6 +103,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
     let transcripcionBuffer = '';
     let procesando = false;
     let botHablando = false;
+    let pendingHangup = false; // colgar cuando termine el audio
 
     async function enviarAudio(texto) {
       await enviarAudioStreaming(texto, ws, streamSid, (v) => { botHablando = v; });
@@ -141,8 +129,20 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
 
       deepgramLive.on(LiveTranscriptionEvents.Transcript, async (data) => {
         const transcript = data.channel?.alternatives?.[0]?.transcript;
-        if (!transcript) return;
+        if (!transcript || transcript.trim().length < 2) return;
+
+        // BARGE-IN: cliente habla mientras el bot está hablando
+        if (botHablando && data.is_final) {
+          console.log('Interrupción detectada:', transcript);
+          ws.send(JSON.stringify({ event: 'clear', streamSid })); // para el audio del bot
+          botHablando = false;
+          pendingHangup = false;
+          transcripcionBuffer = transcript.trim(); // empezar con lo que dijo
+          return;
+        }
+
         if (botHablando) return;
+
         if (data.is_final) {
           transcripcionBuffer += ' ' + transcript;
           transcripcionBuffer = transcripcionBuffer.trim();
@@ -161,7 +161,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
         try {
           conversacion.push({ role: 'user', content: textoCliente });
 
-          // Una sola llamada GPT: devuelve respuesta + datos extraídos en JSON
+          // Una sola llamada GPT: respuesta + datos opcionales + señal de colgar
           const respuestaIA = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             max_tokens: 250,
@@ -173,17 +173,17 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
           try {
             parsed = JSON.parse(respuestaIA.choices[0].message.content);
           } catch {
-            parsed = { respuesta: respuestaIA.choices[0].message.content, datos: null };
+            parsed = { respuesta: respuestaIA.choices[0].message.content, datos: null, colgar: false };
           }
 
           let mensaje = parsed.respuesta || 'Un momento.';
           conversacion.push({ role: 'assistant', content: mensaje });
-          console.log('Respuesta IA:', mensaje, parsed.datos ? '| Con datos: ' + JSON.stringify(parsed.datos) : '');
+          console.log('Respuesta IA:', mensaje, parsed.datos ? '| datos: ' + JSON.stringify(parsed.datos) : '', parsed.colgar ? '| COLGAR' : '');
 
-          // Si GPT ya extrajo los datos, procesamos directamente — sin segunda llamada GPT
+          // Procesar acción si GPT ya tiene los datos (sin segunda llamada GPT)
           if (parsed.datos && parsed.datos.accion) {
             try {
-              console.log('Datos extraidos (una sola llamada):', JSON.stringify(parsed.datos));
+              console.log('Datos extraidos:', JSON.stringify(parsed.datos));
               const contexto = await obtenerContextoCliente(telefonoCliente || callSid);
               mensaje = await procesarAccion(parsed.datos, callSid, contexto, telefonoCliente || callSid, usuarioId, config);
               console.log('Respuesta procesarAccion:', mensaje);
@@ -201,6 +201,9 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
               mensaje = 'Tu reserva ha sido procesada. Te esperamos!';
             }
           }
+
+          // Marcar que hay que colgar cuando termine el audio
+          if (parsed.colgar) pendingHangup = true;
 
           await enviarAudio(mensaje);
         } catch (err) {
@@ -227,7 +230,6 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
           case 'start':
             streamSid = data.start.streamSid;
             callSid = data.start.callSid;
-            // FIX: teléfono cliente — limpiar formato y fallback a callSid
             const fromRaw = data.start.customParameters?.from || data.start.customParameters?.From || null;
             telefonoCliente = fromRaw ? fromRaw.replace('whatsapp:', '') : callSid;
             console.log('Stream iniciado:', streamSid, callSid, 'tel:', telefonoCliente);
@@ -242,23 +244,27 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
 
             const saludoTexto = 'Hola, soy Laura, la asistente del restaurante. ¿En qué puedo ayudarte?';
             conversacion.push({ role: 'assistant', content: saludoTexto });
-
             await enviarAudio(saludoTexto);
             break;
 
           case 'media':
             if (deepgramLive && deepgramLive.getReadyState() === 1) {
-              const audioBuffer = Buffer.from(data.media.payload, 'base64');
-              deepgramLive.send(audioBuffer);
+              deepgramLive.send(Buffer.from(data.media.payload, 'base64'));
             }
             break;
 
           case 'mark':
-            // FIX: Twilio confirma que terminó de reproducir → bot ya no habla
+            // Twilio confirma que terminó de reproducir el audio
             if (data.mark?.name === 'fin') {
               botHablando = false;
-              transcripcionBuffer = ''; // limpiar cualquier basura que se haya colado
+              transcripcionBuffer = '';
               console.log('Bot terminó de hablar');
+
+              // Si GPT indicó colgar, colgamos ahora que el audio terminó
+              if (pendingHangup && callSid) {
+                pendingHangup = false;
+                setTimeout(() => colgarLlamada(callSid), 600); // pequeño buffer
+              }
             }
             break;
 
