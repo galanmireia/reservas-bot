@@ -79,6 +79,29 @@ function fechaHoyMadrid() {
   return { iso, diaNombre, fechaLarga };
 }
 
+// Envuelve el system prompt para llamadas: GPT devuelve JSON con respuesta + datos opcionales.
+// Esto elimina la segunda llamada GPT para extraer datos — todo en una sola petición.
+function buildCallSystemPrompt(baseContent, hoy) {
+  return baseContent + `
+
+FORMATO DE RESPUESTA OBLIGATORIO PARA LLAMADAS:
+Responde SIEMPRE únicamente con JSON válido, sin texto adicional fuera del JSON:
+{"respuesta": "lo que dices en voz alta", "datos": null}
+
+Cuando tengas TODOS los datos necesarios para procesar la acción del cliente, incluye "datos":
+- NUEVA reserva necesita: nombre (para la reserva), fecha, hora, personas
+- CANCELAR necesita: nombre o fecha
+- MODIFICAR necesita: nombre/fecha actuales + nuevos datos
+- CONSULTAR, ESPERA, DISPONIBILIDAD: con los datos que tengas
+
+Cuando tengas todos los datos, responde así (ajusta los valores):
+{"respuesta": "Un momento, voy a procesarlo.", "datos": {"accion": "NUEVA", "nombre": "Pedro", "fecha": "YYYY-MM-DD", "hora": "HH:MM", "personas": 2, "notas": null, "nueva_fecha": null, "nueva_hora": null, "nuevas_personas": null}}
+
+HOY es ${hoy.diaNombre} ${hoy.iso} (${hoy.fechaLarga}). Usa esta fecha para calcular "mañana", "este viernes", etc.
+El campo nombre es el nombre dado PARA LA RESERVA, no el nombre del teléfono. Si dice "a nombre de X", nombre es X.
+Si faltan datos, "datos" es null y "respuesta" es la pregunta al cliente.`;
+}
+
 function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerContextoCliente, obtenerUsuarioPorNumero, obtenerConfigRestaurante, SYSTEM_PROMPT) {
   wss.on('connection', (ws) => {
     console.log('Media Stream WebSocket conectado');
@@ -92,7 +115,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
     let config = null;
     let transcripcionBuffer = '';
     let procesando = false;
-    let botHablando = false; // FIX: flag para no procesar audio del bot
+    let botHablando = false;
 
     async function enviarAudio(texto) {
       await enviarAudioStreaming(texto, ws, streamSid, (v) => { botHablando = v; });
@@ -103,7 +126,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
         model: 'nova-2',
         language: 'es',
         smart_format: true,
-        numerals: true,        // FIX: transcribe números correctamente
+        numerals: true,
         encoding: 'mulaw',
         sample_rate: 8000,
         channels: 1,
@@ -119,10 +142,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
       deepgramLive.on(LiveTranscriptionEvents.Transcript, async (data) => {
         const transcript = data.channel?.alternatives?.[0]?.transcript;
         if (!transcript) return;
-
-        // FIX: ignorar transcripciones mientras el bot habla
         if (botHablando) return;
-
         if (data.is_final) {
           transcripcionBuffer += ' ' + transcript;
           transcripcionBuffer = transcripcionBuffer.trim();
@@ -131,7 +151,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
       });
 
       deepgramLive.on(LiveTranscriptionEvents.UtteranceEnd, async () => {
-        if (!transcripcionBuffer || procesando || botHablando) return; // FIX: también chequear botHablando
+        if (!transcripcionBuffer || procesando || botHablando) return;
         const textoCliente = transcripcionBuffer.trim();
         transcripcionBuffer = '';
         procesando = true;
@@ -141,29 +161,38 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
         try {
           conversacion.push({ role: 'user', content: textoCliente });
 
+          // Una sola llamada GPT: devuelve respuesta + datos extraídos en JSON
           const respuestaIA = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
-            max_tokens: 150,
+            max_tokens: 250,
+            response_format: { type: 'json_object' },
             messages: conversacion
           });
 
-          let mensaje = respuestaIA.choices[0].message.content;
-          conversacion.push({ role: 'assistant', content: mensaje });
-          console.log('Respuesta IA:', mensaje);
+          let parsed;
+          try {
+            parsed = JSON.parse(respuestaIA.choices[0].message.content);
+          } catch {
+            parsed = { respuesta: respuestaIA.choices[0].message.content, datos: null };
+          }
 
-          if (mensaje.toLowerCase().includes('un momento por favor')) {
+          let mensaje = parsed.respuesta || 'Un momento.';
+          conversacion.push({ role: 'assistant', content: mensaje });
+          console.log('Respuesta IA:', mensaje, parsed.datos ? '| Con datos: ' + JSON.stringify(parsed.datos) : '');
+
+          // Si GPT ya extrajo los datos, procesamos directamente — sin segunda llamada GPT
+          if (parsed.datos && parsed.datos.accion) {
             try {
-              const datos = await extraerDatosReservaLocal(conversacion, openai);
-              console.log('Datos extraidos:', JSON.stringify(datos));
+              console.log('Datos extraidos (una sola llamada):', JSON.stringify(parsed.datos));
               const contexto = await obtenerContextoCliente(telefonoCliente || callSid);
-              mensaje = await procesarAccion(datos, callSid, contexto, telefonoCliente || callSid, usuarioId, config);
+              mensaje = await procesarAccion(parsed.datos, callSid, contexto, telefonoCliente || callSid, usuarioId, config);
               console.log('Respuesta procesarAccion:', mensaje);
 
               if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('te he apuntado en la lista de espera')) {
                 const nuevoContexto = await obtenerContextoCliente(telefonoCliente || callSid);
                 const hoy = fechaHoyMadrid();
                 conversacion = [
-                  { role: 'system', content: SYSTEM_PROMPT(hoy.iso, nuevoContexto, config) },
+                  { role: 'system', content: buildCallSystemPrompt(SYSTEM_PROMPT(hoy.iso, nuevoContexto, config), hoy) },
                   { role: 'assistant', content: mensaje }
                 ];
               }
@@ -173,7 +202,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
             }
           }
 
-            await enviarAudio(mensaje);
+          await enviarAudio(mensaje);
         } catch (err) {
           console.error('Error procesando:', err.message);
         } finally {
@@ -181,25 +210,9 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
         }
       });
 
-      // FIX: cuando Twilio confirma que terminó de reproducir, desactivar botHablando
-      // Esto se maneja en el evento 'mark' que llega de vuelta por ws.on('message')
-
       deepgramLive.on(LiveTranscriptionEvents.Error, (err) => {
         console.error('Error Deepgram:', err);
       });
-    }
-
-    async function extraerDatosReservaLocal(mensajes, openai) {
-      const hoy = fechaHoyMadrid();
-      const respuesta = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          ...mensajes,
-          { role: 'user', content: `Extrae los datos en formato JSON con estos campos: accion (NUEVA, CANCELAR, MODIFICAR, CONSULTAR, ESPERA o DISPONIBILIDAD), nombre, fecha, hora, personas, notas, nueva_fecha, nueva_hora, nuevas_personas. La fecha en formato YYYY-MM-DD. HOY es ${hoy.diaNombre} ${hoy.iso} (${hoy.fechaLarga}). Usa esta fecha como referencia exacta para calcular "mañana", "este viernes", etc. La hora en HH:MM. IMPORTANTE: el campo nombre es el nombre dado PARA LA RESERVA en esta conversacion, no el nombre asociado al telefono ni el del sistema. Si el cliente dice "a nombre de X", nombre es X. Si falta un dato pon null. Solo JSON sin texto adicional.` }
-        ]
-      });
-      const texto = respuesta.choices[0].message.content.replace(/```json|```/g, '').trim();
-      return JSON.parse(texto);
     }
 
     ws.on('message', async (message) => {
@@ -223,7 +236,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
             config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
 
             const hoy = fechaHoyMadrid();
-            conversacion = [{ role: 'system', content: SYSTEM_PROMPT(hoy.iso, { cliente: null, reservas: [] }, config) }];
+            conversacion = [{ role: 'system', content: buildCallSystemPrompt(SYSTEM_PROMPT(hoy.iso, { cliente: null, reservas: [] }, config), hoy) }];
 
             await iniciarDeepgram();
 
