@@ -11,7 +11,7 @@ async function textToSpeechStream(text) {
     const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
       text,
       model_id: 'eleven_multilingual_v2',
-      voice_settings: { stability: 0.8, similarity_boost: 0.85, style: 0, use_speaker_boost: true },
+      voice_settings: { stability: 0.85, similarity_boost: 0.9, style: 0, use_speaker_boost: true },
       output_format: 'ulaw_8000'
     });
 
@@ -43,7 +43,7 @@ async function enviarAudioStreaming(text, ws, streamSid, setBotHablando) {
     const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
       text,
       model_id: 'eleven_multilingual_v2',
-      voice_settings: { stability: 0.8, similarity_boost: 0.85, style: 0, use_speaker_boost: true },
+      voice_settings: { stability: 0.85, similarity_boost: 0.9, style: 0, use_speaker_boost: true },
       output_format: 'ulaw_8000'
     });
     if (response[Symbol.asyncIterator]) {

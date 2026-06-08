@@ -42,7 +42,7 @@ app.get('/audio', async (req, res) => {
     const response = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
       text: texto,
       model_id: 'eleven_multilingual_v2',
-      voice_settings: { stability: 0.8, similarity_boost: 0.85, style: 0, use_speaker_boost: true }
+      voice_settings: { stability: 0.85, similarity_boost: 0.9, style: 0, use_speaker_boost: true }
     });
     res.setHeader('Content-Type', 'audio/mpeg');
     if (response.pipe) {
