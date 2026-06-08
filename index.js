@@ -267,10 +267,14 @@ async function obtenerListaEspera(usuarioId, fecha, hora, personas) {
 }
 
 async function avisarListaEspera(usuarioId, fecha, hora, personas) {
+  console.log(`[ListaEspera] Buscando: usuario=${usuarioId} fecha=${fecha} hora=${hora} personas<=${personas}`);
+  const todosEnEspera = await db.query('SELECT * FROM lista_espera WHERE usuario_id = $1', [usuarioId]);
+  console.log(`[ListaEspera] Total en lista para este restaurante:`, JSON.stringify(todosEnEspera.rows));
   const enEspera = await db.query(
     "SELECT * FROM lista_espera WHERE usuario_id = $1 AND fecha = $2 AND hora = $3 AND personas <= $4 AND (estado = 'esperando' OR estado IS NULL) ORDER BY creada_en ASC LIMIT 1",
     [usuarioId, fecha, hora, personas]
   );
+  console.log(`[ListaEspera] Coincidencias encontradas: ${enEspera.rows.length}`);
   if (enEspera.rows.length === 0) return;
   const cliente = enEspera.rows[0];
 
