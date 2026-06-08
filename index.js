@@ -83,9 +83,10 @@ async function enviarWhatsApp(telefono, mensaje) {
 async function enviarEmailRestaurante(usuarioId, datos) {
   try {
     const usuario = await db.query('SELECT * FROM usuarios WHERE id = $1', [usuarioId]);
-    if (!usuario.rows.length) return;
+    if (!usuario.rows.length) { console.log('[Email] Usuario no encontrado:', usuarioId); return; }
     const email = usuario.rows[0].email;
     const restaurante = usuario.rows[0].restaurante;
+    console.log('[Email] Enviando a:', email, '| Canal:', datos.canal);
     await resend.emails.send({
       from: 'ReservasBot <onboarding@resend.dev>',
       to: email,
@@ -872,10 +873,12 @@ app.post('/whatsapp', async (req, res) => {
             );
             await db.query('DELETE FROM lista_espera WHERE id = $1', [entrada.id]);
             await obtenerOCrearCliente(from, entrada.nombre);
+            console.log('[SI ListaEspera] Enviando email a usuarioId:', entrada.usuario_id);
             await enviarEmailRestaurante(entrada.usuario_id, {
               nombre: entrada.nombre, fecha: entrada.fecha, hora: entrada.hora,
               personas: entrada.personas, canal: 'Lista de espera (confirmado por WhatsApp)'
             });
+            console.log('[SI ListaEspera] Email procesado');
             respuestaTwiml = `Perfecto ${entrada.nombre}! Tu reserva esta confirmada para el ${fechaFormateada} a ${horaHablada(entrada.hora)} para ${entrada.personas} persona${entrada.personas > 1 ? 's' : ''}. Te esperamos!`;
           } else {
             // La mesa ya no está disponible, volver a poner en espera y avisar al siguiente
