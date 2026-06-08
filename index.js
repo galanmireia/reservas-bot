@@ -428,6 +428,24 @@ if (datos.accion === 'DISPONIBILIDAD') {
     );
     const enEspera = await obtenerListaEspera(uid, datos.fecha, datos.hora, datos.personas);
     const fechaFormateada = new Date(datos.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    // WhatsApp de confirmación al cliente
+    if (telefonoParaWhatsapp && !telefonoParaWhatsapp.startsWith('CA')) {
+      await enviarWhatsApp(
+        telefonoParaWhatsapp,
+        `Hola ${datos.nombre}! Te hemos apuntado en la lista de espera para el ${fechaFormateada} a ${horaHablada(datos.hora)} para ${datos.personas} persona${datos.personas > 1 ? 's' : ''}. Eres el numero ${enEspera} en la lista. Te avisaremos por este medio si se libera una mesa.`
+      );
+    }
+
+    // Email al restaurante
+    await enviarEmailRestaurante(uid, {
+      nombre: datos.nombre,
+      fecha: datos.fecha,
+      hora: datos.hora,
+      personas: datos.personas,
+      canal: `⏳ LISTA DE ESPERA (posicion ${enEspera})`
+    });
+
     return `Perfecto ${datos.nombre}, te he apuntado en la lista de espera para el ${fechaFormateada} a ${horaHablada(datos.hora)}. Eres el numero ${enEspera} en la lista. Te avisaremos por WhatsApp si hay una cancelacion.`;
   }
 
