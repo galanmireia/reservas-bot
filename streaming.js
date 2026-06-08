@@ -105,7 +105,7 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
         sample_rate: 8000,
         channels: 1,
         interim_results: true,
-        utterance_end_ms: 500,
+        utterance_end_ms: 1000,
         vad_events: true
       });
 
