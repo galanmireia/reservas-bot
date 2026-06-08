@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Preview de Estilos — ReservasBot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: Inter, sans-serif; background: #111; color: #fff; }
+.selector { display: flex; gap: 12px; padding: 24px 32px; background: #0a0a0a; border-bottom: 1px solid #222; position: sticky; top: 0; z-index: 100; overflow-x: auto; }
+.selector button { padding: 8px 20px; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: #aaa; cursor: pointer; font-size: 13px; font-family: Inter, sans-serif; white-space: nowrap; transition: all .2s; }
+.selector button.active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+.preview { display: none; }
+.preview.active { display: flex; height: calc(100vh - 65px); }
+
+/* ─── OPCIÓN 1: Dark SaaS ─── */
+.o1 { background: #09090b; color: #fafafa; font-family: Inter, sans-serif; }
+.o1 .sidebar { width: 220px; background: #0f0f12; border-right: 1px solid #1c1c22; padding: 24px 0; display: flex; flex-direction: column; }
+.o1 .logo { padding: 0 20px 24px; font-size: 15px; font-weight: 600; letter-spacing: -0.3px; color: #fff; border-bottom: 1px solid #1c1c22; margin-bottom: 12px; }
+.o1 .logo span { color: #8b5cf6; }
+.o1 .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; font-size: 13px; color: #71717a; cursor: pointer; transition: all .15s; border-radius: 0; }
+.o1 .nav-item:hover, .o1 .nav-item.active { color: #fafafa; background: #1c1c22; }
+.o1 .nav-item.active { border-left: 2px solid #8b5cf6; }
+.o1 .nav-icon { width: 16px; opacity: .7; }
+.o1 .main { flex: 1; padding: 32px; overflow-y: auto; }
+.o1 .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+.o1 h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.5px; }
+.o1 .badge { background: #1c1c22; border: 1px solid #2c2c32; color: #a1a1aa; font-size: 11px; padding: 4px 10px; border-radius: 6px; }
+.o1 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.o1 .stat { background: #0f0f12; border: 1px solid #1c1c22; border-radius: 10px; padding: 18px 20px; }
+.o1 .stat-label { font-size: 11px; color: #52525b; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+.o1 .stat-val { font-size: 26px; font-weight: 700; letter-spacing: -1px; color: #fafafa; }
+.o1 .stat-sub { font-size: 11px; color: #52525b; margin-top: 4px; }
+.o1 .stat-accent { color: #8b5cf6; }
+.o1 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.o1 .card { background: #0f0f12; border: 1px solid #1c1c22; border-radius: 10px; padding: 20px; }
+.o1 .card-title { font-size: 12px; font-weight: 500; color: #52525b; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 16px; }
+.o1 .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #1c1c22; font-size: 13px; }
+.o1 .row:last-child { border-bottom: none; }
+.o1 .pill { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+.o1 .pill-green { background: #052e16; color: #4ade80; }
+.o1 .pill-purple { background: #2e1065; color: #c4b5fd; }
+.o1 .btn { background: #8b5cf6; color: #fff; border: none; padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.o1 .avatar { width: 28px; height: 28px; background: #2e1065; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #c4b5fd; margin-top: auto; margin-left: 20px; }
+
+/* ─── OPCIÓN 2: Light Premium ─── */
+.o2 { background: #f8fafc; color: #0f172a; font-family: Inter, sans-serif; }
+.o2 .sidebar { width: 230px; background: #fff; border-right: 1px solid #e2e8f0; padding: 24px 0; display: flex; flex-direction: column; }
+.o2 .logo { padding: 0 20px 24px; font-size: 15px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; margin-bottom: 12px; letter-spacing: -0.3px; }
+.o2 .logo span { color: #4f46e5; }
+.o2 .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; margin: 1px 8px; font-size: 13px; color: #64748b; cursor: pointer; border-radius: 7px; transition: all .15s; }
+.o2 .nav-item:hover { background: #f1f5f9; color: #0f172a; }
+.o2 .nav-item.active { background: #eef2ff; color: #4f46e5; font-weight: 500; }
+.o2 .main { flex: 1; padding: 32px; overflow-y: auto; }
+.o2 .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+.o2 h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; color: #0f172a; }
+.o2 .badge { background: #f1f5f9; color: #64748b; font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
+.o2 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.o2 .stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+.o2 .stat-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; font-weight: 500; }
+.o2 .stat-val { font-size: 28px; font-weight: 700; letter-spacing: -1px; color: #0f172a; }
+.o2 .stat-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.o2 .stat-accent { color: #4f46e5; }
+.o2 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.o2 .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+.o2 .card-title { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 16px; }
+.o2 .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #334155; }
+.o2 .row:last-child { border-bottom: none; }
+.o2 .pill { padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+.o2 .pill-green { background: #dcfce7; color: #16a34a; }
+.o2 .pill-blue { background: #dbeafe; color: #2563eb; }
+.o2 .btn { background: #4f46e5; color: #fff; border: none; padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.o2 .avatar { width: 30px; height: 30px; background: #eef2ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #4f46e5; margin-top: auto; margin-left: 16px; }
+
+/* ─── OPCIÓN 3: Warm Hospitality ─── */
+.o3 { background: #faf7f4; color: #1c1917; font-family: Inter, sans-serif; }
+.o3 .sidebar { width: 230px; background: #1c1917; padding: 24px 0; display: flex; flex-direction: column; }
+.o3 .logo { padding: 0 20px 24px; font-size: 16px; font-weight: 600; color: #faf7f4; border-bottom: 1px solid #292524; margin-bottom: 12px; font-family: 'Playfair Display', serif; }
+.o3 .logo span { color: #fb923c; }
+.o3 .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; font-size: 13px; color: #a8a29e; cursor: pointer; transition: all .15s; }
+.o3 .nav-item:hover { color: #faf7f4; background: #292524; }
+.o3 .nav-item.active { color: #fb923c; background: #292524; border-left: 2px solid #fb923c; }
+.o3 .main { flex: 1; padding: 32px; overflow-y: auto; }
+.o3 .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+.o3 h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; font-family: 'Playfair Display', serif; }
+.o3 .badge { background: #e7e5e4; color: #78716c; font-size: 11px; padding: 4px 10px; border-radius: 6px; }
+.o3 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.o3 .stat { background: #fff; border: 1px solid #e7e5e4; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+.o3 .stat-label { font-size: 11px; color: #a8a29e; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+.o3 .stat-val { font-size: 28px; font-weight: 700; letter-spacing: -1px; color: #1c1917; }
+.o3 .stat-sub { font-size: 11px; color: #a8a29e; margin-top: 4px; }
+.o3 .stat-accent { color: #ea580c; }
+.o3 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.o3 .card { background: #fff; border: 1px solid #e7e5e4; border-radius: 12px; padding: 22px; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+.o3 .card-title { font-size: 11px; font-weight: 600; color: #a8a29e; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 16px; }
+.o3 .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f5f5f4; font-size: 13px; color: #44403c; }
+.o3 .row:last-child { border-bottom: none; }
+.o3 .pill { padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 500; }
+.o3 .pill-green { background: #fef9c3; color: #a16207; }
+.o3 .pill-orange { background: #ffedd5; color: #c2410c; }
+.o3 .btn { background: #ea580c; color: #fff; border: none; padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.o3 .avatar { width: 30px; height: 30px; background: #292524; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fb923c; margin-top: auto; margin-left: 20px; }
+
+/* ─── OPCIÓN 4: Glassmorphism ─── */
+.o4 { background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); color: #fff; font-family: Inter, sans-serif; }
+.o4 .sidebar { width: 230px; background: rgba(255,255,255,.05); border-right: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(20px); padding: 24px 0; display: flex; flex-direction: column; }
+.o4 .logo { padding: 0 20px 24px; font-size: 15px; font-weight: 700; color: #fff; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 12px; }
+.o4 .logo span { background: linear-gradient(90deg, #a78bfa, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.o4 .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; font-size: 13px; color: rgba(255,255,255,.5); cursor: pointer; transition: all .2s; margin: 2px 8px; border-radius: 8px; }
+.o4 .nav-item:hover { color: rgba(255,255,255,.9); background: rgba(255,255,255,.07); }
+.o4 .nav-item.active { color: #fff; background: rgba(167,139,250,.15); border: 1px solid rgba(167,139,250,.25); }
+.o4 .main { flex: 1; padding: 32px; overflow-y: auto; }
+.o4 .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+.o4 h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+.o4 .badge { background: rgba(255,255,255,.08); color: rgba(255,255,255,.6); font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,.1); }
+.o4 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.o4 .stat { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 20px; backdrop-filter: blur(10px); }
+.o4 .stat-label { font-size: 11px; color: rgba(255,255,255,.4); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+.o4 .stat-val { font-size: 28px; font-weight: 700; letter-spacing: -1px; }
+.o4 .stat-sub { font-size: 11px; color: rgba(255,255,255,.4); margin-top: 4px; }
+.o4 .stat-accent { background: linear-gradient(90deg, #a78bfa, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.o4 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.o4 .card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 22px; backdrop-filter: blur(10px); }
+.o4 .card-title { font-size: 11px; font-weight: 500; color: rgba(255,255,255,.4); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 16px; }
+.o4 .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13px; }
+.o4 .row:last-child { border-bottom: none; }
+.o4 .pill { padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 500; }
+.o4 .pill-green { background: rgba(74,222,128,.15); color: #4ade80; border: 1px solid rgba(74,222,128,.2); }
+.o4 .pill-purple { background: rgba(167,139,250,.15); color: #a78bfa; border: 1px solid rgba(167,139,250,.2); }
+.o4 .btn { background: linear-gradient(135deg, #7c3aed, #2563eb); color: #fff; border: none; padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.o4 .avatar { width: 30px; height: 30px; background: rgba(167,139,250,.2); border: 1px solid rgba(167,139,250,.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #a78bfa; margin-top: auto; margin-left: 20px; }
+</style>
+</head>
+<body>
+
+<div class="selector">
+  <span style="color:#666;font-size:13px;line-height:33px;margin-right:4px">Estilo:</span>
+  <button class="active" onclick="show(1,this)">① Dark SaaS</button>
+  <button onclick="show(2,this)">② Light Premium</button>
+  <button onclick="show(3,this)">③ Warm Hospitality</button>
+  <button onclick="show(4,this)">④ Glassmorphism</button>
+</div>
+
+<!-- OPCIÓN 1 -->
+<div class="preview o1 active" id="p1">
+  <div class="sidebar">
+    <div class="logo">Reservas<span>Bot</span></div>
+    <div class="nav-item active">📅 &nbsp;Reservas</div>
+    <div class="nav-item">👥 &nbsp;Clientes</div>
+    <div class="nav-item">⚙️ &nbsp;Configuración</div>
+    <div class="avatar">MG</div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <h1>Panel de Reservas</h1>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="badge">lunes, 9 jun 2026</div>
+        <button class="btn">+ Nueva reserva</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Hoy</div><div class="stat-val stat-accent">8</div><div class="stat-sub">reservas confirmadas</div></div>
+      <div class="stat"><div class="stat-label">Personas hoy</div><div class="stat-val">24</div><div class="stat-sub">comensales esperados</div></div>
+      <div class="stat"><div class="stat-label">Esta semana</div><div class="stat-val">41</div><div class="stat-sub">reservas totales</div></div>
+      <div class="stat"><div class="stat-label">Historial</div><div class="stat-val">312</div><div class="stat-sub">desde el inicio</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Próximas — hoy</div>
+        <div class="row"><span>Ana García · 2 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#52525b;font-size:12px">21:00</span><span class="pill pill-green">Confirmada</span></div></div>
+        <div class="row"><span>Carlos López · 4 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#52525b;font-size:12px">21:30</span><span class="pill pill-green">Confirmada</span></div></div>
+        <div class="row"><span>Marta Ruiz · 6 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#52525b;font-size:12px">22:00</span><span class="pill pill-purple">WhatsApp</span></div></div>
+        <div class="row"><span>Pedro Sanz · 2 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#52525b;font-size:12px">22:30</span><span class="pill pill-green">Confirmada</span></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Lista de espera</div>
+        <div class="row"><span>Lucía Fernández</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#52525b;font-size:12px">21:00 · 3 pers.</span><span class="pill pill-purple">Nº 1</span></div></div>
+        <div class="row"><span>Jorge Martín</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#52525b;font-size:12px">21:00 · 2 pers.</span><span class="pill pill-purple">Nº 2</span></div></div>
+        <div class="row" style="color:#52525b;font-size:12px;justify-content:center">Sin más entradas en espera</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPCIÓN 2 -->
+<div class="preview o2" id="p2">
+  <div class="sidebar">
+    <div class="logo">Reservas<span>Bot</span></div>
+    <div class="nav-item active">📅 &nbsp;Reservas</div>
+    <div class="nav-item">👥 &nbsp;Clientes</div>
+    <div class="nav-item">⚙️ &nbsp;Configuración</div>
+    <div class="avatar">MG</div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <h1>Panel de Reservas</h1>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="badge">lunes, 9 jun 2026</div>
+        <button class="btn">+ Nueva reserva</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Hoy</div><div class="stat-val stat-accent">8</div><div class="stat-sub">reservas confirmadas</div></div>
+      <div class="stat"><div class="stat-label">Personas hoy</div><div class="stat-val">24</div><div class="stat-sub">comensales esperados</div></div>
+      <div class="stat"><div class="stat-label">Esta semana</div><div class="stat-val">41</div><div class="stat-sub">reservas totales</div></div>
+      <div class="stat"><div class="stat-label">Historial</div><div class="stat-val">312</div><div class="stat-sub">desde el inicio</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Próximas — hoy</div>
+        <div class="row"><span>Ana García · 2 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#94a3b8;font-size:12px">21:00</span><span class="pill pill-green">Confirmada</span></div></div>
+        <div class="row"><span>Carlos López · 4 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#94a3b8;font-size:12px">21:30</span><span class="pill pill-green">Confirmada</span></div></div>
+        <div class="row"><span>Marta Ruiz · 6 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#94a3b8;font-size:12px">22:00</span><span class="pill pill-blue">WhatsApp</span></div></div>
+        <div class="row"><span>Pedro Sanz · 2 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#94a3b8;font-size:12px">22:30</span><span class="pill pill-green">Confirmada</span></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Lista de espera</div>
+        <div class="row"><span>Lucía Fernández</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#94a3b8;font-size:12px">21:00 · 3 pers.</span><span class="pill pill-blue">Nº 1</span></div></div>
+        <div class="row"><span>Jorge Martín</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#94a3b8;font-size:12px">21:00 · 2 pers.</span><span class="pill pill-blue">Nº 2</span></div></div>
+        <div class="row" style="color:#94a3b8;font-size:12px;justify-content:center">Sin más entradas en espera</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPCIÓN 3 -->
+<div class="preview o3" id="p3">
+  <div class="sidebar">
+    <div class="logo">Reservas<span>Bot</span></div>
+    <div class="nav-item active">📅 &nbsp;Reservas</div>
+    <div class="nav-item">👥 &nbsp;Clientes</div>
+    <div class="nav-item">⚙️ &nbsp;Configuración</div>
+    <div class="avatar">MG</div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <h1>Panel de Reservas</h1>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="badge">lunes, 9 jun 2026</div>
+        <button class="btn">+ Nueva reserva</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Hoy</div><div class="stat-val stat-accent">8</div><div class="stat-sub">reservas confirmadas</div></div>
+      <div class="stat"><div class="stat-label">Personas hoy</div><div class="stat-val">24</div><div class="stat-sub">comensales esperados</div></div>
+      <div class="stat"><div class="stat-label">Esta semana</div><div class="stat-val">41</div><div class="stat-sub">reservas totales</div></div>
+      <div class="stat"><div class="stat-label">Historial</div><div class="stat-val">312</div><div class="stat-sub">desde el inicio</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Próximas — hoy</div>
+        <div class="row"><span>Ana García · 2 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#a8a29e;font-size:12px">21:00</span><span class="pill pill-green">Confirmada</span></div></div>
+        <div class="row"><span>Carlos López · 4 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#a8a29e;font-size:12px">21:30</span><span class="pill pill-green">Confirmada</span></div></div>
+        <div class="row"><span>Marta Ruiz · 6 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#a8a29e;font-size:12px">22:00</span><span class="pill pill-orange">WhatsApp</span></div></div>
+        <div class="row"><span>Pedro Sanz · 2 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#a8a29e;font-size:12px">22:30</span><span class="pill pill-green">Confirmada</span></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Lista de espera</div>
+        <div class="row"><span>Lucía Fernández</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#a8a29e;font-size:12px">21:00 · 3 pers.</span><span class="pill pill-orange">Nº 1</span></div></div>
+        <div class="row"><span>Jorge Martín</span><div style="display:flex;gap:8px;align-items:center"><span style="color:#a8a29e;font-size:12px">21:00 · 2 pers.</span><span class="pill pill-orange">Nº 2</span></div></div>
+        <div class="row" style="color:#a8a29e;font-size:12px;justify-content:center">Sin más entradas en espera</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPCIÓN 4 -->
+<div class="preview o4" id="p4">
+  <div class="sidebar">
+    <div class="logo">Reservas<span>Bot</span></div>
+    <div class="nav-item active">📅 &nbsp;Reservas</div>
+    <div class="nav-item">👥 &nbsp;Clientes</div>
+    <div class="nav-item">⚙️ &nbsp;Configuración</div>
+    <div class="avatar">MG</div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <h1>Panel de Reservas</h1>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="badge">lunes, 9 jun 2026</div>
+        <button class="btn">+ Nueva reserva</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Hoy</div><div class="stat-val stat-accent">8</div><div class="stat-sub">reservas confirmadas</div></div>
+      <div class="stat"><div class="stat-label">Personas hoy</div><div class="stat-val">24</div><div class="stat-sub">comensales esperados</div></div>
+      <div class="stat"><div class="stat-label">Esta semana</div><div class="stat-val">41</div><div class="stat-sub">reservas totales</div></div>
+      <div class="stat"><div class="stat-label">Historial</div><div class="stat-val">312</div><div class="stat-sub">desde el inicio</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Próximas — hoy</div>
+        <div class="row"><span>Ana García · 2 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:rgba(255,255,255,.4);font-size:12px">21:00</span><span class="pill pill-green">Confirmada</span></div></div>
+        <div class="row"><span>Carlos López · 4 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:rgba(255,255,255,.4);font-size:12px">21:30</span><span class="pill pill-green">Confirmada</span></div></div>
+        <div class="row"><span>Marta Ruiz · 6 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:rgba(255,255,255,.4);font-size:12px">22:00</span><span class="pill pill-purple">WhatsApp</span></div></div>
+        <div class="row"><span>Pedro Sanz · 2 personas</span><div style="display:flex;gap:8px;align-items:center"><span style="color:rgba(255,255,255,.4);font-size:12px">22:30</span><span class="pill pill-green">Confirmada</span></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Lista de espera</div>
+        <div class="row"><span>Lucía Fernández</span><div style="display:flex;gap:8px;align-items:center"><span style="color:rgba(255,255,255,.4);font-size:12px">21:00 · 3 pers.</span><span class="pill pill-purple">Nº 1</span></div></div>
+        <div class="row"><span>Jorge Martín</span><div style="display:flex;gap:8px;align-items:center"><span style="color:rgba(255,255,255,.4);font-size:12px">21:00 · 2 pers.</span><span class="pill pill-purple">Nº 2</span></div></div>
+        <div class="row" style="color:rgba(255,255,255,.3);font-size:12px;justify-content:center">Sin más entradas en espera</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function show(n, btn) {
+  document.querySelectorAll('.preview').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.selector button').forEach(b => b.classList.remove('active'));
+  document.getElementById('p' + n).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

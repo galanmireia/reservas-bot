@@ -715,6 +715,7 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+app.get('/preview-estilos', (req, res) => res.render('preview-estilos'));
 app.get('/', (req, res) => res.render('landing'));
 app.get('/legal', (req, res) => res.render('legal'));
 
