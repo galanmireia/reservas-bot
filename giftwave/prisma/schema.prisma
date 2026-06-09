@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  CREATOR
+  ADMIN
+}
+
+enum PlanType {
+  FREE
+  PRO
+}
+
+enum TransactionType {
+  GIFT_PHYSICAL
+  GIFT_CASH
+  DIGITAL_PURCHASE
+  REFERRAL_BONUS
+  WELCOME_BONUS
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum WishlistItemType {
+  PRODUCT
+  CASH
+  DIGITAL
+}
+
+model User {
+  id              String    @id @default(cuid())
+  clerkId         String    @unique
+  email           String    @unique
+  username        String    @unique
+  displayName     String
+  bio             String?
+  avatarUrl       String?
+  coverUrl        String?
+  role            UserRole  @default(CREATOR)
+  plan            PlanType  @default(FREE)
+  planExpiresAt   DateTime?
+  isVerified      Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  balance         Float     @default(0)
+  totalReceived   Float     @default(0)
+  totalWithdrawn  Float     @default(0)
+  stripeAccountId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  shippingAddress      ShippingAddress?
+  wishlists            Wishlist[]
+  receivedTransactions Transaction[]    @relation("RecipientTransactions")
+
+  referralCode         String   @unique @default(cuid())
+  referredById         String?
+  referredBy           User?    @relation("Referrals", fields: [referredById], references: [id])
+  referrals            User[]   @relation("Referrals")
+  hasReceivedFirstGift Boolean  @default(false)
+  welcomeBonusPaid     Boolean  @default(false)
+
+  referralEarnings     ReferralEarning[] @relation("ReferrerEarnings")
+  socialLinks          SocialLink[]
+
+  @@index([username])
+  @@index([referralCode])
+}
+
+model ShippingAddress {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName   String
+  line1      String
+  line2      String?
+  city       String
+  state      String?
+  postalCode String
+  country    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model SocialLink {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform String
+  url      String
+}
+
+model Wishlist {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  isDefault   Boolean  @default(false)
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items WishlistItem[]
+}
+
+model WishlistItem {
+  id           String           @id @default(cuid())
+  wishlistId   String
+  wishlist     Wishlist         @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  type         WishlistItemType
+  title        String
+  description  String?
+  imageUrl     String?
+  price        Float
+  currency     String           @default("USD")
+  productUrl   String?
+  isReceived   Boolean          @default(false)
+  position     Int              @default(0)
+  createdAt    DateTime         @default(now())
+
+  transactions Transaction[]
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+
+  recipientId     String
+  recipient       User              @relation("RecipientTransactions", fields: [recipientId], references: [id])
+
+  wishlistItemId  String?
+  wishlistItem    WishlistItem?     @relation(fields: [wishlistItemId], references: [id])
+
+  fanEmail        String?
+  fanName         String?
+  isAnonymous     Boolean           @default(false)
+  message         String?
+
+  amount          Float
+  platformFee     Float             @default(0)
+  creatorReceives Float
+  currency        String            @default("USD")
+
+  stripePaymentIntentId String?     @unique
+  stripeChargeId        String?
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  referralEarnings ReferralEarning[]
+}
+
+model ReferralEarning {
+  id             String       @id @default(cuid())
+  referrerId     String
+  referrer       User         @relation("ReferrerEarnings", fields: [referrerId], references: [id])
+  referredUserId String
+  transactionId  String?
+  transaction    Transaction? @relation(fields: [transactionId], references: [id])
+  type           String       // FIXED_BONUS | VOLUME_PERCENTAGE | WELCOME_BONUS
+  amount         Float
+  status         String       @default("PENDING") // PENDING | PAID
+
+  createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  stripeSubscriptionId String   @unique
+  stripePriceId        String
+  status               String
+  currentPeriodEnd     DateTime
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
