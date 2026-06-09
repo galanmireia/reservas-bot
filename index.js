@@ -368,19 +368,42 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
   const telWa = `whatsapp:${telNorm}`;
 
   async function buscarReserva(datos) {
-    let q;
+    // Busca por nombre + fecha dentro del restaurante (uid).
+    // No filtramos por teléfono aquí porque ya se identificó al cliente en CONSULTAR.
+    if (datos.nombre && datos.fecha) {
+      const q = await db.query(
+        'SELECT * FROM reservas WHERE usuario_id = $1 AND LOWER(nombre) = LOWER($2) AND fecha = $3 ORDER BY creada_en DESC LIMIT 1',
+        [uid, datos.nombre, datos.fecha]
+      );
+      if (q.rows.length > 0) return q;
+    }
     if (datos.fecha) {
-      q = await db.query(
+      // Por fecha + teléfono (sin nombre exacto)
+      const q = await db.query(
         'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND fecha = $4 ORDER BY creada_en DESC LIMIT 1',
         [telNorm, telWa, uid, datos.fecha]
       );
-    } else if (datos.nombre) {
-      q = await db.query(
-        'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND LOWER(nombre) = LOWER($4) ORDER BY fecha ASC LIMIT 1',
-        [telNorm, telWa, uid, datos.nombre]
+      if (q.rows.length > 0) return q;
+      // Por fecha sola dentro del restaurante (último recurso)
+      return db.query(
+        'SELECT * FROM reservas WHERE usuario_id = $1 AND fecha = $2 ORDER BY creada_en DESC LIMIT 1',
+        [uid, datos.fecha]
       );
     }
-    return q;
+    if (datos.nombre) {
+      // Por nombre + teléfono
+      const q = await db.query(
+        'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND LOWER(nombre) = LOWER($4) AND fecha >= NOW()::date ORDER BY fecha ASC LIMIT 1',
+        [telNorm, telWa, uid, datos.nombre]
+      );
+      if (q.rows.length > 0) return q;
+      // Por nombre solo dentro del restaurante
+      return db.query(
+        'SELECT * FROM reservas WHERE usuario_id = $1 AND LOWER(nombre) = LOWER($2) AND fecha >= NOW()::date ORDER BY fecha ASC LIMIT 1',
+        [uid, datos.nombre]
+      );
+    }
+    return null;
   }
 
   if (datos.accion === 'CONSULTAR') {
