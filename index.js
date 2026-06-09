@@ -384,13 +384,32 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
   }
 
   if (datos.accion === 'CONSULTAR') {
-    const reservas = await db.query(
-      'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND fecha >= $4 ORDER BY fecha ASC, hora ASC',
-      [telNorm, telWa, uid, new Date().toISOString().split('T')[0]]
-    );
-    if (reservas.rows.length === 0) return 'No tienes reservas proximas.';
-    const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} - ${fechaHumana(r.fecha)} a ${horaHablada(r.hora)} para ${r.personas} personas`).join('\n');
-    return `Tus reservas proximas son:\n${lista}`;
+    const hoy = new Date().toISOString().split('T')[0];
+    let reservas;
+    if (datos.nombre) {
+      // Búsqueda por nombre (para el flujo previo a cancelar/modificar)
+      reservas = await db.query(
+        'SELECT * FROM reservas WHERE usuario_id = $1 AND LOWER(nombre) = LOWER($2) AND fecha >= $3 ORDER BY fecha ASC, hora ASC',
+        [uid, datos.nombre, hoy]
+      );
+      // Si no hay por nombre exacto, buscar por teléfono como fallback
+      if (reservas.rows.length === 0) {
+        reservas = await db.query(
+          'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND fecha >= $4 ORDER BY fecha ASC, hora ASC',
+          [telNorm, telWa, uid, hoy]
+        );
+      }
+    } else {
+      reservas = await db.query(
+        'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND fecha >= $4 ORDER BY fecha ASC, hora ASC',
+        [telNorm, telWa, uid, hoy]
+      );
+    }
+    if (reservas.rows.length === 0) return datos.nombre
+      ? `No encontre ninguna reserva a nombre de ${datos.nombre}. Comprueba si esta bajo otro nombre.`
+      : 'No tienes reservas proximas.';
+    const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} — ${fechaHumana(r.fecha)} a ${horaHablada(r.hora)} para ${r.personas} persona${r.personas > 1 ? 's' : ''}`).join('\n');
+    return `Reservas encontradas:\n${lista}`;
   }
 
   if (datos.accion === 'CANCELAR') {
@@ -686,19 +705,22 @@ Paso 6. Solo cuando confirme con "si" responde EXACTAMENTE: "un momento por favo
 ═══════════════════════════════════
 FLUJO DE CANCELACION
 ═══════════════════════════════════
-Paso 1. Identifica que reserva quiere cancelar (por fecha o nombre).
-Paso 2. Confirma: "Quieres cancelar la reserva de [nombre] del [fecha] a las [hora]?"
-Paso 3. Espera "si" explicito.
-Paso 4. Responde EXACTAMENTE: "un momento por favor ACCION:CANCELAR"
+Paso 1. Pregunta: "¿A nombre de quién está la reserva?"
+Paso 2. Con el nombre, responde EXACTAMENTE: "un momento por favor ACCION:CONSULTAR" para buscar sus reservas.
+Paso 3. El sistema te devuelve la lista. Léesela al cliente: "Tienes la del [fecha] a [hora] para [personas] personas. ¿Es esa la que quieres cancelar?"
+Paso 4. Si tiene varias, pregúntale cuál.
+Paso 5. Cuando confirme cuál, di: "¿Seguro que quieres cancelar esa reserva?"
+Paso 6. Cuando diga sí: "un momento por favor ACCION:CANCELAR"
 
 ═══════════════════════════════════
 FLUJO DE MODIFICACION
 ═══════════════════════════════════
-Paso 1. Pregunta QUE quiere cambiar (fecha, hora o personas).
-Paso 2. Recoge los nuevos datos.
-Paso 3. Confirma: "Cambio tu reserva del [original] al [nuevo]. Es correcto?"
-Paso 4. Espera "si" explicito.
-Paso 5. Responde EXACTAMENTE: "un momento por favor ACCION:MODIFICAR"
+Paso 1. Pregunta: "¿A nombre de quién está la reserva?"
+Paso 2. Con el nombre, responde EXACTAMENTE: "un momento por favor ACCION:CONSULTAR" para buscar sus reservas.
+Paso 3. El sistema te devuelve la lista. Léesela al cliente y pregunta cuál quiere modificar.
+Paso 4. Pregunta QUE quiere cambiar (fecha, hora o personas) y recoge los nuevos datos.
+Paso 5. Confirma: "Cambio tu reserva del [original] al [nuevo]. ¿Es correcto?"
+Paso 6. Cuando diga sí: "un momento por favor ACCION:MODIFICAR"
 
 ═══════════════════════════════════
 FLUJO DE LISTA DE ESPERA
