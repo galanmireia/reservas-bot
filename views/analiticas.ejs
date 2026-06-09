@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analíticas — <%= usuario.restaurante %></title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root { --bg:#030308; --glass:rgba(255,255,255,0.032); --glass-h:rgba(255,255,255,0.055); --gb:rgba(255,255,255,0.07); --t:rgba(255,255,255,0.92); --t2:rgba(255,255,255,0.45); --t3:rgba(255,255,255,0.18); --sw:230px; --r:18px; }
+    body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color:var(--t); display:flex; min-height:100vh; -webkit-font-smoothing:antialiased; }
+    .orb { position:fixed; border-radius:50%; filter:blur(120px); pointer-events:none; z-index:0; }
+    .orb-1 { width:700px; height:700px; background:radial-gradient(circle,rgba(124,58,237,0.1) 0%,transparent 70%); top:-200px; left:-150px; animation:d1 22s ease-in-out infinite; }
+    .orb-2 { width:500px; height:500px; background:radial-gradient(circle,rgba(79,70,229,0.08) 0%,transparent 70%); bottom:-100px; right:-100px; animation:d2 28s ease-in-out infinite; }
+    @keyframes d1{0%,100%{transform:translate(0,0)}50%{transform:translate(50px,40px)}}
+    @keyframes d2{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,-30px)}}
+
+    .sidebar { width:var(--sw); background:rgba(255,255,255,0.018); backdrop-filter:blur(60px); -webkit-backdrop-filter:blur(60px); border-right:1px solid var(--gb); display:flex; flex-direction:column; position:fixed; height:100vh; z-index:100; }
+    .sidebar-top { padding:28px 20px 20px; border-bottom:1px solid var(--gb); }
+    .brand { display:flex; align-items:center; gap:11px; margin-bottom:4px; }
+    .brand-mark { width:34px; height:34px; flex-shrink:0; background:linear-gradient(135deg,#8b5cf6,#6366f1); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 4px 16px rgba(139,92,246,0.4); }
+    .brand-name { font-size:15px; font-weight:700; letter-spacing:-0.4px; color:#fff; }
+    .brand-rest { font-size:11px; color:var(--t2); padding-left:45px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .sidebar-nav { padding:14px 12px; flex:1; display:flex; flex-direction:column; gap:2px; }
+    .nav-label { font-size:9px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--t3); padding:10px 10px 4px; margin-top:6px; }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:12px; color:var(--t2); font-size:13px; font-weight:500; text-decoration:none; transition:all 0.2s; }
+    .nav-item:hover { background:var(--glass-h); color:var(--t); }
+    .nav-item.active { background:rgba(139,92,246,0.15); color:#c4b5fd; box-shadow:inset 0 0 0 1px rgba(139,92,246,0.25); }
+    .nav-icon { font-size:15px; width:20px; text-align:center; flex-shrink:0; }
+    .sidebar-foot { padding:16px 16px 20px; border-top:1px solid var(--gb); }
+    .user-row { display:flex; align-items:center; gap:10px; }
+    .user-avatar { width:32px; height:32px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,rgba(139,92,246,0.3),rgba(99,102,241,0.3)); border:1px solid rgba(139,92,246,0.3); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#c4b5fd; }
+    .user-name { font-size:12px; font-weight:600; color:var(--t); }
+    .user-email { font-size:11px; color:var(--t3); }
+    .sign-out { display:flex; align-items:center; gap:5px; margin-top:10px; font-size:11px; color:var(--t3); text-decoration:none; transition:color 0.2s; }
+    .sign-out:hover { color:#fca5a5; }
+
+    .main { margin-left:var(--sw); flex:1; padding:36px 36px 60px; position:relative; z-index:1; }
+
+    .header { margin-bottom:32px; }
+    .header-eyebrow { font-size:11px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--t3); margin-bottom:6px; }
+    .header-title { font-size:28px; font-weight:800; letter-spacing:-0.8px; }
+    .header-sub { font-size:13px; color:var(--t2); margin-top:5px; }
+
+    .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+    .stat { background:var(--glass); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid var(--gb); border-radius:var(--r); padding:24px 22px; transition:all 0.3s; }
+    .stat:hover { background:var(--glass-h); border-color:rgba(124,58,237,0.4); transform:translateY(-2px); }
+    .stat-label { font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--t3); margin-bottom:12px; }
+    .stat-value { font-size:40px; font-weight:800; letter-spacing:-2px; line-height:1; color:var(--t); }
+    .stat-value.purple { background:linear-gradient(135deg,#c4b5fd,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .stat-sub { font-size:11px; color:var(--t3); margin-top:8px; font-weight:500; }
+
+    .section { background:var(--glass); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid var(--gb); border-radius:var(--r); overflow:hidden; margin-bottom:16px; }
+    .section-head { padding:20px 24px; border-bottom:1px solid var(--gb); display:flex; align-items:center; justify-content:space-between; }
+    .section-title { font-size:14px; font-weight:700; letter-spacing:-0.3px; color:var(--t); }
+    .section-tag { font-size:10px; font-weight:600; letter-spacing:0.8px; text-transform:uppercase; color:var(--t3); }
+
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+
+    table { width:100%; border-collapse:collapse; }
+    thead tr { border-bottom:1px solid var(--gb); }
+    th { padding:12px 20px; text-align:left; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--t3); }
+    td { padding:13px 20px; font-size:13px; color:var(--t2); border-bottom:1px solid rgba(255,255,255,0.04); }
+    tbody tr:last-child td { border-bottom:none; }
+    tbody tr:hover td { background:rgba(255,255,255,0.02); }
+
+    .badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+    .badge-llamada { background:rgba(139,92,246,0.12); color:#c4b5fd; border:1px solid rgba(139,92,246,0.2); }
+    .badge-whatsapp { background:rgba(74,222,128,0.1); color:#86efac; border:1px solid rgba(74,222,128,0.2); }
+    .badge-manual { background:rgba(251,191,36,0.1); color:#fde68a; border:1px solid rgba(251,191,36,0.2); }
+    .badge-other { background:var(--glass); color:var(--t2); border:1px solid var(--gb); }
+
+    .empty { text-align:center; padding:40px; color:var(--t3); font-size:13px; }
+
+    .hora-bar-wrap { display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid rgba(255,255,255,0.04); }
+    .hora-bar-wrap:last-child { border-bottom:none; }
+    .hora-label { font-size:14px; font-weight:700; color:#c4b5fd; min-width:60px; }
+    .hora-bar-bg { flex:1; height:8px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden; }
+    .hora-bar-fill { height:100%; background:linear-gradient(90deg,#8b5cf6,#6366f1); border-radius:4px; }
+    .hora-count { font-size:12px; color:var(--t3); min-width:30px; text-align:right; }
+
+    ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:10px}
+
+    .mobile-bar{display:none;position:fixed;top:0;left:0;right:0;height:56px;background:rgba(3,3,8,0.92);backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);border-bottom:1px solid var(--gb);z-index:200;align-items:center;justify-content:space-between;padding:0 16px;}
+    .hamburger{width:36px;height:36px;border-radius:10px;background:var(--glass);border:1px solid var(--gb);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer;flex-shrink:0;}
+    .hamburger span{width:16px;height:1.5px;background:rgba(255,255,255,0.6);border-radius:2px;display:block;}
+    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:149;}
+    .sidebar-overlay.open{display:block;}
+    @media(max-width:768px){
+      .mobile-bar{display:flex;}
+      .sidebar{transform:translateX(-100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);z-index:150;}
+      .sidebar.open{transform:translateX(0);}
+      .main{margin-left:0!important;padding:72px 14px 60px!important;}
+      .stats-grid{grid-template-columns:1fr 1fr!important;}
+      .grid-2{grid-template-columns:1fr!important;}
+    }
+  </style>
+</head>
+<body>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <div class="mobile-bar">
+    <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú"><span></span><span></span><span></span></button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="width:28px;height:28px;background:linear-gradient(135deg,#8b5cf6,#6366f1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;">🤖</div>
+      <span style="font-size:14px;font-weight:700;color:#fff;letter-spacing:-0.3px;">ReservasBot</span>
+    </div>
+    <div style="width:36px;"></div>
+  </div>
+
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="brand">
+        <div class="brand-mark">🤖</div>
+        <span class="brand-name">ReservasBot</span>
+      </div>
+      <div class="brand-rest"><%= usuario.restaurante %></div>
+    </div>
+    <div class="sidebar-nav">
+      <% if (usuario.rol === 'admin') { %>
+        <div class="nav-label">Sistema</div>
+        <a href="/admin" class="nav-item"><span class="nav-icon">⚡</span> Administración</a>
+      <% } %>
+      <div class="nav-label">Gestión</div>
+      <a href="/panel" class="nav-item"><span class="nav-icon">◼</span> Reservas</a>
+      <a href="/clientes" class="nav-item"><span class="nav-icon">◻</span> Clientes</a>
+      <a href="/analiticas" class="nav-item active"><span class="nav-icon">📊</span> Analíticas</a>
+      <a href="/transcripciones" class="nav-item"><span class="nav-icon">🎙️</span> Transcripciones</a>
+      <div class="nav-label">Ajustes</div>
+      <a href="/configuracion" class="nav-item"><span class="nav-icon">◈</span> Configuración</a>
+    </div>
+    <div class="sidebar-foot">
+      <div class="user-row">
+        <div class="user-avatar"><%= usuario.nombre.charAt(0).toUpperCase() %></div>
+        <div><div class="user-name"><%= usuario.nombre %></div><div class="user-email"><%= usuario.email %></div></div>
+      </div>
+      <a href="/logout" class="sign-out">← Cerrar sesión</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="header">
+      <div class="header-eyebrow">Estadísticas</div>
+      <div class="header-title">Analíticas</div>
+      <div class="header-sub">Resumen de actividad de tu restaurante</div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-label">Total llamadas</div>
+        <div class="stat-value"><%= totalLlamadas %></div>
+        <div class="stat-sub">Transcripciones guardadas</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Total reservas</div>
+        <div class="stat-value purple"><%= totalReservas %></div>
+        <div class="stat-sub">Todas las reservas</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Este mes</div>
+        <div class="stat-value"><%= reservasMes %></div>
+        <div class="stat-sub">Reservas del mes actual</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Conversión</div>
+        <div class="stat-value purple"><%= tasaConversion %>%</div>
+        <div class="stat-sub">Llamadas → Reservas</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="section">
+        <div class="section-head">
+          <span class="section-title">Reservas por canal</span>
+          <span class="section-tag">Origen</span>
+        </div>
+        <% if (porCanal.length === 0) { %>
+          <div class="empty">Sin datos disponibles</div>
+        <% } else { %>
+          <table>
+            <thead><tr><th>Canal</th><th>Reservas</th></tr></thead>
+            <tbody>
+              <% porCanal.forEach(c => {
+                const canal = (c.canal || 'Manual').toLowerCase();
+                let badgeClass = 'badge-other';
+                if (canal.includes('llamada') || canal.includes('bot') || canal.includes('call')) badgeClass = 'badge-llamada';
+                else if (canal.includes('whatsapp') || canal.includes('wapp')) badgeClass = 'badge-whatsapp';
+                else if (canal.includes('manual')) badgeClass = 'badge-manual';
+              %>
+              <tr>
+                <td><span class="badge <%= badgeClass %>"><%= c.canal || 'Manual' %></span></td>
+                <td style="font-weight:700;color:var(--t);"><%= c.total %></td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <span class="section-title">Horas más solicitadas</span>
+          <span class="section-tag">Top 3</span>
+        </div>
+        <% if (horasMasSolicitadas.length === 0) { %>
+          <div class="empty">Sin datos disponibles</div>
+        <% } else {
+          const maxHora = horasMasSolicitadas[0] ? parseInt(horasMasSolicitadas[0].total) : 1;
+        %>
+          <% horasMasSolicitadas.forEach((h, i) => { %>
+          <div class="hora-bar-wrap">
+            <span class="hora-label"><%= h.hora ? h.hora.substring(0,5) : '—' %></span>
+            <div class="hora-bar-bg">
+              <div class="hora-bar-fill" style="width:<%= Math.round((parseInt(h.total)/maxHora)*100) %>%"></div>
+            </div>
+            <span class="hora-count"><%= h.total %></span>
+          </div>
+          <% }); %>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <span class="section-title">Últimas llamadas</span>
+        <span class="section-tag">Transcripciones recientes</span>
+      </div>
+      <% if (ultimasLlamadas.length === 0) { %>
+        <div class="empty">No hay llamadas registradas aún</div>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Teléfono</th>
+              <th>Duración</th>
+              <th>Turnos</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% ultimasLlamadas.forEach(t => {
+              const dur = t.duracion_seg ? t.duracion_seg : 0;
+              const mm = String(Math.floor(dur/60)).padStart(2,'0');
+              const ss = String(dur%60).padStart(2,'0');
+              const tel = t.telefono ? ('···' + t.telefono.slice(-4)) : '—';
+              const turnos = t.transcript ? t.transcript.split('\n').filter(l => l.trim()).length : 0;
+              const fecha = new Date(t.creada_en).toLocaleString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+            %>
+            <tr>
+              <td><%= fecha %></td>
+              <td style="font-family:monospace;letter-spacing:0.5px;"><%= tel %></td>
+              <td><%= mm %>:<%= ss %></td>
+              <td><%= turnos %></td>
+            </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </main>
+
+  <script>
+    function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open');}
+    function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');}
+  </script>
+</body>
+</html>

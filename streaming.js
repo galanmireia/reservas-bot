@@ -65,7 +65,8 @@ async function colgarLlamada(callSid) {
 // GPT devuelve JSON con: respuesta (voz), datos (reserva opcional), colgar (boolean)
 // Una sola llamada GPT = respuesta conversacional + extracción + señal de colgar
 function buildCallSystemPrompt(baseContent, hoy) {
-  return baseContent + `
+  const idiomaPrefix = `IDIOMA: Detecta el idioma del cliente en su primer mensaje y responde siempre en ese idioma. Si habla inglés, responde en inglés. Si habla español, en español. Si habla otro idioma, en ese idioma. Adapta también las fechas y horas al idioma detectado.\n\n`;
+  return idiomaPrefix + baseContent + `
 
 FORMATO DE RESPUESTA OBLIGATORIO PARA LLAMADAS:
 Responde SIEMPRE únicamente con JSON válido, sin texto fuera del JSON:

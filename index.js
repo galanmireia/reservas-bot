@@ -859,8 +859,9 @@ app.post('/registro', async (req, res) => {
   const existe = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
   if (existe.rows.length > 0) return res.render('registro', { error: 'Ya existe una cuenta con ese email.' });
   const hash = await bcrypt.hash(password, 10);
-  await db.query('INSERT INTO usuarios (nombre, email, password, restaurante) VALUES ($1, $2, $3, $4)', [nombre, email, hash, restaurante]);
-  res.redirect('/login');
+  const nuevo = await db.query('INSERT INTO usuarios (nombre, email, password, restaurante) VALUES ($1, $2, $3, $4) RETURNING *', [nombre, email, hash, restaurante]);
+  req.session.usuario = nuevo.rows[0];
+  res.redirect('/configuracion');
 });
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
@@ -1260,6 +1261,57 @@ app.get('/exportar-reservas', requireLogin, async (req, res) => {
   res.send(csv);
 });
 
+app.get('/analiticas', requireLogin, async (req, res) => {
+  const uid = req.session.usuario.id;
+  const totalLlamadas = await db.query('SELECT COUNT(*) FROM transcripciones WHERE usuario_id = $1', [uid]);
+  const totalReservas = await db.query('SELECT COUNT(*) FROM reservas WHERE usuario_id = $1', [uid]);
+  const reservasMes = await db.query(
+    "SELECT COUNT(*) FROM reservas WHERE usuario_id = $1 AND DATE_TRUNC('month', creada_en) = DATE_TRUNC('month', NOW())",
+    [uid]
+  );
+  const llamadas = parseInt(totalLlamadas.rows[0].count);
+  const reservas = parseInt(totalReservas.rows[0].count);
+  const tasa = llamadas > 0 ? Math.round((reservas / llamadas) * 100) : 0;
+
+  const ultimasLlamadas = await db.query(
+    'SELECT id, creada_en, duracion_seg, telefono, transcript FROM transcripciones WHERE usuario_id = $1 ORDER BY creada_en DESC LIMIT 20',
+    [uid]
+  );
+
+  const porCanal = await db.query(
+    "SELECT canal, COUNT(*) as total FROM reservas WHERE usuario_id = $1 GROUP BY canal",
+    [uid]
+  );
+
+  const horasMasSolicitadas = await db.query(
+    "SELECT hora, COUNT(*) as total FROM reservas WHERE usuario_id = $1 GROUP BY hora ORDER BY total DESC LIMIT 3",
+    [uid]
+  );
+
+  res.render('analiticas', {
+    usuario: req.session.usuario,
+    totalLlamadas: llamadas,
+    totalReservas: reservas,
+    reservasMes: parseInt(reservasMes.rows[0].count),
+    tasaConversion: tasa,
+    ultimasLlamadas: ultimasLlamadas.rows,
+    porCanal: porCanal.rows,
+    horasMasSolicitadas: horasMasSolicitadas.rows
+  });
+});
+
+app.get('/transcripciones', requireLogin, async (req, res) => {
+  const uid = req.session.usuario.id;
+  const transcripciones = await db.query(
+    'SELECT * FROM transcripciones WHERE usuario_id = $1 ORDER BY creada_en DESC LIMIT 50',
+    [uid]
+  );
+  res.render('transcripciones', {
+    usuario: req.session.usuario,
+    transcripciones: transcripciones.rows
+  });
+});
+
 app.get('/admin', requireAdmin, async (req, res) => {
   const restaurantes = await db.query(`
     SELECT u.*, COUNT(r.id) as total_reservas
@@ -1377,6 +1429,7 @@ db.query(`ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS asistente_activo BO
   db.query(`UPDATE configuracion SET asistente_activo = true WHERE asistente_activo IS NULL`).catch(() => {});
 }).catch(() => {});
 db.query(`ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS telefono_desvio TEXT`).catch(() => {});
+db.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS restaurante TEXT`).catch(() => {});
 db.query(`CREATE TABLE IF NOT EXISTS transcripciones (
   id SERIAL PRIMARY KEY,
   call_sid TEXT,
