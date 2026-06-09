@@ -192,7 +192,11 @@ function fechaISO(fecha) {
 
 function fechaHumana(fecha) {
   const iso = fechaISO(fecha);
-  return new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  const d = new Date(iso + 'T12:00:00');
+  const dia = d.toLocaleDateString('es-ES', { weekday: 'long' });
+  const num = d.getDate();
+  const mes = d.toLocaleDateString('es-ES', { month: 'long' });
+  return `el ${dia} ${num} de ${mes}`;
 }
 
 function horaHablada(hora) {
