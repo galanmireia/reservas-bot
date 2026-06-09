@@ -368,47 +368,19 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
   const telWa = `whatsapp:${telNorm}`;
 
   async function buscarReserva(datos) {
-    if (datos.nombre && datos.fecha) {
-      // Primero: teléfono + nombre + fecha (evita cancelar reserva de otro cliente)
-      const q1 = await db.query(
-        'SELECT * FROM reservas WHERE usuario_id = $1 AND (telefono_cliente = $2 OR telefono_cliente = $3) AND LOWER(nombre) = LOWER($4) AND fecha = $5 ORDER BY creada_en DESC LIMIT 1',
-        [uid, telNorm, telWa, datos.nombre, datos.fecha]
-      );
-      if (q1.rows.length > 0) return q1;
-      // Fallback: nombre + fecha sin teléfono (por si el teléfono no estaba guardado)
-      const q2 = await db.query(
-        'SELECT * FROM reservas WHERE usuario_id = $1 AND LOWER(nombre) = LOWER($2) AND fecha = $3 ORDER BY creada_en DESC LIMIT 1',
-        [uid, datos.nombre, datos.fecha]
-      );
-      if (q2.rows.length > 0) return q2;
-    }
-    if (datos.fecha) {
-      // Por fecha + teléfono (sin nombre exacto)
-      const q = await db.query(
-        'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND fecha = $4 ORDER BY creada_en DESC LIMIT 1',
-        [telNorm, telWa, uid, datos.fecha]
-      );
-      if (q.rows.length > 0) return q;
-      // Por fecha sola dentro del restaurante (último recurso)
-      return db.query(
-        'SELECT * FROM reservas WHERE usuario_id = $1 AND fecha = $2 ORDER BY creada_en DESC LIMIT 1',
-        [uid, datos.fecha]
-      );
-    }
-    if (datos.nombre) {
-      // Por nombre + teléfono
-      const q = await db.query(
-        'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND LOWER(nombre) = LOWER($4) AND fecha >= NOW()::date ORDER BY fecha ASC LIMIT 1',
-        [telNorm, telWa, uid, datos.nombre]
-      );
-      if (q.rows.length > 0) return q;
-      // Por nombre solo dentro del restaurante
-      return db.query(
-        'SELECT * FROM reservas WHERE usuario_id = $1 AND LOWER(nombre) = LOWER($2) AND fecha >= NOW()::date ORDER BY fecha ASC LIMIT 1',
-        [uid, datos.nombre]
-      );
-    }
-    return null;
+    // Requiere nombre + fecha. Sin ambos no buscamos para no cancelar la reserva equivocada.
+    if (!datos.nombre || !datos.fecha) return null;
+    // Busca por teléfono + nombre + fecha (lo más preciso)
+    const q1 = await db.query(
+      'SELECT * FROM reservas WHERE usuario_id = $1 AND (telefono_cliente = $2 OR telefono_cliente = $3) AND LOWER(nombre) = LOWER($4) AND fecha = $5 ORDER BY creada_en DESC LIMIT 1',
+      [uid, telNorm, telWa, datos.nombre, datos.fecha]
+    );
+    if (q1.rows.length > 0) return q1;
+    // Fallback sin teléfono (reserva hecha manualmente sin teléfono guardado)
+    return db.query(
+      'SELECT * FROM reservas WHERE usuario_id = $1 AND LOWER(nombre) = LOWER($2) AND fecha = $3 ORDER BY creada_en DESC LIMIT 1',
+      [uid, datos.nombre, datos.fecha]
+    );
   }
 
   if (datos.accion === 'CONSULTAR') {
