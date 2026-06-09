@@ -230,13 +230,24 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
               mensaje = await procesarAccion(parsed.datos, callSid, contexto, telefonoCliente || callSid, usuarioId, config);
               console.log('Respuesta procesarAccion:', mensaje);
 
-              if (mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('te he apuntado en la lista de espera')) {
+              const esFinal = mensaje.includes('confirmada') || mensaje.includes('cancelada') || mensaje.includes('modificada') || mensaje.includes('te he apuntado en la lista de espera');
+
+              if (esFinal) {
+                // Acción completada: resetear conversación con el nuevo contexto
                 const nuevoContexto = await obtenerContextoCliente(telefonoCliente || callSid);
                 const hoy = fechaHoyMadrid();
                 conversacion = [
                   { role: 'system', content: buildCallSystemPrompt(SYSTEM_PROMPT(hoy.iso, nuevoContexto, config), hoy) },
                   { role: 'assistant', content: mensaje }
                 ];
+              } else {
+                // Acción intermedia (CONSULTAR, etc.): actualizar el último mensaje del asistente
+                // con el resultado real para que GPT tenga contexto en el siguiente turno
+                if (conversacion.length > 0 && conversacion[conversacion.length - 1].role === 'assistant') {
+                  conversacion[conversacion.length - 1].content = mensaje;
+                } else {
+                  conversacion.push({ role: 'assistant', content: mensaje });
+                }
               }
             } catch (err) {
               console.error('Error procesarAccion:', err.message);
