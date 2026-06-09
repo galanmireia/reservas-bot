@@ -193,6 +193,24 @@
             <span style="font-size:11px;color:var(--t3);margin-top:3px;">Nombre con el que el bot se presenta en llamadas</span>
           </div>
         </div>
+
+        <div class="field" style="margin-top:16px;">
+          <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+            <div style="position:relative;width:44px;height:24px;flex-shrink:0;">
+              <input type="checkbox" name="asistente_activo" id="asistenteToggle" value="true" <%= config.asistente_activo !== false ? 'checked' : '' %> style="opacity:0;width:0;height:0;position:absolute;" onchange="toggleDesvio()">
+              <span id="toggleBg" style="position:absolute;inset:0;border-radius:12px;background:<%= config.asistente_activo !== false ? '#6366f1' : '#444' %>;transition:background .2s;"></span>
+              <span id="toggleDot" style="position:absolute;top:3px;left:<%= config.asistente_activo !== false ? '23px' : '3px' %>;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .2s;"></span>
+            </div>
+            <span style="font-weight:600;color:var(--t1);">Asistente activo</span>
+          </label>
+          <span style="font-size:11px;color:var(--t3);margin-top:4px;display:block;">Desactívalo cuando prefieras atender tú las llamadas y WhatsApp directamente</span>
+        </div>
+
+        <div class="field" id="campoDesvio" style="margin-top:12px;display:<%= config.asistente_activo !== false ? 'none' : 'block' %>;">
+          <label>Teléfono de desvío</label>
+          <input type="text" name="telefono_desvio" value="<%= config.telefono_desvio || '' %>" placeholder="+34 600 000 000">
+          <span style="font-size:11px;color:var(--t3);margin-top:3px;">Las llamadas se redirigen a este número cuando el asistente está desactivado</span>
+        </div>
       </div>
 
       <div class="section">
@@ -302,6 +320,12 @@
   <script>
     function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open');}
     function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');}
+    function toggleDesvio() {
+      const on = document.getElementById('asistenteToggle').checked;
+      document.getElementById('toggleBg').style.background = on ? '#6366f1' : '#444';
+      document.getElementById('toggleDot').style.left = on ? '23px' : '3px';
+      document.getElementById('campoDesvio').style.display = on ? 'none' : 'block';
+    }
     function actualizarFormCierre() {
       const tipo = document.getElementById('tipoCierre').value;
       document.getElementById('campoDia').style.display = tipo === 'semana' ? 'flex' : 'none';

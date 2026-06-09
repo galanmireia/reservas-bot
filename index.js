@@ -872,6 +872,20 @@ app.post('/llamada', validarTwilio, async (req, res) => {
     const numeroTwilio = req.body.To || null;
     console.log('Llamada recibida de:', telefono);
 
+    // Comprobar si el asistente está activo para este restaurante
+    const uid = await obtenerUsuarioPorNumero(numeroTwilio);
+    const cfg = uid ? await obtenerConfigRestaurante(uid) : null;
+    if (cfg && cfg.asistente_activo === false) {
+      const desvio = cfg.telefono_desvio;
+      if (desvio) {
+        res.type('text/xml');
+        return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Dial>${desvio}</Dial></Response>`);
+      } else {
+        res.type('text/xml');
+        return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say language="es-ES" voice="Polly.Conchita">En este momento no podemos atenderte. Por favor, inténtalo más tarde.</Say></Response>`);
+      }
+    }
+
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
@@ -960,6 +974,13 @@ app.post('/whatsapp', validarTwilio, async (req, res) => {
     const mensaje = req.body.Body;
     const numeroTwilio = req.body.To || null;
     console.log('WhatsApp de:', from, '→', mensaje);
+
+    // Si el asistente está desactivado, no responder
+    const uidWa = await obtenerUsuarioPorNumero(numeroTwilio);
+    const cfgWa = uidWa ? await obtenerConfigRestaurante(uidWa) : null;
+    if (cfgWa && cfgWa.asistente_activo === false) {
+      return res.send('<Response></Response>');
+    }
 
     // --- Detección de SI/NO de lista de espera ---
     const fromNormalizado = from.replace('whatsapp:', '');
@@ -1183,17 +1204,18 @@ app.get('/configuracion', requireLogin, async (req, res) => {
 
 app.post('/configuracion', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
-  const { restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, nombre_bot } = req.body;
+  const { restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, nombre_bot, telefono_desvio } = req.body;
+  const asistente_activo = req.body.asistente_activo === 'true';
   const existe = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
   if (existe.rows.length > 0) {
     await db.query(
-      'UPDATE configuracion SET restaurante=$1, telefono=$2, direccion=$3, horario=$4, aparcamiento=$5, menu=$6, especialidad=$7, nombre_bot=$8 WHERE usuario_id=$9',
-      [restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, nombre_bot || 'Laura', usuarioId]
+      'UPDATE configuracion SET restaurante=$1, telefono=$2, direccion=$3, horario=$4, aparcamiento=$5, menu=$6, especialidad=$7, nombre_bot=$8, asistente_activo=$9, telefono_desvio=$10 WHERE usuario_id=$11',
+      [restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, nombre_bot || 'Laura', asistente_activo, telefono_desvio || null, usuarioId]
     );
   } else {
     await db.query(
-      'INSERT INTO configuracion (usuario_id, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, nombre_bot) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
-      [usuarioId, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, nombre_bot || 'Laura']
+      'INSERT INTO configuracion (usuario_id, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, nombre_bot, asistente_activo, telefono_desvio) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+      [usuarioId, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, nombre_bot || 'Laura', asistente_activo, telefono_desvio || null]
     );
   }
   await db.query('UPDATE usuarios SET restaurante = $1 WHERE id = $2', [restaurante, usuarioId]);
@@ -1351,6 +1373,8 @@ app.post('/espera/eliminar/:id', requireLogin, async (req, res) => {
 db.query(`ALTER TABLE lista_espera ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'esperando'`).catch(() => {});
 db.query(`ALTER TABLE lista_espera ADD COLUMN IF NOT EXISTS notificado_en TIMESTAMP`).catch(() => {});
 db.query(`ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS nombre_bot VARCHAR(50)`).catch(() => {});
+db.query(`ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS asistente_activo BOOLEAN DEFAULT true`).catch(() => {});
+db.query(`ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS telefono_desvio TEXT`).catch(() => {});
 db.query(`CREATE TABLE IF NOT EXISTS transcripciones (
   id SERIAL PRIMARY KEY,
   call_sid TEXT,
