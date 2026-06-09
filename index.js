@@ -387,27 +387,53 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
     const hoy = new Date().toISOString().split('T')[0];
     let reservas;
     if (datos.nombre) {
-      // Búsqueda por nombre (para el flujo previo a cancelar/modificar)
+      // Busca por teléfono + nombre (reservas de este cliente con ese nombre)
       reservas = await db.query(
-        'SELECT * FROM reservas WHERE usuario_id = $1 AND LOWER(nombre) = LOWER($2) AND fecha >= $3 ORDER BY fecha ASC, hora ASC',
-        [uid, datos.nombre, hoy]
+        `SELECT * FROM reservas
+         WHERE (telefono_cliente = $1 OR telefono_cliente = $2)
+           AND usuario_id = $3
+           AND LOWER(nombre) = LOWER($4)
+           AND fecha >= $5
+         ORDER BY fecha ASC, hora ASC`,
+        [telNorm, telWa, uid, datos.nombre, hoy]
       );
-      // Si no hay por nombre exacto, buscar por teléfono como fallback
+      // Si no hay coincidencia exacta, busca por teléfono + nombre parcial
       if (reservas.rows.length === 0) {
         reservas = await db.query(
-          'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND fecha >= $4 ORDER BY fecha ASC, hora ASC',
+          `SELECT * FROM reservas
+           WHERE (telefono_cliente = $1 OR telefono_cliente = $2)
+             AND usuario_id = $3
+             AND LOWER(nombre) LIKE LOWER($4)
+             AND fecha >= $5
+           ORDER BY fecha ASC, hora ASC`,
+          [telNorm, telWa, uid, `%${datos.nombre}%`, hoy]
+        );
+      }
+      // Si sigue sin resultados, devolver todas las de este teléfono para que el bot pueda aclarar
+      if (reservas.rows.length === 0) {
+        reservas = await db.query(
+          `SELECT * FROM reservas
+           WHERE (telefono_cliente = $1 OR telefono_cliente = $2)
+             AND usuario_id = $3
+             AND fecha >= $4
+           ORDER BY fecha ASC, hora ASC`,
           [telNorm, telWa, uid, hoy]
         );
+        if (reservas.rows.length === 0) return `No encontré ninguna reserva asociada a este número. ¿Puede que esté bajo otro teléfono?`;
+        const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} — ${fechaHumana(r.fecha)} a ${horaHablada(r.hora)} para ${r.personas} persona${r.personas > 1 ? 's' : ''}`).join('\n');
+        return `No encontré reservas a nombre de "${datos.nombre}" en este número, pero sí estas:\n${lista}\n¿Es alguna de estas?`;
       }
     } else {
       reservas = await db.query(
-        'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND fecha >= $4 ORDER BY fecha ASC, hora ASC',
+        `SELECT * FROM reservas
+         WHERE (telefono_cliente = $1 OR telefono_cliente = $2)
+           AND usuario_id = $3
+           AND fecha >= $4
+         ORDER BY fecha ASC, hora ASC`,
         [telNorm, telWa, uid, hoy]
       );
     }
-    if (reservas.rows.length === 0) return datos.nombre
-      ? `No encontre ninguna reserva a nombre de ${datos.nombre}. Comprueba si esta bajo otro nombre.`
-      : 'No tienes reservas proximas.';
+    if (reservas.rows.length === 0) return 'No tienes reservas próximas.';
     const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} — ${fechaHumana(r.fecha)} a ${horaHablada(r.hora)} para ${r.personas} persona${r.personas > 1 ? 's' : ''}`).join('\n');
     return `Reservas encontradas:\n${lista}`;
   }
