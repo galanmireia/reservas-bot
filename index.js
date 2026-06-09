@@ -368,14 +368,19 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
   const telWa = `whatsapp:${telNorm}`;
 
   async function buscarReserva(datos) {
-    // Busca por nombre + fecha dentro del restaurante (uid).
-    // No filtramos por teléfono aquí porque ya se identificó al cliente en CONSULTAR.
     if (datos.nombre && datos.fecha) {
-      const q = await db.query(
+      // Primero: teléfono + nombre + fecha (evita cancelar reserva de otro cliente)
+      const q1 = await db.query(
+        'SELECT * FROM reservas WHERE usuario_id = $1 AND (telefono_cliente = $2 OR telefono_cliente = $3) AND LOWER(nombre) = LOWER($4) AND fecha = $5 ORDER BY creada_en DESC LIMIT 1',
+        [uid, telNorm, telWa, datos.nombre, datos.fecha]
+      );
+      if (q1.rows.length > 0) return q1;
+      // Fallback: nombre + fecha sin teléfono (por si el teléfono no estaba guardado)
+      const q2 = await db.query(
         'SELECT * FROM reservas WHERE usuario_id = $1 AND LOWER(nombre) = LOWER($2) AND fecha = $3 ORDER BY creada_en DESC LIMIT 1',
         [uid, datos.nombre, datos.fecha]
       );
-      if (q.rows.length > 0) return q;
+      if (q2.rows.length > 0) return q2;
     }
     if (datos.fecha) {
       // Por fecha + teléfono (sin nombre exacto)
@@ -457,7 +462,7 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
       );
     }
     if (reservas.rows.length === 0) return 'No tienes reservas próximas.';
-    const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} — ${fechaHumana(r.fecha)} a ${horaHablada(r.hora)} para ${r.personas} persona${r.personas > 1 ? 's' : ''}`).join('\n');
+    const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} — ${fechaHumana(r.fecha)} [${r.fecha}] a ${horaHablada(r.hora)} para ${r.personas} persona${r.personas > 1 ? 's' : ''}`).join('\n');
     return `Reservas encontradas:\n${lista}`;
   }
 

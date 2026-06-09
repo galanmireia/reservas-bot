@@ -74,8 +74,8 @@ Responde SIEMPRE únicamente con JSON válido, sin texto fuera del JSON:
 FLUJO DE CANCELACIÓN Y MODIFICACIÓN (OBLIGATORIO):
 1. Pregunta: "¿A nombre de quién está la reserva?"
 2. Con el nombre, manda datos: {"accion": "CONSULTAR", "nombre": "X"} — el sistema te devuelve la lista.
-3. Lee la lista al cliente y pregunta cuál quiere cancelar/modificar.
-4. Para cancelar: confirma y manda {"accion": "CANCELAR", "nombre": "X", "fecha": "YYYY-MM-DD"}.
+3. Lee la lista al cliente (omite los corchetes [YYYY-MM-DD] al hablar, son solo para ti) y pregunta cuál quiere cancelar/modificar.
+4. Para cancelar: confirma y manda {"accion": "CANCELAR", "nombre": "X", "fecha": "YYYY-MM-DD"} usando la fecha exacta entre corchetes de la lista.
 5. Para modificar: recoge nuevos datos, confirma y manda {"accion": "MODIFICAR", ...}.
 NUNCA mandes CANCELAR o MODIFICAR sin haber hecho CONSULTAR antes para mostrar las opciones.
 
