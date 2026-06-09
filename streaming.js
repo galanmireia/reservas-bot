@@ -213,6 +213,18 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
         console.log('Cliente dijo:', textoCliente);
 
         try {
+          // Detectar idioma en el primer turno del cliente e inyectar instrucción
+          const turnosUsuario = conversacion.filter(m => m.role === 'user').length;
+          if (turnosUsuario === 0) {
+            const esEspanol = /[áéíóúüñ¿¡]|(\b(hola|quiero|reserva|mesa|cancelar|buenos|gracias|por favor)\b)/i.test(textoCliente);
+            if (!esEspanol) {
+              conversacion.push({
+                role: 'system',
+                content: `CRITICAL: The client is speaking a language other than Spanish. You MUST respond in their language for the entire call. Their message: "${textoCliente}". Detect the language and respond ONLY in that language. The "respuesta" field in your JSON must be in the client's language.`
+              });
+            }
+          }
+
           conversacion.push({ role: 'user', content: textoCliente });
 
           // Una sola llamada GPT: respuesta + datos opcionales + señal de colgar
