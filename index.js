@@ -198,8 +198,8 @@ function fechaHumana(fecha) {
 function horaHablada(hora) {
   if (!hora) return hora;
   const [h, m] = hora.split(':').map(Number);
-  const h12 = h > 12 ? h - 12 : h;
-  const sufijo = h >= 20 ? 'de la noche' : h >= 13 ? 'de la tarde' : 'de la mañana';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  const sufijo = h >= 21 ? 'de la noche' : h >= 13 ? 'de la tarde' : h === 12 ? 'del mediodía' : h >= 9 ? 'de la mañana' : 'de la madrugada';
   const articulo = h12 === 1 ? 'la' : 'las';
   const minStr = m === 30 ? ' y media' : m === 15 ? ' y cuarto' : m === 45 ? ' menos cuarto' : m > 0 ? ` y ${m}` : '';
   return `${articulo} ${h12}${minStr} ${sufijo}`;
@@ -368,18 +368,31 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
   const telWa = `whatsapp:${telNorm}`;
 
   async function buscarReserva(datos) {
-    // Requiere nombre + fecha. Sin ambos no buscamos para no cancelar la reserva equivocada.
     if (!datos.nombre || !datos.fecha) return null;
-    // Busca por teléfono + nombre + fecha (lo más preciso)
+    const nombre = datos.nombre.trim();
+    const fecha = datos.fecha;
+    // 1. Teléfono + nombre exacto + fecha
     const q1 = await db.query(
-      'SELECT * FROM reservas WHERE usuario_id = $1 AND (telefono_cliente = $2 OR telefono_cliente = $3) AND LOWER(nombre) = LOWER($4) AND fecha = $5 ORDER BY creada_en DESC LIMIT 1',
-      [uid, telNorm, telWa, datos.nombre, datos.fecha]
+      'SELECT * FROM reservas WHERE usuario_id=$1 AND (telefono_cliente=$2 OR telefono_cliente=$3) AND LOWER(nombre)=LOWER($4) AND fecha=$5 ORDER BY creada_en DESC LIMIT 1',
+      [uid, telNorm, telWa, nombre, fecha]
     );
     if (q1.rows.length > 0) return q1;
-    // Fallback sin teléfono (reserva hecha manualmente sin teléfono guardado)
+    // 2. Nombre exacto + fecha (sin teléfono — reserva manual)
+    const q2 = await db.query(
+      'SELECT * FROM reservas WHERE usuario_id=$1 AND LOWER(nombre)=LOWER($2) AND fecha=$3 ORDER BY creada_en DESC LIMIT 1',
+      [uid, nombre, fecha]
+    );
+    if (q2.rows.length > 0) return q2;
+    // 3. Teléfono + nombre parcial + fecha (GPT puede mandar "Pedro" en vez de "Pedro García")
+    const q3 = await db.query(
+      'SELECT * FROM reservas WHERE usuario_id=$1 AND (telefono_cliente=$2 OR telefono_cliente=$3) AND (LOWER(nombre) LIKE LOWER($4) OR LOWER($4) LIKE LOWER(nombre||\'%\')) AND fecha=$5 ORDER BY creada_en DESC LIMIT 1',
+      [uid, telNorm, telWa, `%${nombre}%`, fecha]
+    );
+    if (q3.rows.length > 0) return q3;
+    // 4. Nombre parcial + fecha (sin teléfono)
     return db.query(
-      'SELECT * FROM reservas WHERE usuario_id = $1 AND LOWER(nombre) = LOWER($2) AND fecha = $3 ORDER BY creada_en DESC LIMIT 1',
-      [uid, datos.nombre, datos.fecha]
+      'SELECT * FROM reservas WHERE usuario_id=$1 AND (LOWER(nombre) LIKE LOWER($2) OR LOWER($2) LIKE LOWER(nombre||\'%\')) AND fecha=$3 ORDER BY creada_en DESC LIMIT 1',
+      [uid, `%${nombre}%`, fecha]
     );
   }
 
@@ -434,7 +447,7 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
       );
     }
     if (reservas.rows.length === 0) return 'No tienes reservas próximas.';
-    const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} — ${fechaHumana(r.fecha)} [${r.fecha}] a ${horaHablada(r.hora)} para ${r.personas} persona${r.personas > 1 ? 's' : ''}`).join('\n');
+    const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} — ${fechaHumana(r.fecha)} [nombre:${r.nombre}|fecha:${r.fecha}] a ${horaHablada(r.hora)} para ${r.personas} persona${r.personas > 1 ? 's' : ''}`).join('\n');
     return `Reservas encontradas:\n${lista}`;
   }
 
