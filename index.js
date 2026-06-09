@@ -721,6 +721,18 @@ app.post('/llamada', async (req, res) => {
     const numeroTwilio = req.body.To || null;
     console.log('Llamada recibida de:', telefono);
 
+    const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
+    const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
+
+    if (config && config.asistente_activo === false && config.telefono_desvio) {
+      const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Dial>${escapeXml(config.telefono_desvio)}</Dial>
+</Response>`;
+      res.type('text/xml');
+      return res.send(twiml);
+    }
+
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
@@ -815,6 +827,15 @@ app.post('/whatsapp', async (req, res) => {
     const usuarioId = await obtenerUsuarioPorNumero(numeroTwilio);
     const contexto = await obtenerContextoCliente(from);
     const config = usuarioId ? await obtenerConfigRestaurante(usuarioId) : null;
+
+    if (config && config.asistente_activo === false) {
+      const msgDesvio = config.telefono_desvio
+        ? `Hola, en este momento estamos atendiendo directamente. Puedes llamarnos al ${config.telefono_desvio}.`
+        : 'Hola, en este momento estamos atendiendo directamente. Por favor llámanos.';
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Message>${escapeXml(msgDesvio)}</Message></Response>`);
+    }
+
     if (!conversacionesWhatsapp[from]) {
       conversacionesWhatsapp[from] = [{ role: 'system', content: SYSTEM_PROMPT(hoy, contexto, config) }];
     }
@@ -980,17 +1001,18 @@ app.get('/configuracion', requireLogin, async (req, res) => {
 
 app.post('/configuracion', requireLogin, async (req, res) => {
   const usuarioId = req.session.usuario.id;
-  const { restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad } = req.body;
+  const { restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, telefono_desvio } = req.body;
+  const asistente_activo = req.body.asistente_activo === 'on';
   const existe = await db.query('SELECT * FROM configuracion WHERE usuario_id = $1', [usuarioId]);
   if (existe.rows.length > 0) {
     await db.query(
-      'UPDATE configuracion SET restaurante=$1, telefono=$2, direccion=$3, horario=$4, aparcamiento=$5, menu=$6, especialidad=$7 WHERE usuario_id=$8',
-      [restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, usuarioId]
+      'UPDATE configuracion SET restaurante=$1, telefono=$2, direccion=$3, horario=$4, aparcamiento=$5, menu=$6, especialidad=$7, asistente_activo=$8, telefono_desvio=$9 WHERE usuario_id=$10',
+      [restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, asistente_activo, telefono_desvio || null, usuarioId]
     );
   } else {
     await db.query(
-      'INSERT INTO configuracion (usuario_id, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-      [usuarioId, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad]
+      'INSERT INTO configuracion (usuario_id, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, asistente_activo, telefono_desvio) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
+      [usuarioId, restaurante, telefono, direccion, horario, aparcamiento, menu, especialidad, asistente_activo, telefono_desvio || null]
     );
   }
   await db.query('UPDATE usuarios SET restaurante = $1 WHERE id = $2', [restaurante, usuarioId]);

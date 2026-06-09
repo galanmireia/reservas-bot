@@ -63,6 +63,18 @@
     [data-theme="dark"] .btn-del-mesa:hover { background: #2a1015; color: #f87171; border-color: #3a1515; }
     .add-mesa { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
     .add-mesa .campo { margin: 0; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-label { font-size: 13px; font-weight: 500; }
+    .toggle-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 24px; transition: .2s; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .2s; }
+    input:checked + .slider { background: var(--accent); }
+    input:checked + .slider:before { transform: translateX(20px); }
+    .desvio-field { margin-top: 16px; display: none; }
+    .desvio-field.visible { display: block; }
   </style>
 </head>
 <body>
@@ -146,6 +158,26 @@
         <div class="campo">
           <label>Especialidad</label>
           <input type="text" name="especialidad" value="<%= config.especialidad || '' %>" placeholder="Cocido madrileño los jueves">
+        </div>
+      </div>
+
+      <div class="seccion">
+        <div class="seccion-title">🤖 Asistente virtual</div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Asistente activo</div>
+            <div class="toggle-desc">Cuando está desactivado, las llamadas se desvían al teléfono real y el WhatsApp responde con un mensaje directo.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="asistente_activo" id="asistenteToggle" <%= (config.asistente_activo !== false) ? 'checked' : '' %> onchange="toggleDesvio()">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="desvio-field <%= (config.asistente_activo === false) ? 'visible' : '' %>" id="desvioField">
+          <div class="campo" style="margin-bottom:0;">
+            <label>Teléfono de desvío</label>
+            <input type="text" name="telefono_desvio" value="<%= config.telefono_desvio || '' %>" placeholder="+34 910 000 000">
+          </div>
         </div>
       </div>
 
@@ -256,6 +288,10 @@
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('theme', next);
       document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+    }
+    function toggleDesvio() {
+      const activo = document.getElementById('asistenteToggle').checked;
+      document.getElementById('desvioField').classList.toggle('visible', !activo);
     }
     function actualizarFormCierre() {
       const tipo = document.getElementById('tipoCierre').value;
