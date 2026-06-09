@@ -1373,7 +1373,9 @@ app.post('/espera/eliminar/:id', requireLogin, async (req, res) => {
 db.query(`ALTER TABLE lista_espera ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'esperando'`).catch(() => {});
 db.query(`ALTER TABLE lista_espera ADD COLUMN IF NOT EXISTS notificado_en TIMESTAMP`).catch(() => {});
 db.query(`ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS nombre_bot VARCHAR(50)`).catch(() => {});
-db.query(`ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS asistente_activo BOOLEAN DEFAULT true`).catch(() => {});
+db.query(`ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS asistente_activo BOOLEAN DEFAULT true`).then(() => {
+  db.query(`UPDATE configuracion SET asistente_activo = true WHERE asistente_activo IS NULL`).catch(() => {});
+}).catch(() => {});
 db.query(`ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS telefono_desvio TEXT`).catch(() => {});
 db.query(`CREATE TABLE IF NOT EXISTS transcripciones (
   id SERIAL PRIMARY KEY,
