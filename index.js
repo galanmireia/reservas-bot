@@ -371,27 +371,25 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
     if (!datos.nombre || !datos.fecha) return null;
     const nombre = datos.nombre.trim();
     const fecha = datos.fecha;
-    // 1. Teléfono + nombre exacto + fecha
+    // Todas las queries usan fecha::date = $n::date para manejar timestamps almacenados
     const q1 = await db.query(
-      'SELECT * FROM reservas WHERE usuario_id=$1 AND (telefono_cliente=$2 OR telefono_cliente=$3) AND LOWER(nombre)=LOWER($4) AND fecha=$5 ORDER BY creada_en DESC LIMIT 1',
+      'SELECT * FROM reservas WHERE usuario_id=$1 AND (telefono_cliente=$2 OR telefono_cliente=$3) AND LOWER(nombre)=LOWER($4) AND fecha::date=$5::date ORDER BY creada_en DESC LIMIT 1',
       [uid, telNorm, telWa, nombre, fecha]
     );
     if (q1.rows.length > 0) return q1;
-    // 2. Nombre exacto + fecha (sin teléfono — reserva manual)
     const q2 = await db.query(
-      'SELECT * FROM reservas WHERE usuario_id=$1 AND LOWER(nombre)=LOWER($2) AND fecha=$3 ORDER BY creada_en DESC LIMIT 1',
+      'SELECT * FROM reservas WHERE usuario_id=$1 AND LOWER(nombre)=LOWER($2) AND fecha::date=$3::date ORDER BY creada_en DESC LIMIT 1',
       [uid, nombre, fecha]
     );
     if (q2.rows.length > 0) return q2;
-    // 3. Teléfono + nombre parcial + fecha (GPT puede mandar "Pedro" en vez de "Pedro García")
+    // Nombre parcial (GPT puede mandar "Pepito" si el stored es "Pepito García")
     const q3 = await db.query(
-      'SELECT * FROM reservas WHERE usuario_id=$1 AND (telefono_cliente=$2 OR telefono_cliente=$3) AND (LOWER(nombre) LIKE LOWER($4) OR LOWER($4) LIKE LOWER(nombre||\'%\')) AND fecha=$5 ORDER BY creada_en DESC LIMIT 1',
+      'SELECT * FROM reservas WHERE usuario_id=$1 AND (telefono_cliente=$2 OR telefono_cliente=$3) AND LOWER(nombre) LIKE LOWER($4) AND fecha::date=$5::date ORDER BY creada_en DESC LIMIT 1',
       [uid, telNorm, telWa, `%${nombre}%`, fecha]
     );
     if (q3.rows.length > 0) return q3;
-    // 4. Nombre parcial + fecha (sin teléfono)
     return db.query(
-      'SELECT * FROM reservas WHERE usuario_id=$1 AND (LOWER(nombre) LIKE LOWER($2) OR LOWER($2) LIKE LOWER(nombre||\'%\')) AND fecha=$3 ORDER BY creada_en DESC LIMIT 1',
+      'SELECT * FROM reservas WHERE usuario_id=$1 AND LOWER(nombre) LIKE LOWER($2) AND fecha::date=$3::date ORDER BY creada_en DESC LIMIT 1',
       [uid, `%${nombre}%`, fecha]
     );
   }
@@ -406,7 +404,7 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
          WHERE (telefono_cliente = $1 OR telefono_cliente = $2)
            AND usuario_id = $3
            AND LOWER(nombre) = LOWER($4)
-           AND fecha >= $5
+           AND fecha::date >= $5::date
          ORDER BY fecha ASC, hora ASC`,
         [telNorm, telWa, uid, datos.nombre, hoy]
       );
@@ -417,7 +415,7 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
            WHERE (telefono_cliente = $1 OR telefono_cliente = $2)
              AND usuario_id = $3
              AND LOWER(nombre) LIKE LOWER($4)
-             AND fecha >= $5
+             AND fecha::date >= $5::date
            ORDER BY fecha ASC, hora ASC`,
           [telNorm, telWa, uid, `%${datos.nombre}%`, hoy]
         );
@@ -428,7 +426,7 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
           `SELECT * FROM reservas
            WHERE (telefono_cliente = $1 OR telefono_cliente = $2)
              AND usuario_id = $3
-             AND fecha >= $4
+             AND fecha::date >= $4::date
            ORDER BY fecha ASC, hora ASC`,
           [telNorm, telWa, uid, hoy]
         );
@@ -441,13 +439,13 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
         `SELECT * FROM reservas
          WHERE (telefono_cliente = $1 OR telefono_cliente = $2)
            AND usuario_id = $3
-           AND fecha >= $4
+           AND fecha::date >= $4::date
          ORDER BY fecha ASC, hora ASC`,
         [telNorm, telWa, uid, hoy]
       );
     }
     if (reservas.rows.length === 0) return 'No tienes reservas próximas.';
-    const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} — ${fechaHumana(r.fecha)} [nombre:${r.nombre}|fecha:${r.fecha}] a ${horaHablada(r.hora)} para ${r.personas} persona${r.personas > 1 ? 's' : ''}`).join('\n');
+    const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} — ${fechaHumana(r.fecha)} [nombre:${r.nombre}|fecha:${fechaISO(r.fecha)}] a ${horaHablada(r.hora)} para ${r.personas} persona${r.personas > 1 ? 's' : ''}`).join('\n');
     return `Reservas encontradas:\n${lista}`;
   }
 
