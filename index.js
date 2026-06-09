@@ -999,7 +999,7 @@ app.get('/panel', requireLogin, async (req, res) => {
   const mesasPanel = await db.query('SELECT COUNT(*) FROM mesas WHERE usuario_id = $1', [usuarioId]);
   const cfg = configPanel.rows[0] || {};
   const onboarding = {
-    config: !!cfg.horario,
+    config: configPanel.rows.length > 0 && !!(cfg.horario || cfg.restaurante || cfg.telefono),
     mesas: parseInt(mesasPanel.rows[0].count) > 0,
     twilio: !!req.session.usuario.numero_twilio
   };

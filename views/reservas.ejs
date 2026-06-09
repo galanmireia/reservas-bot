@@ -510,18 +510,25 @@
     <div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.2);border-radius:18px;padding:22px 24px;margin-bottom:28px;">
       <div style="font-size:13px;font-weight:700;color:#c4b5fd;margin-bottom:14px;">🚀 Completa la configuración para activar tu bot</div>
       <div style="display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:<%= onboarding.config ? '#86efac' : 'rgba(255,255,255,0.5)' %>;">
-          <span style="width:20px;height:20px;border-radius:50%;background:<%= onboarding.config ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)' %>;border:1px solid <%= onboarding.config ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.1)' %>;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;"><%= onboarding.config ? '✓' : '1' %></span>
-          <%= onboarding.config ? 'Información del restaurante configurada' : 'Configura el horario y datos del restaurante' %> <%= !onboarding.config ? '→ <a href="/configuracion" style="color:#c4b5fd;">Ir a configuración</a>' : '' %>
+
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+          <span style="width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:<%= onboarding.config?'rgba(74,222,128,0.15)':'rgba(255,255,255,0.05)' %>;border:1px solid <%= onboarding.config?'rgba(74,222,128,0.3)':'rgba(255,255,255,0.1)' %>;color:<%= onboarding.config?'#86efac':'rgba(255,255,255,0.4)' %>;"><%= onboarding.config?'✓':'1' %></span>
+          <% if (onboarding.config) { %><span style="color:#86efac;">Información del restaurante configurada</span>
+          <% } else { %><span style="color:rgba(255,255,255,0.5);">Configura el horario y datos del restaurante</span>&nbsp;<a href="/configuracion" style="color:#c4b5fd;font-weight:600;text-decoration:none;">→ Ir a configuración</a><% } %>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:<%= onboarding.mesas ? '#86efac' : 'rgba(255,255,255,0.5)' %>;">
-          <span style="width:20px;height:20px;border-radius:50%;background:<%= onboarding.mesas ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)' %>;border:1px solid <%= onboarding.mesas ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.1)' %>;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;"><%= onboarding.mesas ? '✓' : '2' %></span>
-          <%= onboarding.mesas ? 'Mesas configuradas' : 'Añade tus mesas para controlar la disponibilidad' %> <%= !onboarding.mesas ? '→ <a href="/configuracion#mesas" style="color:#c4b5fd;">Añadir mesas</a>' : '' %>
+
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+          <span style="width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:<%= onboarding.mesas?'rgba(74,222,128,0.15)':'rgba(255,255,255,0.05)' %>;border:1px solid <%= onboarding.mesas?'rgba(74,222,128,0.3)':'rgba(255,255,255,0.1)' %>;color:<%= onboarding.mesas?'#86efac':'rgba(255,255,255,0.4)' %>;"><%= onboarding.mesas?'✓':'2' %></span>
+          <% if (onboarding.mesas) { %><span style="color:#86efac;">Mesas configuradas</span>
+          <% } else { %><span style="color:rgba(255,255,255,0.5);">Añade tus mesas para controlar la disponibilidad</span>&nbsp;<a href="/configuracion" style="color:#c4b5fd;font-weight:600;text-decoration:none;">→ Añadir mesas</a><% } %>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:<%= onboarding.twilio ? '#86efac' : 'rgba(255,255,255,0.5)' %>;">
-          <span style="width:20px;height:20px;border-radius:50%;background:<%= onboarding.twilio ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)' %>;border:1px solid <%= onboarding.twilio ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.1)' %>;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;"><%= onboarding.twilio ? '✓' : '3' %></span>
-          <%= onboarding.twilio ? 'Número de teléfono asignado' : 'Solicita tu número Twilio — contacta con soporte' %>
+
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+          <span style="width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:<%= onboarding.twilio?'rgba(74,222,128,0.15)':'rgba(255,255,255,0.05)' %>;border:1px solid <%= onboarding.twilio?'rgba(74,222,128,0.3)':'rgba(255,255,255,0.1)' %>;color:<%= onboarding.twilio?'#86efac':'rgba(255,255,255,0.4)' %>;"><%= onboarding.twilio?'✓':'3' %></span>
+          <% if (onboarding.twilio) { %><span style="color:#86efac;">Número de teléfono asignado</span>
+          <% } else { %><span style="color:rgba(255,255,255,0.5);">Número Twilio pendiente — contacta con soporte</span><% } %>
         </div>
+
       </div>
     </div>
     <% } %>
