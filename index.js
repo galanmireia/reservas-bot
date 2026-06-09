@@ -362,24 +362,40 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
   const telefonoParaWhatsapp = telefonoCliente || canal;
   const uid = usuarioId || await obtenerUsuarioPorDefecto();
 
+  // Normaliza el teléfono quitando el prefijo whatsapp: para búsquedas en BD
+  // Las reservas pueden estar guardadas con o sin prefijo según el canal de origen
+  const telNorm = telefonoParaWhatsapp.replace('whatsapp:', '');
+  const telWa = `whatsapp:${telNorm}`;
+
+  async function buscarReserva(datos) {
+    let q;
+    if (datos.fecha) {
+      q = await db.query(
+        'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND fecha = $4 ORDER BY creada_en DESC LIMIT 1',
+        [telNorm, telWa, uid, datos.fecha]
+      );
+    } else if (datos.nombre) {
+      q = await db.query(
+        'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND LOWER(nombre) = LOWER($4) ORDER BY fecha ASC LIMIT 1',
+        [telNorm, telWa, uid, datos.nombre]
+      );
+    }
+    return q;
+  }
+
   if (datos.accion === 'CONSULTAR') {
     const reservas = await db.query(
-      'SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha >= $2 ORDER BY fecha ASC, hora ASC',
-      [telefonoParaWhatsapp, new Date().toISOString().split('T')[0]]
+      'SELECT * FROM reservas WHERE (telefono_cliente = $1 OR telefono_cliente = $2) AND usuario_id = $3 AND fecha >= $4 ORDER BY fecha ASC, hora ASC',
+      [telNorm, telWa, uid, new Date().toISOString().split('T')[0]]
     );
     if (reservas.rows.length === 0) return 'No tienes reservas proximas.';
-    const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} - ${r.fecha} a las ${r.hora} para ${r.personas} personas`).join('\n');
-    return `Tus reservas proximas son: ${lista}`;
+    const lista = reservas.rows.map((r, i) => `${i + 1}) ${r.nombre} - ${fechaHumana(r.fecha)} a ${horaHablada(r.hora)} para ${r.personas} personas`).join('\n');
+    return `Tus reservas proximas son:\n${lista}`;
   }
 
   if (datos.accion === 'CANCELAR') {
-    let reserva;
-    if (datos.fecha) {
-      reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha = $2 LIMIT 1', [telefonoParaWhatsapp, datos.fecha]);
-    } else if (datos.nombre) {
-      reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1', [telefonoParaWhatsapp, datos.nombre]);
-    }
-    if (!reserva || reserva.rows.length === 0) return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre?';
+    const reserva = await buscarReserva(datos);
+    if (!reserva || reserva.rows.length === 0) return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre con el que esta registrada?';
 
     const fechaReserva = new Date(`${reserva.rows[0].fecha}T${reserva.rows[0].hora}`);
     const horasRestantes = (fechaReserva - new Date()) / (1000 * 60 * 60);
@@ -402,13 +418,8 @@ async function procesarAccion(datos, canal, contexto, telefonoCliente = null, us
   }
 
   if (datos.accion === 'MODIFICAR') {
-    let reserva;
-    if (datos.fecha) {
-      reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND fecha = $2 LIMIT 1', [telefonoParaWhatsapp, datos.fecha]);
-    } else if (datos.nombre) {
-      reserva = await db.query('SELECT * FROM reservas WHERE telefono_cliente = $1 AND LOWER(nombre) = LOWER($2) LIMIT 1', [telefonoParaWhatsapp, datos.nombre]);
-    }
-    if (!reserva || reserva.rows.length === 0) return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre?';
+    const reserva = await buscarReserva(datos);
+    if (!reserva || reserva.rows.length === 0) return 'No encontre esa reserva. Puedes indicarme la fecha o el nombre con el que esta registrada?';
     const nuevaFecha = datos.nueva_fecha || reserva.rows[0].fecha;
     const nuevaHora = datos.nueva_hora || reserva.rows[0].hora;
     const nuevasPersonas = datos.nuevas_personas || reserva.rows[0].personas;

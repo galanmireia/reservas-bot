@@ -76,13 +76,21 @@ Cuando el cliente se despida, diga adiós, gracias y ya está, o no quiera nada 
 
 CUÁNDO INCLUIR datos:
 Cuando tengas TODOS los datos para procesar la acción:
-- NUEVA: nombre (para la reserva), fecha, hora, personas
-- CANCELAR: nombre o fecha de la reserva
-- MODIFICAR: datos actuales + nuevos datos
+- NUEVA: nombre, fecha, hora, personas (todos obligatorios)
+- CANCELAR: fecha O nombre de la reserva (uno es suficiente)
+- MODIFICAR: fecha o nombre actual + al menos un dato nuevo (nueva_fecha, nueva_hora o nuevas_personas)
 - CONSULTAR / ESPERA / DISPONIBILIDAD: con los datos disponibles
 
-Ejemplo con reserva lista:
-{"respuesta": "Un momento, voy a procesarlo.", "datos": {"accion": "NUEVA", "nombre": "Pedro", "fecha": "YYYY-MM-DD", "hora": "HH:MM", "personas": 2, "notas": null, "nueva_fecha": null, "nueva_hora": null, "nuevas_personas": null}, "colgar": false}
+Ejemplos:
+
+Nueva reserva confirmada:
+{"respuesta": "Un momento, lo proceso.", "datos": {"accion": "NUEVA", "nombre": "Pedro", "fecha": "YYYY-MM-DD", "hora": "HH:MM", "personas": 2, "notas": null, "nueva_fecha": null, "nueva_hora": null, "nuevas_personas": null}, "colgar": false}
+
+Cancelación confirmada por el cliente:
+{"respuesta": "Un momento, lo cancelo.", "datos": {"accion": "CANCELAR", "nombre": "Pedro", "fecha": "YYYY-MM-DD", "hora": null, "personas": null, "notas": null, "nueva_fecha": null, "nueva_hora": null, "nuevas_personas": null}, "colgar": false}
+
+Modificación confirmada por el cliente:
+{"respuesta": "Un momento, lo cambio.", "datos": {"accion": "MODIFICAR", "nombre": "Pedro", "fecha": "YYYY-MM-DD", "hora": null, "personas": null, "notas": null, "nueva_fecha": "YYYY-MM-DD", "nueva_hora": "HH:MM", "nuevas_personas": null}, "colgar": false}
 
 HOY es ${hoy.diaNombre} ${hoy.iso} (${hoy.fechaLarga}). Úsalo para calcular "mañana", "este viernes", etc.
 El campo nombre es el nombre PARA LA RESERVA, no el del teléfono. Si dice "a nombre de X", nombre es X.
