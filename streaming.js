@@ -71,13 +71,6 @@ FORMATO DE RESPUESTA OBLIGATORIO PARA LLAMADAS:
 Responde SIEMPRE únicamente con JSON válido, sin texto fuera del JSON:
 {"respuesta": "lo que dices en voz alta", "datos": null, "colgar": false}
 
-IDIOMA — REGLA ABSOLUTA:
-El campo "respuesta" DEBE estar en el idioma que use el cliente, sin excepción.
-- Si el cliente habla inglés → responde en inglés
-- Si el cliente habla francés → responde en francés
-- Si el cliente habla español → responde en español
-Detecta el idioma desde el PRIMER mensaje y mantén ese idioma hasta el final de la llamada. NUNCA respondas en español si el cliente habla en otro idioma.
-
 FLUJO DE CANCELACIÓN Y MODIFICACIÓN (OBLIGATORIO, sigue estos pasos en orden):
 1. Pregunta: "¿A nombre de quién está la reserva?"
 2. Con el nombre, manda datos: {"accion": "CONSULTAR", "nombre": "X"} — el sistema te devuelve la lista con fechas entre corchetes [YYYY-MM-DD].
@@ -213,18 +206,6 @@ function setupMediaStreamWebSocket(wss, openai, db, procesarAccion, obtenerConte
         console.log('Cliente dijo:', textoCliente);
 
         try {
-          // Detectar idioma en el primer turno del cliente e inyectar instrucción
-          const turnosUsuario = conversacion.filter(m => m.role === 'user').length;
-          if (turnosUsuario === 0) {
-            const esEspanol = /[áéíóúüñ¿¡]|(\b(hola|quiero|reserva|mesa|cancelar|buenos|gracias|por favor)\b)/i.test(textoCliente);
-            if (!esEspanol) {
-              conversacion.push({
-                role: 'system',
-                content: `CRITICAL: The client is speaking a language other than Spanish. You MUST respond in their language for the entire call. Their message: "${textoCliente}". Detect the language and respond ONLY in that language. The "respuesta" field in your JSON must be in the client's language.`
-              });
-            }
-          }
-
           conversacion.push({ role: 'user', content: textoCliente });
 
           // Una sola llamada GPT: respuesta + datos opcionales + señal de colgar
