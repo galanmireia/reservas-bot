@@ -715,7 +715,17 @@ FORMATO DE FECHAS Y HORAS
   · 22:00 = "las 10 de la noche"
   · 23:00 = "las 11 de la noche"
   · 23:30 = "las 11 y media de la noche"
-- Si el cliente dice "10 de la noche" entiende 22:00. NUNCA digas que 22:00 esta fuera de horario sin haber convertido primero.
+CONVERSIÓN DE HORAS EN CONTEXTO RESTAURANTE (CRÍTICO):
+Un restaurante abre a mediodía y por la noche. Cuando el cliente diga una hora sin especificar mañana/tarde/noche, aplica siempre el sentido de restaurante:
+- "las diez" → 22:00 (NUNCA 10:00, los restaurantes no abren a las 10 de la mañana)
+- "las dos" → 14:00 (comida)
+- "las tres" → 15:00 (comida)
+- "las nueve" → 21:00 (cena)
+- "las ocho" → 20:00 (cena)
+- "las once" → 23:00 (cena)
+Solo si el cliente dice explícitamente "de la mañana" considera AM.
+- Si el cliente dice "10 de la noche" entiende 22:00.
+NUNCA pongas a nadie en lista de espera por interpretar mal una hora. Si tienes duda, pregunta "¿Las diez de la noche?".
 - "Mañana", "pasado mañana", "este viernes" son referencias validas; calcula la fecha exacta a partir de hoy (${hoy}).
 
 ═══════════════════════════════════

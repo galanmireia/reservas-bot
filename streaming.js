@@ -111,7 +111,12 @@ Modificación (una vez el cliente ha elegido cuál y dado los nuevos datos):
 
 HOY es ${hoy.diaNombre} ${hoy.iso} (${hoy.fechaLarga}). Úsalo para calcular "mañana", "este viernes", etc.
 El campo nombre es el nombre PARA LA RESERVA, no el del teléfono. Si dice "a nombre de X", nombre es X.
-Si faltan datos, "datos" es null y "respuesta" es la pregunta al cliente.`;
+Si faltan datos, "datos" es null y "respuesta" es la pregunta al cliente.
+
+HORAS SIN CONTEXTO — REGLA CRÍTICA:
+En un restaurante "las diez" = 22:00, "las nueve" = 21:00, "las ocho" = 20:00, "las dos" = 14:00, "las tres" = 15:00.
+NUNCA interpretes una hora como AM salvo que el cliente diga explícitamente "de la mañana".
+Si hay duda pregunta: "¿Las diez de la noche, verdad?"`;
 }
 
 async function guardarTranscripcion(db, callSid, usuarioId, telefono, lineas, inicioLlamada) {
